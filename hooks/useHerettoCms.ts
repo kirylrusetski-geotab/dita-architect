@@ -211,7 +211,7 @@ export function useHerettoCms({
   const herettoSearch = useCallback(async (query: string, rootUuid: string, signal: AbortSignal) => {
     const lowerQuery = query.toLowerCase();
     const results: HerettoSearchResult[] = [];
-    const queue: [string, string[]][] = [[rootUuid, []]];
+    const queue: [string, string[], string[]][] = [[rootUuid, [], [rootUuid]]];
     let foldersVisited = 0;
     let foldersTotal = 1;
     let foldersFailed = 0;
@@ -223,8 +223,8 @@ export function useHerettoCms({
       if (signal.aborted) return;
 
       const batch = queue.splice(0, Math.min(5, queue.length));
-      const batchPromises = batch.map(async ([uuid, pathSegments]) => {
-        if (signal.aborted) return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[]][], failed: false };
+      const batchPromises = batch.map(async ([uuid, pathSegments, uuidChain]) => {
+        if (signal.aborted) return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[], string[]][], failed: false };
 
         let items: HerettoItem[];
         if (herettoFolderCache.has(uuid)) {
@@ -232,25 +232,26 @@ export function useHerettoCms({
         } else {
           try {
             const res = await fetch(`/heretto-api/all-files/${uuid}`, { signal });
-            if (!res.ok) return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[]][], failed: true };
+            if (!res.ok) return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[], string[]][], failed: true };
             const xml = await res.text();
             items = parseHerettoFolder(xml);
             herettoFolderCache.set(uuid, items);
           } catch {
-            return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[]][], failed: true };
+            return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[], string[]][], failed: true };
           }
         }
 
         const matched: HerettoSearchResult[] = [];
-        const subfolders: [string, string[]][] = [];
+        const subfolders: [string, string[], string[]][] = [];
 
         for (const item of items) {
           if (item.type === 'folder') {
-            subfolders.push([item.uuid, [...pathSegments, item.name]]);
+            subfolders.push([item.uuid, [...pathSegments, item.name], [...uuidChain, item.uuid]]);
           } else if (item.name.toLowerCase().includes(lowerQuery)) {
             matched.push({
               ...item,
               path: [...pathSegments, item.name].join('/'),
+              ancestorUuids: uuidChain,
             });
           }
         }
@@ -351,7 +352,15 @@ export function useHerettoCms({
       ? item.path
       : herettoBreadcrumbs.slice(1).map(b => b.name).join('/') + '/' + item.name;
 
-    const breadcrumbs = [...herettoBreadcrumbs];
+    // Search results carry their own ancestor UUID chain; normal browse uses breadcrumbs
+    const breadcrumbs: { uuid: string; name: string }[] =
+      'ancestorUuids' in item && item.ancestorUuids
+        ? item.ancestorUuids.map((uuid, i) => {
+            // path = "Folder1/Folder2/.../file.dita"; split gives folder names at indices 0..n-2
+            const folders = item.path.split('/').slice(0, -1);
+            return { uuid, name: i === 0 ? '' : (folders[i - 1] || '') };
+          })
+        : [...herettoBreadcrumbs];
 
     setIsHerettoBrowserOpen(false);
     setImportVerification({

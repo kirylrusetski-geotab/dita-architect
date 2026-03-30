@@ -14,6 +14,7 @@ export interface HerettoItem {
 
 export interface HerettoSearchResult extends HerettoItem {
   path: string;
+  ancestorUuids: string[];
 }
 
 export type HerettoSearchStatus =
