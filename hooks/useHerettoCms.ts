@@ -351,12 +351,15 @@ export function useHerettoCms({
       ? item.path
       : herettoBreadcrumbs.slice(1).map(b => b.name).join('/') + '/' + item.name;
 
+    const breadcrumbs = [...herettoBreadcrumbs];
+
     setIsHerettoBrowserOpen(false);
     setImportVerification({
       phase: 'downloading',
       item,
       pathStr,
       firstContent: '',
+      breadcrumbs,
     });
 
     try {
@@ -392,17 +395,17 @@ export function useHerettoCms({
 
   const handleImportContinue = useCallback(() => {
     if (!importVerification) return;
-    const { firstContent, item, pathStr } = importVerification;
+    const { firstContent, item, pathStr, breadcrumbs } = importVerification;
 
     const beautified = formatXml(firstContent);
     const newTab = createTab(beautified);
-    const parentCrumb = herettoBreadcrumbs[herettoBreadcrumbs.length - 1];
+    const parentCrumb = breadcrumbs[breadcrumbs.length - 1];
     newTab.herettoFile = {
       uuid: item.uuid,
       name: item.name,
       path: pathStr,
       parentFolderUuid: parentCrumb?.uuid,
-      ancestorUuids: herettoBreadcrumbs.map(b => b.uuid),
+      ancestorUuids: breadcrumbs.map(b => b.uuid),
     };
     newTab.herettoLastSaved = new Date();
     setTabs(prev => [...prev, newTab]);

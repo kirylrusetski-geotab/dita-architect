@@ -31,12 +31,14 @@ export type ImportVerificationState =
       item: HerettoItem;
       pathStr: string;
       firstContent: string;
+      breadcrumbs: { uuid: string; name: string }[];
     }
   | {
       phase: 'results';
       item: HerettoItem;
       pathStr: string;
       firstContent: string;
+      breadcrumbs: { uuid: string; name: string }[];
       verified: boolean;
       unrecognizedElements: string[];
     };

@@ -95,7 +95,7 @@ describe('resolveHerettoImageHref', () => {
       ['root-uuid', 'parent-folder']
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith('/heretto-api/folders/parent-folder/items');
+    expect(fetchSpy).toHaveBeenCalledWith('/heretto-api/all-files/parent-folder');
     expect(result).toBe(`/heretto-api/all-files/${validUuid1}/content`);
   });
 
@@ -149,7 +149,7 @@ describe('resolveHerettoImageHref', () => {
       ['root-uuid', 'parent-folder', 'child-folder']
     );
 
-    expect(fetchSpy).toHaveBeenCalledWith('/heretto-api/folders/root-uuid/items');
+    expect(fetchSpy).toHaveBeenCalledWith('/heretto-api/all-files/root-uuid');
     expect(result).toBe(`/heretto-api/all-files/${VALID_UUIDS.img1}/content`);
   });
 
@@ -183,8 +183,8 @@ describe('resolveHerettoImageHref', () => {
     );
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/heretto-api/folders/parent-uuid/items');
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, `/heretto-api/folders/${VALID_UUIDS['sibling-uuid']}/items`);
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/heretto-api/all-files/parent-uuid');
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, `/heretto-api/all-files/${VALID_UUIDS['sibling-uuid']}`);
     expect(result).toBe(`/heretto-api/all-files/${VALID_UUIDS.img1}/content`);
   });
 
