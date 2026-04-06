@@ -42,6 +42,8 @@ export const TableActionMenuPlugin = () => {
   const [targetCellKey, setTargetCellKey] = useState<string | null>(null);
   const [selectedCells, setSelectedCells] = useState<string[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [focusedItemIndex, setFocusedItemIndex] = useState(0);
+  const [triggerElement, setTriggerElement] = useState<HTMLElement | null>(null);
 
   // Get table cell from right-click target and detect multi-cell selections
   const getTableCellFromTarget = (target: Element): { cell: TableCellNode | null; selectedCells: string[] } => {
@@ -113,17 +115,69 @@ export const TableActionMenuPlugin = () => {
         setMenuPosition(position);
         setTargetCellKey(cellNode.getKey());
         setSelectedCells(cellKeys);
+        setTriggerElement(target as HTMLElement);
         setMenuVisible(true);
+        setFocusedItemIndex(0);
       }
     };
 
-    const handleClick = () => {
-      setMenuVisible(false);
+    const handleClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuVisible(false);
+        if (triggerElement) {
+          triggerElement.focus();
+        }
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!menuVisible) return;
+
       if (event.key === 'Escape') {
+        event.preventDefault();
         setMenuVisible(false);
+        if (triggerElement) {
+          triggerElement.focus();
+        }
+        return;
+      }
+
+      // Only handle menu navigation if the menu is visible and event is within menu
+      if (menuRef.current && menuRef.current.contains(event.target as Node)) {
+        const menuItems = Array.from(menuRef.current.querySelectorAll('.table-action-menu-item:not(.disabled)')) as HTMLElement[];
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          const nextIndex = (focusedItemIndex + 1) % menuItems.length;
+          setFocusedItemIndex(nextIndex);
+          menuItems[nextIndex]?.focus();
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          const prevIndex = (focusedItemIndex - 1 + menuItems.length) % menuItems.length;
+          setFocusedItemIndex(prevIndex);
+          menuItems[prevIndex]?.focus();
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          setFocusedItemIndex(0);
+          menuItems[0]?.focus();
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          const lastIndex = menuItems.length - 1;
+          setFocusedItemIndex(lastIndex);
+          menuItems[lastIndex]?.focus();
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          const focusedItem = menuItems[focusedItemIndex];
+          if (focusedItem) {
+            focusedItem.click();
+          }
+        } else if (event.key === 'Tab') {
+          event.preventDefault();
+          setMenuVisible(false);
+          if (triggerElement) {
+            triggerElement.focus();
+          }
+        }
       }
     };
 
@@ -141,7 +195,19 @@ export const TableActionMenuPlugin = () => {
       document.removeEventListener('click', handleClick);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editor]);
+  }, [editor, menuVisible, focusedItemIndex, triggerElement]);
+
+  // Focus first enabled item when menu opens
+  useEffect(() => {
+    if (menuVisible && menuRef.current) {
+      setTimeout(() => {
+        const firstEnabledItem = menuRef.current?.querySelector('.table-action-menu-item:not(.disabled)') as HTMLElement;
+        if (firstEnabledItem) {
+          firstEnabledItem.focus();
+        }
+      }, 0);
+    }
+  }, [menuVisible]);
 
   // Check if we're in a simpletable (which doesn't support cell spanning)
   // This uses a heuristic: if no cells in the table have spanning, we assume simpletable
@@ -413,7 +479,7 @@ export const TableActionMenuPlugin = () => {
         separator: true
       },
       {
-        label: isHeaderRow ? 'Convert to body row' : 'Convert to header row',
+        label: 'Toggle header row',
         action: () => {
           editor.update(() => {
             const cellNode = $getNodeByKey(cellKey);
@@ -459,10 +525,10 @@ export const TableActionMenuPlugin = () => {
         label: isSimpleTableType
           ? 'Merge cells (not available for simple tables)'
           : hasMultipleCellsSelected
-            ? `Merge ${selectedCells.length} selected cells`
+            ? 'Merge cells'
             : canMerge
               ? 'Merge with next cell'
-              : 'Merge cells (select multiple cells)',
+              : 'Merge cells (requires selection)',
         disabled: isSimpleTableType || !canMerge,
         action: () => {
           if (canMerge && !isSimpleTableType) {
@@ -627,6 +693,8 @@ export const TableActionMenuPlugin = () => {
     <div
       ref={menuRef}
       className="table-action-menu"
+      role="menu"
+      aria-label="Table actions"
       style={{
         position: 'fixed',
         left: menuPosition.x,
@@ -639,6 +707,9 @@ export const TableActionMenuPlugin = () => {
         <React.Fragment key={index}>
           <div
             className={`table-action-menu-item ${action.disabled ? 'disabled' : ''}`}
+            role="menuitem"
+            aria-disabled={action.disabled}
+            tabIndex={action.disabled ? -1 : 0}
             onClick={action.disabled ? undefined : action.action}
           >
             {action.label}

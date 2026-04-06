@@ -169,7 +169,8 @@ export function useHerettoCms({
         const remote = await res.text();
         setTabs(prev => prev.map(t => {
           if (t.id !== tabId) return t;
-          return { ...t, herettoRemoteChanged: remote !== t.savedXmlRef.current };
+          const comparison = compareXml(t.savedXmlRef.current, remote);
+          return { ...t, herettoRemoteChanged: comparison === 'different' };
         }));
       } catch {
         if (cancelled) return;
@@ -362,6 +363,11 @@ export function useHerettoCms({
           })
         : [...herettoBreadcrumbs];
 
+    // Defensive check to ensure ancestorUuids is never empty
+    if ('ancestorUuids' in item && item.ancestorUuids && !item.ancestorUuids.length) {
+      console.warn('[HerettoCms] Search result has empty ancestorUuids:', item);
+    }
+
     setIsHerettoBrowserOpen(false);
     setImportVerification({
       phase: 'downloading',
@@ -409,14 +415,26 @@ export function useHerettoCms({
     const beautified = formatXml(firstContent);
     const newTab = createTab(beautified);
     const parentCrumb = breadcrumbs[breadcrumbs.length - 1];
+    const ancestorUuids = breadcrumbs.map(b => b.uuid);
+
+    // Defensive checks to ensure data integrity
+    if (!ancestorUuids.length) {
+      console.warn('[HerettoCms] ancestorUuids is empty, adding root UUID:', HERETTO_ROOT_UUID);
+      ancestorUuids.push(HERETTO_ROOT_UUID);
+    }
+    if (!parentCrumb?.uuid) {
+      console.warn('[HerettoCms] parentFolderUuid is missing, using last ancestor UUID');
+    }
+
     newTab.herettoFile = {
       uuid: item.uuid,
       name: item.name,
       path: pathStr,
-      parentFolderUuid: parentCrumb?.uuid,
-      ancestorUuids: breadcrumbs.map(b => b.uuid),
+      parentFolderUuid: parentCrumb?.uuid || ancestorUuids[ancestorUuids.length - 1],
+      ancestorUuids,
     };
     newTab.herettoLastSaved = new Date();
+    newTab.herettoJustLoaded = true;
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
     setImportVerification(null);
@@ -495,7 +513,7 @@ export function useHerettoCms({
 
       setTabs(prev => prev.map(t => {
         if (t.id !== savedTabId) return t;
-        return { ...t, herettoLastSaved: new Date(), herettoRemoteChanged: false, herettoDirty: false };
+        return { ...t, herettoLastSaved: new Date(), herettoRemoteChanged: false, herettoDirty: false, herettoJustLoaded: false };
       }));
     } catch (err) {
       if (abort.signal.aborted) return;
@@ -527,7 +545,7 @@ export function useHerettoCms({
 
       setTabs(prev => prev.map(t => {
         if (t.id !== tabId) return t;
-        return { ...t, xmlContent: beautified, lastUpdatedBy: 'code' as const, herettoRemoteChanged: false };
+        return { ...t, xmlContent: beautified, lastUpdatedBy: 'code' as const, herettoRemoteChanged: false, herettoJustLoaded: false };
       }));
       setTimeout(() => {
         setTabs(prev => prev.map(t => t.id === tabId ? { ...t, syncTrigger: t.syncTrigger + 1 } : t));
@@ -596,6 +614,14 @@ export function useHerettoCms({
       // Update savedXmlRef outside the state updater to avoid mutating React state.
       activeTab.savedXmlRef.current = content;
 
+      const ancestorUuids = herettoBreadcrumbs.map(b => b.uuid);
+
+      // Defensive check to ensure ancestorUuids is never empty
+      if (!ancestorUuids.length) {
+        console.warn('[HerettoCms] Breadcrumbs produced empty ancestorUuids, adding root UUID:', HERETTO_ROOT_UUID);
+        ancestorUuids.push(HERETTO_ROOT_UUID);
+      }
+
       setTabs(prev => prev.map(t => {
         if (t.id !== tabId) return t;
         return {
@@ -605,7 +631,7 @@ export function useHerettoCms({
             name: finalName,
             path: pathStr,
             parentFolderUuid: folderUuid,
-            ancestorUuids: herettoBreadcrumbs.map(b => b.uuid),
+            ancestorUuids,
           },
         };
       }));
@@ -675,6 +701,7 @@ export function useHerettoCms({
           herettoLastSaved: new Date(),
           herettoRemoteChanged: false,
           herettoDirty: false,
+          herettoJustLoaded: false,
         };
       }));
 

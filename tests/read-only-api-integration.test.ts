@@ -55,6 +55,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -101,6 +102,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -139,6 +141,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -176,6 +179,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -218,6 +222,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -264,6 +269,7 @@ describe('Read-only API Integration Tests', () => {
         editModeRejectTrigger: 0,
         snapshotRef: { current: null },
         herettoReplaceTarget: null,
+        herettoJustLoaded: false,
         inlineValidationErrors: new Map(),
         validationTrigger: 0,
       };
@@ -339,6 +345,7 @@ describe('Read-only API Integration Tests', () => {
           editModeRejectTrigger: 0,
           snapshotRef: { current: null },
           herettoReplaceTarget: null,
+          herettoJustLoaded: false,
           inlineValidationErrors: new Map(),
           validationTrigger: 0,
         };

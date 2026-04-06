@@ -1,0 +1,17 @@
+{
+  "name": "DITA Architect",
+  "short_name": "DITA Architect",
+  "description": "Browser-based DITA XML authoring tool with Heretto CMS integration",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#4a9eff",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -181,6 +181,74 @@ export default defineConfig({
       tailwindcss(),
       react(),
       {
+        name: 'heretto-debug-middleware',
+        configureServer(server) {
+          // Debug middleware to log Heretto content requests
+          server.middlewares.use((req, res, next) => {
+            const url = req.url || '';
+
+            // Log all content requests to /heretto-api/all-files/*/content
+            if (url.startsWith('/heretto-api/all-files/') && url.endsWith('/content')) {
+              const uuidMatch = url.match(/\/heretto-api\/all-files\/([^\/]+)\/content/);
+              const uuid = uuidMatch ? uuidMatch[1] : 'unknown';
+
+              console.log('[DITA Architect] Heretto content request:', {
+                uuid,
+                url,
+                method: req.method,
+                headers: {
+                  'content-type': req.headers['content-type'],
+                  'accept': req.headers.accept,
+                },
+              });
+
+              // Hook into response to log response details
+              const originalEnd = res.end;
+              const originalWrite = res.write;
+              let responseBody = '';
+
+              res.write = function(chunk: any) {
+                if (typeof chunk === 'string') {
+                  responseBody += chunk;
+                } else if (Buffer.isBuffer(chunk)) {
+                  responseBody += chunk.toString('utf8', 0, Math.min(100, chunk.length));
+                }
+                return (originalWrite as any).apply(this, arguments);
+              };
+
+              res.end = function(chunk?: any) {
+                if (chunk) {
+                  if (typeof chunk === 'string') {
+                    responseBody += chunk;
+                  } else if (Buffer.isBuffer(chunk)) {
+                    responseBody += chunk.toString('utf8', 0, Math.min(100, chunk.length));
+                  }
+                }
+
+                const contentType = res.getHeader('content-type') as string || '';
+                const isBinary = contentType.startsWith('image/') ||
+                               contentType.startsWith('application/octet-stream') ||
+                               (!contentType.includes('text') && !contentType.includes('xml') && !contentType.includes('json'));
+
+                console.log('[DITA Architect] Heretto content response:', {
+                  uuid,
+                  status: res.statusCode,
+                  contentType,
+                  isBinary,
+                  isText: !isBinary,
+                  responseBodyPreview: isBinary ? '[binary data]' : responseBody.substring(0, 200),
+                  contentLength: res.getHeader('content-length'),
+                });
+
+                return (originalEnd as any).apply(this, arguments);
+              };
+            }
+
+            next();
+          });
+        },
+      },
+      {
         name: 'heretto-credentials-api',
         configureServer(server) {
           server.middlewares.use('/heretto-credentials', (req, res) => {

@@ -142,6 +142,9 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
     }
   }, [xmlContent, editor, lastUpdatedBy, clearSyncFlagAfterUpdate, nodeOriginMap]);
 
+  // Check if visual editor is out of sync
+  const showOutOfSyncBanner = !editMode && lastUpdatedBy === 'code' && pendingXmlRef.current !== null;
+
   // Sync Lexical → XML
   return (
     <SyncContext.Provider value={syncContextValue}>
@@ -158,6 +161,11 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
           }
         }}
       />
+      {showOutOfSyncBanner && (
+        <div className="dita-sync-banner">
+          Visual editor is out of sync — press Ctrl+Enter to refresh
+        </div>
+      )}
       {children}
     </SyncContext.Provider>
   );

@@ -97,6 +97,25 @@ body {
   border-bottom: 2px solid var(--validation-unresolved-keyref);
 }
 
+.dita-placeholder-text {
+  font-style: italic;
+  color: var(--app-text-muted);
+}
+
+.dita-sync-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+}
+
 [data-theme="light"] {
   --app-bg: #f5f5f4;
   --app-surface: #ffffff;
@@ -706,7 +725,7 @@ body {
 }
 
 /* Inline tracked changes */
-:highlight(tracked-insert) {
+::highlight(tracked-insert) {
   text-decoration: underline;
   text-decoration-color: #22c55e;
   text-decoration-thickness: 2px;
@@ -794,6 +813,16 @@ body {
   height: 1px;
   background-color: var(--app-border-subtle);
   margin: 4px 0;
+}
+
+.table-action-menu-item:focus {
+  outline: 2px solid var(--editor-accent, #0ea5e9);
+  outline-offset: -2px;
+}
+
+.table-action-menu-item.disabled:focus {
+  outline: 2px solid var(--app-border-subtle);
+  outline-offset: -2px;
 }
 
 /* Heretto Browser Modal */

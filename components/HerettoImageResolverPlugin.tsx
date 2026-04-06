@@ -19,8 +19,23 @@ export function HerettoImageResolverPlugin({ herettoFile, syncTrigger }: Heretto
   useEffect(() => {
     // Early return if no herettoFile or missing required fields
     if (!herettoFile || !herettoFile.parentFolderUuid || !herettoFile.ancestorUuids) {
+      console.warn('[HerettoImageResolver] Plugin run skipped - missing required data:', {
+        hasHerettoFile: !!herettoFile,
+        hasParentFolderUuid: !!herettoFile?.parentFolderUuid,
+        hasAncestorUuids: !!herettoFile?.ancestorUuids,
+      });
       return;
     }
+
+    console.log('[HerettoImageResolver] Plugin running with herettoFile:', {
+      name: herettoFile.name,
+      uuid: herettoFile.uuid,
+      path: herettoFile.path,
+      parentFolderUuid: herettoFile.parentFolderUuid,
+      ancestorUuidsCount: herettoFile.ancestorUuids.length,
+      ancestorUuids: herettoFile.ancestorUuids,
+      fullHerettoFile: herettoFile,
+    });
 
     const resolveImages = () => {
       editor.getEditorState().read(() => {
@@ -33,6 +48,16 @@ export function HerettoImageResolverPlugin({ herettoFile, syncTrigger }: Heretto
             const href = node.__href;
             const isUrl = /^https?:\/\//.test(href);
             const hasResolvedUrl = node.getResolvedUrl() !== null;
+            const resolvedUrl = node.getResolvedUrl();
+
+            console.log('[HerettoImageResolver] Found image node:', {
+              nodeKey: node.__key,
+              href,
+              isUrl,
+              hasResolvedUrl,
+              resolvedUrl,
+              needsResolution: !isUrl && !hasResolvedUrl,
+            });
 
             // Only resolve relative hrefs that haven't been resolved yet
             if (!isUrl && !hasResolvedUrl) {
@@ -51,31 +76,62 @@ export function HerettoImageResolverPlugin({ herettoFile, syncTrigger }: Heretto
 
         traverse(root);
 
+        console.log('[HerettoImageResolver] Found', nodeQueue.length, 'images needing resolution');
+
         // Resolve each image asynchronously
         nodeQueue.forEach(async (key) => {
+          let href = ''; // Declare href in outer scope for catch block access
+
           try {
             const currentNode = editor.getEditorState().read(() => $getNodeByKey(key));
 
             if (!currentNode || !$isDitaImageNode(currentNode)) {
+              console.warn(`[HerettoImageResolver] Node with key ${key} was deleted or type changed during async resolution`);
               return; // Node was deleted or changed type
             }
 
-            const href = currentNode.__href;
+            href = currentNode.__href;
+            console.log('[HerettoImageResolver] Resolving image:', {
+              nodeKey: key,
+              href,
+              parentFolderUuid: herettoFile.parentFolderUuid,
+              ancestorUuidsCount: herettoFile.ancestorUuids?.length ?? 0,
+            });
+
             const resolvedUrl = await resolveHerettoImageHref(
               href,
               herettoFile.parentFolderUuid,
               herettoFile.ancestorUuids
             );
 
+            console.log('[HerettoImageResolver] Resolution result:', {
+              nodeKey: key,
+              href,
+              resolvedUrl,
+              success: !!resolvedUrl,
+            });
+
             // Update the node with the resolved URL (or empty string for failure)
             editor.update(() => {
               const node = $getNodeByKey(key);
               if (node && $isDitaImageNode(node)) {
                 node.setResolvedUrl(resolvedUrl || ''); // Use empty string to indicate resolution attempt completed
+                console.log('[HerettoImageResolver] Node updated:', {
+                  nodeKey: key,
+                  finalResolvedUrl: resolvedUrl || '',
+                });
               }
             });
           } catch (error) {
-            console.warn('Failed to resolve image href:', error);
+            console.warn('[HerettoImageResolver] Failed to resolve image href:', {
+              nodeKey: key,
+              href,
+              parentFolderUuid: herettoFile.parentFolderUuid,
+              ancestorUuidsCount: herettoFile.ancestorUuids?.length ?? 0,
+              ancestorUuids: herettoFile.ancestorUuids,
+              error: error instanceof Error ? error.message : error,
+              fullError: error,
+            });
             // Mark as failed by setting empty string
             editor.update(() => {
               const node = $getNodeByKey(key);

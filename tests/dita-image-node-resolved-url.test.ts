@@ -15,7 +15,11 @@ function createTestEditor() {
 
 function withEditor<T>(callback: () => T): T {
   const editor = createTestEditor();
-  return editor.update(() => callback());
+  let result: T;
+  editor.update(() => {
+    result = callback();
+  });
+  return result!;
 }
 
 // ─── DitaImageNode resolved URL state management ─────────────────────────────

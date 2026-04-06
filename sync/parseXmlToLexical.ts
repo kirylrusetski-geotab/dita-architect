@@ -59,7 +59,31 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
             // Normalize formatting whitespace: collapse runs containing newlines
             // to a single space so XML beautification doesn't affect Lexical rendering
             text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
-            if (text) nodes.push($createTextNode(text));
+
+            if (text) {
+              // Detect template placeholder text and mark with special class
+              const placeholderPatterns = [
+                /^Task title$/i,
+                /^Short description of the task$/i,
+                /^Brief task description$/i,
+                /^Brief description$/i,
+                /^Enter task title here$/i,
+                /^Enter short description here$/i,
+                /^Task description$/i,
+                /^Short task description$/i
+              ];
+
+              const isPlaceholder = placeholderPatterns.some(pattern => pattern.test(text.trim()));
+
+              if (isPlaceholder) {
+                const textNode = $createTextNode(text);
+                textNode.setFormat('italic');
+                textNode.setStyle('color: var(--app-text-muted)');
+                nodes.push(textNode);
+              } else {
+                nodes.push($createTextNode(text));
+              }
+            }
           } else if (child.nodeType === Node.ELEMENT_NODE) {
             const el = child as Element;
 

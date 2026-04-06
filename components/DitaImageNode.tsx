@@ -25,9 +25,30 @@ function ImageComponent({
   const isUrl = /^https?:\/\//.test(href);
   const displayUrl = resolvedUrl ?? (isUrl ? href : null);
 
+  // Log warning when resolution failed (empty string indicates failed resolution)
+  if (resolvedUrl === '') {
+    console.warn('[DitaImageNode] Image resolution failed:', {
+      href,
+      alt,
+      resolvedUrl,
+      isUrl,
+    });
+  }
+
+  // Determine resolution state for debugging
+  const getResolutionState = (): string => {
+    if (isUrl) return 'absolute-url';
+    if (resolvedUrl === null) return 'unresolved';
+    if (resolvedUrl === '') return 'failed';
+    return 'resolved';
+  };
+
   return (
     <div
       contentEditable={false}
+      data-href={href}
+      data-resolved-url={resolvedUrl || 'null'}
+      data-resolution-state={getResolutionState()}
       style={{
         margin: '8px 0',
         borderRadius: '6px',

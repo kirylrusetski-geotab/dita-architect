@@ -347,6 +347,9 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
         >
           <div
             className="rounded-xl p-6 shadow-2xl w-[400px]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="table-modal-title"
             style={{
               backgroundColor: 'var(--app-surface)',
               border: '1px solid var(--app-border-subtle)',
@@ -359,7 +362,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
               }
             }}
           >
-            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--app-text-primary)' }}>Insert Table</h3>
+            <h3 id="table-modal-title" className="text-lg font-bold mb-4" style={{ color: 'var(--app-text-primary)' }}>Insert Table</h3>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -384,6 +387,8 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                       setIsTableModalOpen(false);
                     }
                   }}
+                  aria-label="Number of rows"
+                  aria-describedby="rows-help-text"
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{
                     backgroundColor: 'var(--app-surface-raised)',
@@ -392,6 +397,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                     outline: 'none',
                   }}
                 />
+                <p id="rows-help-text" className="text-[10px] mt-1" style={{ color: 'var(--app-text-muted)' }}>Max 50 rows</p>
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
@@ -414,6 +420,8 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                       setIsTableModalOpen(false);
                     }
                   }}
+                  aria-label="Number of columns"
+                  aria-describedby="columns-help-text"
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{
                     backgroundColor: 'var(--app-surface-raised)',
@@ -422,6 +430,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                     outline: 'none',
                   }}
                 />
+                <p id="columns-help-text" className="text-[10px] mt-1" style={{ color: 'var(--app-text-muted)' }}>Max 10 columns</p>
               </div>
             </div>
 
@@ -434,13 +443,13 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                   className="rounded"
                 />
                 <span className="text-xs font-medium" style={{ color: 'var(--app-text-secondary)' }}>
-                  Include header row
+                  Include header row (first row as table headers)
                 </span>
               </label>
             </div>
 
             <p className="text-[10px] mb-4" style={{ color: 'var(--app-text-muted)' }}>
-              Press Enter to create, Escape to cancel.
+              Press Enter to insert, Escape to cancel.
             </p>
 
             <div className="flex gap-2">
@@ -466,7 +475,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
                 }}
                 className="flex-1 py-2 rounded-lg text-sm font-medium bg-dita-600 hover:bg-dita-500 text-white transition-colors"
               >
-                Create Table
+                Insert Table
               </button>
             </div>
           </div>

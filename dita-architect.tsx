@@ -892,6 +892,11 @@ export default function ProfessionalDitaEditor() {
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                             <span>Verifying save...</span>
                           </>
+                        ) : tab.herettoJustLoaded ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                            <span>Loaded from Heretto</span>
+                          </>
                         ) : tab.herettoRemoteChanged ? (
                           <>
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
