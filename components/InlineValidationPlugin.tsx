@@ -14,6 +14,7 @@ interface InlineValidationPluginProps {
 const BROKEN_XREF_CLASS = 'dita-validation-broken-xref';
 const UNRESOLVED_KEYREF_CLASS = 'dita-validation-unresolved-keyref';
 const VALIDATION_ATTR = 'data-validation-error';
+const LINK_EDIT_TOOLTIP = 'Links open in published output — not in the editor';
 
 export const InlineValidationPlugin = ({
   xmlContent,
@@ -46,20 +47,21 @@ export const InlineValidationPlugin = ({
   const applyValidationStyles = useCallback((
     errors: Map<string, { type: 'broken-xref' | 'unresolved-keyref', message: string }>,
     previousErrorKeys: Set<string>,
+    allLinkKeys: Set<string>,
   ) => {
-    // Clear styles from nodes that are no longer errors
+    // Clear validation classes from nodes that are no longer errors
     for (const key of previousErrorKeys) {
       if (!errors.has(key)) {
         const dom = editor.getElementByKey(key);
         if (dom) {
           dom.classList.remove(BROKEN_XREF_CLASS, UNRESOLVED_KEYREF_CLASS);
-          dom.removeAttribute('title');
           dom.removeAttribute(VALIDATION_ATTR);
+          // title will be restored by the edit-mode tooltip pass below
         }
       }
     }
 
-    // Apply styles to current errors
+    // Apply validation styles to current errors
     for (const [key, error] of errors) {
       const dom = editor.getElementByKey(key);
       if (!dom) continue;
@@ -72,6 +74,14 @@ export const InlineValidationPlugin = ({
       dom.title = error.message;
       dom.setAttribute(VALIDATION_ATTR, error.type);
     }
+
+    // Stamp edit-mode tooltip on all valid (non-broken) links
+    for (const key of allLinkKeys) {
+      if (!errors.has(key)) {
+        const dom = editor.getElementByKey(key);
+        if (dom) dom.title = LINK_EDIT_TOOLTIP;
+      }
+    }
   }, [editor]);
 
   // Track previous error keys so we can clean up stale styles
@@ -82,9 +92,11 @@ export const InlineValidationPlugin = ({
     editor.getEditorState().read(() => {
       const root = $getRoot();
       const errors = new Map<string, { type: 'broken-xref' | 'unresolved-keyref', message: string }>();
+      const allLinkKeys = new Set<string>();
 
       const scanNode = (node: LexicalNode) => {
         if ($isLinkNode(node)) {
+          allLinkKeys.add(node.getKey());
           const href = node.getURL();
           if (href.startsWith('#')) {
             const targetId = href.substring(1);
@@ -110,7 +122,7 @@ export const InlineValidationPlugin = ({
       // Apply DOM styles — must happen after read() so DOM is in sync
       // Use queueMicrotask to ensure Lexical has committed the latest render
       queueMicrotask(() => {
-        applyValidationStyles(errors, previousErrorKeysRef.current);
+        applyValidationStyles(errors, previousErrorKeysRef.current, allLinkKeys);
         previousErrorKeysRef.current = new Set(errors.keys());
       });
     });

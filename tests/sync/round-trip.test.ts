@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createEditor } from 'lexical';
+import { createEditor, $getRoot, $createTextNode } from 'lexical';
+import { $createLinkNode } from '@lexical/link';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
@@ -847,5 +848,56 @@ describe('round-trip: structural fidelity', () => {
     // Should not throw
     const output = roundTrip(xml);
     expect(output).toContain('<title>Just a Title</title>');
+  });
+});
+
+// ─── describe: visual editor mutation: link creation ─────────────────────────
+
+describe('visual editor mutation: link creation', () => {
+  it('LinkNode added to existing plain-text paragraph is serialized as xref', () => {
+    const plainXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="link-mutation-test">
+  <title>Link Test</title>
+  <conbody>
+    <p>Click our website for details.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+
+    // 1. Parse plain-text XML — no xref in the source
+    parseXmlToLexical(plainXml, editor, originMap, true);
+
+    // 2. Simulate the user clicking Insert Link in the visual editor toolbar:
+    //    wrap "our website" in a LinkNode while leaving the surrounding text intact.
+    //    Text content of the paragraph stays identical — only the structure changes.
+    editor.update(
+      () => {
+        const root = $getRoot();
+        let targetPara: any = null;
+        for (const child of root.getChildren()) {
+          if (child.getTextContent() === 'Click our website for details.') {
+            targetPara = child;
+            break;
+          }
+        }
+        if (!targetPara) return;
+
+        targetPara.clear();
+        const link = $createLinkNode('https://example.com');
+        link.append($createTextNode('our website'));
+        targetPara.append($createTextNode('Click '), link, $createTextNode(' for details.'));
+      },
+      { discrete: true }
+    );
+
+    // 3. Serialize — the LinkNode must produce <xref href="..." format="html">
+    const editorState = editor.getEditorState();
+    const output = serializeLexicalToXml(editorState, plainXml, originMap, cache);
+    const body = getBodyContent(output);
+    expect(body).toContain('<xref href="https://example.com" format="html">our website</xref>');
   });
 });

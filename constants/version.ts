@@ -21,6 +21,34 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.1',
+    date: '2026-04-07',
+    title: 'Link integrity and Replace reliability \u2014 links you add in the visual editor now save correctly, and Replace in Heretto no longer cries wolf after a successful upload.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Links added in the visual editor now serialize as `<xref>` in the XML \u2014 using the Insert Link toolbar button on existing plain text created a visible link in the visual editor that silently disappeared from the XML on sync. Fixed: the serializer now checks whether the link structure changed, not just the text, before deciding whether to update the XML.',
+          'Replace in Heretto no longer reports failure after a successful upload \u2014 Heretto injects DITA specialization attributes on every element when it ingests content, which caused the post-upload verification check to see a false difference and show an error. The check now ignores those injected attributes when comparing.',
+        ],
+      },
+      {
+        heading: 'Polish',
+        items: [
+          'Links in the visual editor now show a tooltip on hover \u2014 `"Links open in published output \u2014 not in the editor"` so authors understand why clicking a link in edit mode doesn\u2019t navigate. The pointer cursor was already there; the explanation wasn\u2019t.',
+          'Replace modal verifying row shows an amber warning instead of a contradictory green checkmark when verification finds a difference \u2014 two green rows followed by a red error was confusing. Amber means \u201cupload succeeded, but Heretto reformatted the content \u2014 go verify.\u201d',
+          'Replace modal error message updated to be honest \u2014 `"Verification failed - remote content differs from uploaded content"` is now `"Upload succeeded, but Heretto reformatted the content. Check the topic in Heretto to confirm your changes are there."` The `Retry` button is replaced with `Done`, since retrying can\u2019t fix a reformatting difference.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'New round-trip test covers the link creation-from-scratch case \u2014 parses plain-text XML, injects a `LinkNode` programmatically (simulating the Insert Link toolbar action), and asserts the serialized output contains a well-formed `<xref>` element. The existing tests only covered XML that already contained `<xref>`.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-03-27',
     title: 'Heretto images, inline validation, and status bar clarity \u2014 images from Heretto render in the visual editor, broken xrefs get wavy underlines, and the status bar speaks writer.',

@@ -683,9 +683,14 @@ export function useHerettoCms({
       const remote = await verifyRes.text();
 
       // Step 3: Compare with compareXml to confirm integrity
-      const comparison = compareXml(content, remote);
+      // Strip Heretto-injected DITA class attributes before comparison — Heretto adds
+      // specialization class attributes (e.g. class="- topic/topic concept/concept ") to
+      // every element on ingest, causing a false 'different' result even when the content
+      // is correct. Strip from both sides so the comparison reflects actual content.
+      const stripClassAttr = (xml: string) => xml.replace(/\s+class="[^"]*"/g, '');
+      const comparison = compareXml(stripClassAttr(content), stripClassAttr(remote));
       if (comparison === 'different') {
-        return { success: false, error: 'Verification failed - remote content differs from uploaded content' };
+        return { success: false, error: 'Upload succeeded, but Heretto reformatted the content. Check the topic in Heretto to confirm your changes are there.' };
       }
 
       // Step 4: Success! Update tab state

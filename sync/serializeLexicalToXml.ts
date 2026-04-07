@@ -314,7 +314,17 @@ const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document): b
   const domText = getNormalizedDomText(domEl);
   const lexText = lexicalNode.getTextContent();
   if (domText === lexText) {
-    return true; // untouched — all inline markup preserved
+    // Text matches, but check if inline link structure changed (e.g. a LinkNode was added)
+    const lexLinkCount = lexicalNode.getChildren
+      ? lexicalNode.getChildren().filter((c: any) => c.getType() === 'link').length
+      : 0;
+    const domXrefCount = Array.from(domEl.children).filter((el: Element) => el.tagName === 'xref').length;
+    if (lexLinkCount === domXrefCount) {
+      return true; // untouched — all inline markup preserved
+    }
+    // Link structure changed — force full replacement
+    replaceElementContent(domEl, lexicalNode, doc);
+    return false;
   }
   if (!patchInlineNodes(domEl, lexicalNode)) {
     replaceElementContent(domEl, lexicalNode, doc);

@@ -292,15 +292,17 @@ export const HerettoReplaceModal = ({
               <div className="flex items-center gap-3">
                 {replaceStatus.verifying ? (
                   <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--app-text-secondary)' }} />
-                ) : replaceStatus.success !== null ? (
+                ) : replaceStatus.success === true ? (
                   <CheckCircle className="w-4 h-4" style={{ color: '#22c55e' }} />
+                ) : replaceStatus.success === false ? (
+                  <AlertTriangle className="w-4 h-4" style={{ color: '#f59e0b' }} />
                 ) : (
                   <div className="w-4 h-4" />
                 )}
                 <span className="text-sm" style={{ color: 'var(--app-text-primary)' }}>
                   Verifying integrity...
                 </span>
-                {!replaceStatus.verifying && replaceStatus.success !== null && (
+                {!replaceStatus.verifying && replaceStatus.success === true && (
                   <span className="text-xs ml-auto" style={{ color: '#22c55e' }}>done</span>
                 )}
               </div>
@@ -346,26 +348,13 @@ export const HerettoReplaceModal = ({
                   Done
                 </button>
               ) : replaceStatus.success === false ? (
-                <>
-                  <button
-                    onClick={onClose}
-                    className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors hover-btn"
-                    style={{
-                      backgroundColor: 'var(--app-surface-raised)',
-                      border: '1px solid var(--app-border-subtle)',
-                      color: 'var(--app-text-secondary)',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    autoFocus
-                    onClick={handleRetry}
-                    className="flex-1 py-2 rounded-lg text-sm font-medium bg-dita-600 hover:bg-dita-500 text-white transition-colors"
-                  >
-                    Retry
-                  </button>
-                </>
+                <button
+                  autoFocus
+                  onClick={onClose}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-dita-600 hover:bg-dita-500 text-white transition-colors"
+                >
+                  Done
+                </button>
               ) : (
                 <div className="flex-1" /> // Placeholder while loading
               )}
