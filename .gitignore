@@ -35,7 +35,6 @@ coverage/
 # Development infrastructure (kept locally, not shared)
 agents/
 .claude/
-future-state/
 bugreports/
 PROJECT_LOG.md
 debug-test.js

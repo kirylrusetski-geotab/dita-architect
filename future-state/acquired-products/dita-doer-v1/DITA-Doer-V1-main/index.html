@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XML Monaco Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.48.0/min/vs/loader.js"></script>
+    <script>
+      const MONACO_CDN_URL = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.48.0/min';
+      require.config({ paths: { 'vs': `${MONACO_CDN_URL}/vs` }});
+
+      // This is a robust solution for a persistent issue where Monaco workers fail to load from a CDN due to security policies.
+      // We create a custom "bootstrap" worker that first loads the Monaco AMD loader (`loader.js`) into the worker's scope.
+      // Then, it uses that loader to correctly load the main worker script (`workerMain.js`), respecting its module dependencies.
+      const workerBootstrap = `
+        self.MonacoEnvironment = {
+          baseUrl: '${MONACO_CDN_URL}/'
+        };
+        importScripts('${MONACO_CDN_URL}/vs/loader.js');
+        require.config({
+          baseUrl: self.MonacoEnvironment.baseUrl,
+          catchError: true,
+          paths: { 'vs': 'vs' }
+        });
+        require(['vs/base/worker/workerMain'], function() {});
+      `;
+
+      const blob = new Blob([workerBootstrap], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+
+      window.MonacoEnvironment = {
+        getWorkerUrl: function() {
+          return workerUrl;
+        }
+      };
+    </script>
+    <script>
+      // Polyfill for process.env in browser environments to prevent crashes if not defined by bundler
+      if (typeof process === 'undefined') {
+        window.process = { env: {} };
+      }
+    </script>
+    <!-- Global Error Handler to display errors on screen if module loading fails -->
+    <script>
+      window.addEventListener('error', function(event) {
+        const root = document.getElementById('root');
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+           // Basic error styling injected directly
+           const errorDiv = document.createElement('div');
+           errorDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1f2937; color: #ef4444; padding: 2rem; font-family: monospace; z-index: 9999; box-sizing: border-box;';
+           
+           const h1 = document.createElement('h1');
+           h1.innerText = 'Application Startup Error';
+           h1.style.fontSize = '1.5rem';
+           h1.style.marginBottom = '1rem';
+           
+           const p = document.createElement('p');
+           p.innerText = event.message || 'Unknown error occurred';
+           
+           const details = document.createElement('div');
+           details.style.marginTop = '1rem';
+           details.style.color = '#9ca3af';
+           if(event.filename) {
+               details.innerText = `Source: ${event.filename}:${event.lineno}`;
+           }
+
+           errorDiv.appendChild(h1);
+           errorDiv.appendChild(p);
+           errorDiv.appendChild(details);
+           
+           document.body.appendChild(errorDiv);
+        }
+      });
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^18.2.0/",
+    "react/": "https://esm.sh/react@^18.2.0/"
+  }
+}
+</script>
+  </head>
+  <body class="bg-gray-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
