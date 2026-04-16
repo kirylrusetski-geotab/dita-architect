@@ -28,6 +28,7 @@ import { TrackedChangesPlugin } from './components/TrackedChangesPlugin';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
+import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { DitaOpaqueNode } from './components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from './components/DitaCodeBlockNode';
 import { DitaImageNode } from './components/DitaImageNode';
@@ -253,6 +254,8 @@ export default function ProfessionalDitaEditor() {
     handleHerettoDisconnect,
     handleHerettoSaveNew,
     handleHerettoReplace,
+    herettoAtLastSavedLocation,
+    onBrowseFromRoot,
   } = useHerettoCms({
     activeTab,
     tabs,
@@ -490,6 +493,8 @@ export default function ProfessionalDitaEditor() {
           onSaveNew={handleHerettoSaveNew}
           onCreateNew={() => { setIsHerettoBrowserOpen(false); setIsNewTopicModalOpen(true); }}
           onClose={() => setIsHerettoBrowserOpen(false)}
+          isLastSavedLocation={herettoAtLastSavedLocation}
+          onBrowseFromRoot={onBrowseFromRoot}
         />
       )}
 
@@ -973,6 +978,7 @@ export default function ProfessionalDitaEditor() {
                   <TableInsertPlugin />
                   <ClearEditorPlugin />
                   <EmptyToH1Plugin />
+                  <XrefValidationPlugin />
 
                   <SyncManager
                     xmlContent={tab.xmlContent}

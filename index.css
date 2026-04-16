@@ -507,6 +507,14 @@ body {
   text-decoration: underline;
 }
 
+/* P2-6: Broken xref indicator (empty or missing href) */
+.dita-xref-broken {
+  text-decoration: underline wavy;
+  text-decoration-color: #ef4444;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
 .dita-editor-text-strikethrough {
   text-decoration: line-through;
   color: var(--editor-text);

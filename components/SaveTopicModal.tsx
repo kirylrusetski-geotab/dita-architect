@@ -20,7 +20,7 @@ export const SaveTopicModal = ({ saveFileName, setSaveFileName, onSave, onClose 
     >
       <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>Save Topic</h3>
       <p className="text-sm mb-5" style={{ color: 'var(--app-text-muted)' }}>
-        Choose a file name, then pick where to save it.
+        Confirm the file name, then pick where to save it.
       </p>
 
       <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>

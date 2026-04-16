@@ -292,8 +292,58 @@ export const compareXml = (a: string, b: string): 'identical' | 'formatting' | '
   return nodesEqual(docA.documentElement, docB.documentElement) ? 'formatting' : 'different';
 };
 
+import { DITA_TEMPLATES } from '../constants/dita';
 import type { DitaTopicType } from '../constants/dita';
 export type { DitaTopicType };
+
+/** Extract `<title>` text from the root topic element. Returns null if the XML is invalid or has no title. */
+export function getTitleFromXml(xml: string): string | null {
+  if (!xml || !xml.trim()) return null;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'text/xml');
+  if (doc.querySelector('parsererror')) return null;
+  const titleEl = doc.documentElement?.querySelector(':scope > title');
+  return titleEl?.textContent?.trim() || null;
+}
+
+/** Sanitize a title to a filename-safe slug (lowercase, hyphens). E.g. "My FAQ Page" → "my-faq-page" */
+export function slugifyToFilename(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'topic';
+}
+
+/** Sanitize a title to an XML ID-safe slug (lowercase, underscores). E.g. "My FAQ Page" → "my_faq_page" */
+export function slugifyToId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'topic';
+}
+
+const DEFAULT_TOPIC_IDS = new Set(['new_task', 'new_concept', 'new_reference']);
+
+/**
+ * If the root element's `id` attribute is still a template default, replace it with `newId`.
+ * Returns the original XML unchanged if the ID has already been customized.
+ */
+export function withUpdatedTopicId(xml: string, newId: string): string {
+  const idMatch = xml.match(/(<(?:task|concept|reference|topic)[^>]*\bid=")([^"]+)"/);
+  if (!idMatch || !DEFAULT_TOPIC_IDS.has(idMatch[2])) return xml;
+  return xml.replace(idMatch[0], `${idMatch[1]}${newId}"`);
+}
+
+/** Extract title and shortdesc placeholder strings from a DITA_TEMPLATES entry. */
+function getPlaceholders(type: DitaTopicType): { title: string; shortdesc: string } {
+  const xml = DITA_TEMPLATES[type];
+  const titleMatch = xml.match(/<title>(.+?)<\/title>/);
+  const shortdescMatch = xml.match(/<shortdesc>(.+?)<\/shortdesc>/);
+  return {
+    title: titleMatch?.[1] ?? '',
+    shortdesc: shortdescMatch?.[1] ?? '',
+  };
+}
 
 const BODY_TAG_MAP: Record<string, string> = {
   task: 'taskbody',
@@ -420,6 +470,22 @@ export function convertDitaTopic(
       step.appendChild(cmd);
       steps.appendChild(step);
       taskBody.appendChild(steps);
+    }
+  }
+
+  // Swap placeholder title and shortdesc if the user hasn't edited them yet.
+  // Only replaces content that still exactly matches the source type's template placeholder.
+  const knownTypes: DitaTopicType[] = ['task', 'concept', 'reference'];
+  if (knownTypes.includes(currentType as DitaTopicType)) {
+    const sourcePlaceholders = getPlaceholders(currentType as DitaTopicType);
+    const targetPlaceholders = getPlaceholders(targetType);
+    const titleEl = Array.from(newRoot.children).find(el => el.tagName === 'title');
+    if (titleEl && titleEl.textContent === sourcePlaceholders.title) {
+      titleEl.textContent = targetPlaceholders.title;
+    }
+    const shortdescEl = Array.from(newRoot.children).find(el => el.tagName === 'shortdesc');
+    if (shortdescEl && shortdescEl.textContent === sourcePlaceholders.shortdesc) {
+      shortdescEl.textContent = targetPlaceholders.shortdesc;
     }
   }
 

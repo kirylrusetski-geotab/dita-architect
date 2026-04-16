@@ -739,6 +739,27 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
       }
     }
 
+    // --- xref href validation (P2-6 MVP) ---
+    const xrefRe = /<xref\b[^>]*?\/?>/g;
+    const hrefRe = /href\s*=\s*["']([^"']*)["']/;
+    let xrefMatch;
+    while ((xrefMatch = xrefRe.exec(content)) !== null) {
+      const tag = xrefMatch[0];
+      const hrefAttr = tag.match(hrefRe);
+      if (!hrefAttr || !hrefAttr[1].trim()) {
+        const before = content.substring(0, xrefMatch.index);
+        const lineNumber = before.split('\n').length;
+        const lastNewline = before.lastIndexOf('\n');
+        const column = xrefMatch.index - lastNewline;
+        markers.push({
+          startLineNumber: lineNumber, startColumn: column,
+          endLineNumber: lineNumber, endColumn: column + tag.length,
+          message: '<xref> has empty or missing href attribute',
+          severity: monaco.MarkerSeverity.Warning,
+        });
+      }
+    }
+
     monaco.editor.setModelMarkers(model, 'dita-validation', markers);
     const hasErrors = markers.some((m: any) => m.severity === monaco.MarkerSeverity.Error);
     const xmlErrors: XmlError[] = markers.map((m: any) => ({
