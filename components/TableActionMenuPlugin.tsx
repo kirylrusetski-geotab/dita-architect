@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { toast } from 'sonner';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getNodeByKey,
@@ -352,6 +353,7 @@ export const TableActionMenuPlugin = () => {
       {
         label: 'Delete row',
         action: () => {
+          let prevented = false;
           editor.update(() => {
             const cellNode = $getNodeByKey(cellKey);
             if ($isTableCellNode(cellNode)) {
@@ -360,9 +362,9 @@ export const TableActionMenuPlugin = () => {
                 const tableNode = rowNode.getParent();
                 if ($isTableNode(tableNode)) {
                   const rowCount = tableNode.getChildren().length;
-                  // Prevent deletion if only one row remains
                   if (rowCount <= 1) {
-                    return; // Exit early without performing deletion
+                    prevented = true;
+                    return;
                   }
 
                   rowNode.remove();
@@ -370,6 +372,9 @@ export const TableActionMenuPlugin = () => {
               }
             }
           });
+          if (prevented) {
+            toast.error('Cannot delete the last row — tables must have at least one row');
+          }
           setMenuVisible(false);
         },
         separator: true
@@ -441,6 +446,7 @@ export const TableActionMenuPlugin = () => {
       {
         label: 'Delete column',
         action: () => {
+          let prevented = false;
           editor.update(() => {
             const cellNode = $getNodeByKey(cellKey);
             if ($isTableCellNode(cellNode)) {
@@ -451,9 +457,9 @@ export const TableActionMenuPlugin = () => {
                   const firstRow = tableNode.getChildren()[0];
                   if ($isTableRowNode(firstRow)) {
                     const colCount = firstRow.getChildren().length;
-                    // Prevent deletion if only one column remains
                     if (colCount <= 1) {
-                      return; // Exit early without performing deletion
+                      prevented = true;
+                      return;
                     }
 
                     const columnIndex = $getTableColumnIndexFromTableCellNode(cellNode);
@@ -474,6 +480,9 @@ export const TableActionMenuPlugin = () => {
               }
             }
           });
+          if (prevented) {
+            toast.error('Cannot delete the last column — tables must have at least one column');
+          }
           setMenuVisible(false);
         },
         separator: true

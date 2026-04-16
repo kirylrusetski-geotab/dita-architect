@@ -76,6 +76,14 @@ body {
   --editor-context-bar: #a78bfa;
   --editor-result-bar: #34d399;
   --editor-postreq-bar: #f472b6;
+  --editor-section-bar: #0ea5e9;
+
+  /* Note type colors */
+  --editor-note-warning: #f59e0b;
+  --editor-note-caution: #f97316;
+  --editor-note-tip: #22c55e;
+  --editor-note-danger: #ef4444;
+  --editor-note-note: #f59e0b;
 
   /* Inline validation */
   --validation-broken-xref: #ef4444;
@@ -171,6 +179,14 @@ body {
   --editor-context-bar: #8b5cf6;
   --editor-result-bar: #10b981;
   --editor-postreq-bar: #ec4899;
+  --editor-section-bar: #0369a1;
+
+  /* Note type colors */
+  --editor-note-warning: #d97706;
+  --editor-note-caution: #ea580c;
+  --editor-note-tip: #16a34a;
+  --editor-note-danger: #dc2626;
+  --editor-note-note: #d97706;
 
   /* Inline validation */
   --validation-broken-xref: #dc2626;
@@ -233,8 +249,15 @@ body {
   --editor-context-bar: #c4b5fd;
   --editor-result-bar: #6ee7b7;
   --editor-postreq-bar: #f9a8d4;
+  --editor-section-bar: #da7756;
 
-  /* Inline validation */
+  /* Note type colors */
+  --editor-note-warning: #d97706;
+  --editor-note-caution: #ea580c;
+  --editor-note-tip: #16a34a;
+  --editor-note-danger: #dc2626;
+  --editor-note-note: #da7756;
+
   --validation-broken-xref: #ef4444;
   --validation-unresolved-keyref: #fbbf24;
   --validation-unresolved-keyref-bg: rgba(251, 191, 36, 0.2);
@@ -295,6 +318,14 @@ body {
   --editor-context-bar: #b48ead;
   --editor-result-bar: #a3be8c;
   --editor-postreq-bar: #bf616a;
+  --editor-section-bar: #88c0d0;
+
+  /* Note type colors */
+  --editor-note-warning: #ebcb8b;
+  --editor-note-caution: #d08770;
+  --editor-note-tip: #a3be8c;
+  --editor-note-danger: #bf616a;
+  --editor-note-note: #ebcb8b;
 
   /* Inline validation */
   --validation-broken-xref: #bf616a;
@@ -357,6 +388,14 @@ body {
   --editor-context-bar: #6c71c4;
   --editor-result-bar: #859900;
   --editor-postreq-bar: #d33682;
+  --editor-section-bar: #268bd2;
+
+  /* Note type colors */
+  --editor-note-warning: #b58900;
+  --editor-note-caution: #cb4b16;
+  --editor-note-tip: #859900;
+  --editor-note-danger: #dc322f;
+  --editor-note-note: #b58900;
 
   /* Inline validation */
   --validation-broken-xref: #dc322f;
@@ -419,6 +458,14 @@ body {
   --editor-context-bar: #8b7bb8;
   --editor-result-bar: #5baa8c;
   --editor-postreq-bar: #b87b8b;
+  --editor-section-bar: #0078d3;
+
+  /* Note type colors */
+  --editor-note-warning: #f59e0b;
+  --editor-note-caution: #f97316;
+  --editor-note-tip: #22c55e;
+  --editor-note-danger: #ef4444;
+  --editor-note-note: #4da6ff;
 
   /* Inline validation */
   --validation-broken-xref: #ef4444;
@@ -480,6 +527,13 @@ body {
   margin-bottom: 0.5rem;
   line-height: 1.2;
 }
+.dita-editor-placeholder-title {
+  color: var(--app-text-muted) !important;
+  font-style: italic;
+}
+.dita-editor-placeholder-shortdesc {
+  opacity: 0.5;
+}
 .dita-editor-h2 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -501,6 +555,7 @@ body {
 .dita-editor-text-link {
   color: var(--editor-accent);
   cursor: pointer;
+  text-decoration: underline;
 }
 
 .dita-editor-text-link:hover {
@@ -531,6 +586,54 @@ body {
   color: var(--editor-quote-text);
   font-style: italic;
 }
+.dita-editor-note-warning,
+.dita-editor-note-caution,
+.dita-editor-note-tip,
+.dita-editor-note-danger,
+.dita-editor-note-note {
+  padding-top: 2rem;
+  position: relative;
+}
+.dita-editor-note-warning::before,
+.dita-editor-note-caution::before,
+.dita-editor-note-tip::before,
+.dita-editor-note-danger::before,
+.dita-editor-note-note::before {
+  content: attr(data-note-type);
+  position: absolute;
+  top: 0.5rem;
+  left: 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+.dita-editor-note-warning {
+  border-left-color: var(--editor-note-warning);
+  background-color: color-mix(in srgb, var(--editor-note-warning) 8%, transparent);
+}
+.dita-editor-note-warning::before { color: var(--editor-note-warning); }
+.dita-editor-note-caution {
+  border-left-color: var(--editor-note-caution);
+  background-color: color-mix(in srgb, var(--editor-note-caution) 8%, transparent);
+}
+.dita-editor-note-caution::before { color: var(--editor-note-caution); }
+.dita-editor-note-tip {
+  border-left-color: var(--editor-note-tip);
+  background-color: color-mix(in srgb, var(--editor-note-tip) 8%, transparent);
+}
+.dita-editor-note-tip::before { color: var(--editor-note-tip); }
+.dita-editor-note-danger {
+  border-left-color: var(--editor-note-danger);
+  background-color: color-mix(in srgb, var(--editor-note-danger) 8%, transparent);
+}
+.dita-editor-note-danger::before { color: var(--editor-note-danger); }
+.dita-editor-note-note {
+  border-left-color: var(--editor-note-note);
+  background-color: color-mix(in srgb, var(--editor-note-note) 8%, transparent);
+}
+.dita-editor-note-note::before { color: var(--editor-note-note); }
 .dita-editor-list-ol {
   list-style-type: decimal;
   padding-left: 1.5rem;
@@ -553,6 +656,8 @@ body {
   color: var(--editor-text);
   font-style: italic;
   opacity: 0.75;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
 }
 .dita-editor-shortdesc {
   position: relative;
@@ -648,6 +753,11 @@ body {
 .dita-editor-result:hover::after,
 .dita-editor-postreq:hover::after {
   opacity: 0.5;
+}
+
+.dita-editor-section-title {
+  border-left: 3px solid var(--editor-section-bar);
+  padding-left: 0.75rem;
 }
 
 .dita-editor-code {

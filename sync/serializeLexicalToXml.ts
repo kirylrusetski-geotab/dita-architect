@@ -109,7 +109,9 @@ const serializeInlineContent = (lexicalNode: any, doc: Document): Node[] => {
       linkChildren.forEach(n => xref.appendChild(n));
       nodes.push(xref);
     } else if (child.getType() === 'ditaphref') {
-      if (child.getRefType() === 'image') {
+      if (child.getRefType() === 'info-chip') {
+        // Visual-only affordance chip — not serialized to XML
+      } else if (child.getRefType() === 'image') {
         const img = doc.createElement('image');
         img.setAttribute('href', child.getRefValue());
         const altText = child.getTextContent();

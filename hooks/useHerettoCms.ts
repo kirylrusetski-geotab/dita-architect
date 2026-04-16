@@ -64,7 +64,7 @@ export function useHerettoCms({
     const abort = new AbortController();
     fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: abort.signal })
       .then(res => {
-        if (res.ok) setHerettoConnected(true);
+        if (res.ok && res.headers.get('content-type')?.includes('xml')) setHerettoConnected(true);
       })
       .catch(() => {});
     return () => { abort.abort(); };
@@ -85,7 +85,7 @@ export function useHerettoCms({
     setHerettoStatusChecking(true);
     try {
       const res = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`);
-      setHerettoConnected(res.ok);
+      setHerettoConnected(res.ok && !!res.headers.get('content-type')?.includes('xml'));
     } catch {
       setHerettoConnected(false);
     } finally {
@@ -104,8 +104,9 @@ export function useHerettoCms({
       if (!res.ok) throw new Error();
       // Test connection with new credentials
       const testRes = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`);
-      setHerettoConnected(testRes.ok);
-      if (testRes.ok) {
+      const testConnected = testRes.ok && !!testRes.headers.get('content-type')?.includes('xml');
+      setHerettoConnected(testConnected);
+      if (testConnected) {
         toast.success('Credentials saved and connection verified');
       } else {
         toast.warning('Credentials saved but connection failed — check your email and token');
@@ -210,7 +211,7 @@ export function useHerettoCms({
   }, []);
 
   const herettoSearch = useCallback(async (query: string, rootUuid: string, signal: AbortSignal) => {
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().replace(/[\s_-]+/g, ' ').trim();
     const results: HerettoSearchResult[] = [];
     const queue: [string, string[], string[]][] = [[rootUuid, [], [rootUuid]]];
     let foldersVisited = 0;
@@ -248,7 +249,7 @@ export function useHerettoCms({
         for (const item of items) {
           if (item.type === 'folder') {
             subfolders.push([item.uuid, [...pathSegments, item.name], [...uuidChain, item.uuid]]);
-          } else if (item.name.toLowerCase().includes(lowerQuery)) {
+          } else if (item.name.toLowerCase().replace(/[\s_-]+/g, ' ').includes(lowerQuery)) {
             matched.push({
               ...item,
               path: [...pathSegments, item.name].join('/'),
@@ -472,14 +473,17 @@ export function useHerettoCms({
         let errorMessage = `Failed to save (HTTP ${res.status})`;
         try {
           const errorResponse = await res.text();
-          if (errorResponse.trim()) {
-            // Try to extract meaningful error details from Heretto response
-            if (errorResponse.includes('DTD') || errorResponse.includes('validation')) {
-              errorMessage += ` - DTD validation error: ${errorResponse.substring(0, 200)}`;
-            } else if (errorResponse.includes('error') || errorResponse.includes('Error')) {
-              errorMessage += ` - ${errorResponse.substring(0, 200)}`;
+          const trimmed = errorResponse.trim();
+          if (trimmed) {
+            // HTML response means the proxy or SPA handler intercepted the request
+            if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html')) {
+              errorMessage += ' — Heretto returned an unexpected response. If you just added credentials, restart the dev server and try again.';
+            } else if (trimmed.includes('DTD') || trimmed.includes('validation')) {
+              errorMessage += ` - DTD validation error: ${trimmed.substring(0, 200)}`;
+            } else if (trimmed.includes('error') || trimmed.includes('Error')) {
+              errorMessage += ` - ${trimmed.substring(0, 200)}`;
             } else {
-              errorMessage += ` - ${errorResponse.substring(0, 100)}`;
+              errorMessage += ` - ${trimmed.substring(0, 100)}`;
             }
           }
         } catch {

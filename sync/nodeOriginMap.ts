@@ -3,6 +3,7 @@
 export interface NodeOrigin {
   tag: string;        // 'p' | 'note' | 'shortdesc' | 'prereq' | 'table' | etc.
   bodyIndex: number;  // position among direct body children (-1 = title, -2 = shortdesc)
+  noteType?: string;  // 'WARNING' | 'CAUTION' | 'TIP' | 'DANGER' | 'NOTE' (for <note> elements)
 }
 
 // Factory to create a per-editor-instance map.

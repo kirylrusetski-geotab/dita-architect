@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveHerettoImageHref, clearResolvedUrlCache } from '../lib/heretto-image-resolver';
+import { herettoFolderCache } from '../constants/heretto';
 import type { HerettoItem } from '../types/heretto';
 
 // Mock the heretto folder cache
@@ -23,6 +24,7 @@ describe('Heretto Image Resolution Debug Tests', () => {
   beforeEach(() => {
     // Clear caches before each test
     clearResolvedUrlCache();
+    herettoFolderCache.clear();
     vi.clearAllMocks();
 
     // Reset fetch mock

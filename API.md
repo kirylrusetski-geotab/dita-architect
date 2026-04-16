@@ -1,8 +1,8 @@
 # DITA Architect API
 
-DITA Architect exposes a small read-only API on `localhost:3000` that lets external tools — including Claude Code skills — check what's happening in the editor and read the content of open topics.
+DITA Architect exposes an API on `localhost:3000` that lets external tools — including Claude Code skills — read editor state, push content into open tabs, trigger saves to Heretto, and load new topics into the editor.
 
-All endpoints return JSON. All are read-only (GET). No authentication is required (this is a local dev server).
+All endpoints return JSON. No authentication is required (this is a local dev server).
 
 ---
 
@@ -145,6 +145,137 @@ curl -s http://localhost:3000/api/tabs/tab-1710612345678/content | jq
 
 ---
 
+### PUT /api/tabs/:id/content
+
+Replaces the XML content of an open tab. The server validates XML structure before applying the update — malformed XML is rejected with a 400.
+
+**Request:**
+```bash
+curl -s -X PUT http://localhost:3000/api/tabs/tab-1710612345678/content \
+  -H "Content-Type: application/json" \
+  -d '{"xml": "<task id=\"my-task\"><title>Updated Title</title><taskbody/></task>"}'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `xml` | string | Yes | The full DITA XML to write into the tab |
+
+**Response (200):**
+```json
+{ "success": true, "tabId": "tab-1710612345678" }
+```
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | `xml` field missing or not a string |
+| 400 | XML fails structural validation — `details` field contains the parse error |
+| 404 | Tab ID not found |
+| 500 | Bridge failed to apply the update |
+
+**When to use this:** To push AI-generated or transformed XML into a tab the author already has open.
+
+---
+
+### POST /api/tabs/:id/save
+
+Triggers a save of the tab's current content to Heretto CMS. The tab must have an associated Heretto file (i.e., it was opened from Heretto, not a local new file).
+
+**Request:**
+```bash
+curl -s -X POST http://localhost:3000/api/tabs/tab-1710612345678/save
+```
+
+**Response (200):**
+```json
+{ "success": true, "tabId": "tab-1710612345678" }
+```
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | Tab has no associated Heretto file |
+| 404 | Tab ID not found |
+| 500 | Save operation failed — `details` field contains the error |
+
+**When to use this:** After writing updated XML via `PUT /api/tabs/:id/content`, call this to persist the changes to Heretto.
+
+---
+
+### POST /api/load-content
+
+Queues a DITA topic for the editor to open as a new tab. The editor polls `/api/pending-loads` and opens each queued item. Optionally targets an existing Heretto file to replace.
+
+**Request:**
+```bash
+curl -s -X POST http://localhost:3000/api/load-content \
+  -H "Content-Type: application/json" \
+  -d '{
+    "xml": "<task id=\"new-task\"><title>New Task</title><taskbody/></task>",
+    "fileName": "New_Task.dita",
+    "herettoTargetUuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `xml` | string | Yes | The DITA XML content to open |
+| `fileName` | string | Yes | The file name to display on the tab |
+| `herettoTargetUuid` | string | No | If set, associates the new tab with this Heretto file UUID |
+
+**Response (200):**
+```json
+{ "success": true, "status": "loaded" }
+```
+
+The response confirms the content was queued — the editor will open it on its next poll cycle.
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | `xml` or `fileName` missing |
+| 400 | Request body is not valid JSON |
+
+**When to use this:** To open a freshly generated or fetched topic in the editor without the author having to navigate to it manually.
+
+---
+
+### GET /api/pending-loads
+
+Returns all queued content loads and clears the queue atomically. The editor calls this on a poll interval to pick up new tabs.
+
+**Request:**
+```bash
+curl -s http://localhost:3000/api/pending-loads | jq
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "loads": [
+    {
+      "xml": "<task id=\"new-task\"><title>New Task</title><taskbody/></task>",
+      "fileName": "New_Task.dita",
+      "herettoTargetUuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    }
+  ]
+}
+```
+
+Returns an empty `loads` array if nothing is queued. The queue is cleared on every read — a second call immediately after will return `[]`.
+
+**When to use this:** You generally don't call this directly — the editor polls it automatically. It's useful for debugging whether a `POST /api/load-content` call was received.
+
+---
+
 ## Common patterns for Claude Code skills
 
 ### Check if the editor is available
@@ -180,6 +311,31 @@ curl -s http://localhost:3000/api/tabs | jq '.tabs[] | select(.dirty == true) | 
 curl -s http://localhost:3000/api/tabs | jq '.tabs[] | select(.xmlErrorCount > 0) | {fileName, xmlErrorCount}'
 ```
 
+### Write updated XML to the active tab and save it
+
+```bash
+ACTIVE_TAB=$(curl -s http://localhost:3000/api/tabs | jq -r '.activeTabId')
+
+# Write new XML
+curl -s -X PUT "http://localhost:3000/api/tabs/${ACTIVE_TAB}/content" \
+  -H "Content-Type: application/json" \
+  -d "{\"xml\": \"$(cat updated.dita | sed 's/"/\\"/g')\"}"
+
+# Save to Heretto
+curl -s -X POST "http://localhost:3000/api/tabs/${ACTIVE_TAB}/save"
+```
+
+### Load a new topic into the editor
+
+```bash
+curl -s -X POST http://localhost:3000/api/load-content \
+  -H "Content-Type: application/json" \
+  -d '{
+    "xml": "<concept id=\"intro\"><title>Introduction</title><conbody/></concept>",
+    "fileName": "Introduction.dita"
+  }'
+```
+
 ---
 
 ## Error responses
@@ -187,19 +343,23 @@ curl -s http://localhost:3000/api/tabs | jq '.tabs[] | select(.xmlErrorCount > 0
 | HTTP Status | Meaning |
 |-------------|---------|
 | 200 | Success |
+| 400 | Bad request — missing fields, invalid JSON, or XML validation failure |
 | 404 | Tab ID not found, or invalid endpoint path |
-| 405 | Wrong HTTP method (only GET is supported) |
+| 405 | Wrong HTTP method for this endpoint |
+| 500 | Server-side error during save or content update |
 
-Error responses return JSON with an `error` field:
+Error responses return JSON with an `error` field, and sometimes a `details` field with more context:
 ```json
-{ "error": "Tab not found" }
+{ "error": "Invalid XML format", "details": "Invalid XML: unclosed tag <task>" }
 ```
 
 ---
 
 ## Notes
 
-- These endpoints reflect live editor state — they update as the author opens, edits, and closes tabs.
-- The `xml` field in `/api/tabs/:id/content` returns the raw XML exactly as it appears in the Monaco editor, including any unsaved edits.
+- Read endpoints (`GET`) reflect live editor state and update as the author opens, edits, and closes tabs.
+- The `xml` field in `GET /api/tabs/:id/content` returns the raw XML exactly as it appears in the Monaco editor, including any unsaved edits.
 - If a tab was opened from Heretto, `herettoFile.uuid` can be used to cross-reference with the Heretto CMS REST API.
-- All endpoints are read-only. Write endpoints (save, format, update content) are planned as P2-22.
+- `PUT /api/tabs/:id/content` runs a structural XML validation before applying the update. It catches tag mismatches and unclosed tags but does not validate against the DITA DTD.
+- `POST /api/tabs/:id/save` requires the tab to have a `herettoFile` — tabs that were created locally or via `POST /api/load-content` without a `herettoTargetUuid` cannot be saved through this endpoint.
+- The `POST /api/load-content` → `GET /api/pending-loads` queue is cleared atomically on each read to prevent duplicate opens.

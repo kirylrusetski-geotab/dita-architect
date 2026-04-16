@@ -33,6 +33,18 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
 </reference>`,
 };
 
+export const DITA_PLACEHOLDER_TITLES: Record<DitaTopicType, string> = {
+  task: 'Task title',
+  concept: 'Concept title',
+  reference: 'Reference title',
+};
+
+export const DITA_PLACEHOLDER_SHORTDESCS: Record<DitaTopicType, string> = {
+  task: 'Short description of the task.',
+  concept: 'Short description of the concept.',
+  reference: 'Short description of the reference.',
+};
+
 export const INITIAL_DITA: string = DITA_TEMPLATES.task
   .replace('new_task', 'setup_widget')
   .replace('Task title', 'Setting up the widget')

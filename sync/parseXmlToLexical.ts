@@ -153,6 +153,9 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
           const level = xmlNode.parentElement?.tagName.toLowerCase() === 'section' ? 'h2' : 'h1';
           const heading = $createHeadingNode(level);
           parseTextNodes(xmlNode).forEach(n => heading.append(n));
+          if (level === 'h2') {
+            originMap.set(heading.getKey(), { tag: 'section-title', bodyIndex: -1 });
+          }
           return heading;
         }
 
@@ -176,8 +179,10 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
               return $createDitaPhRefNode(refType, refValue!, `[${refType}: ${refValue}]`);
             }
 
+            const noteType = (xmlNode.getAttribute('type') || 'note').toUpperCase();
             const quote = $createQuoteNode();
             parseTextNodes(xmlNode).forEach(n => quote.append(n));
+            originMap.set(quote.getKey(), { tag: 'note', bodyIndex: bodyIndex ?? -1, noteType });
             return quote;
           }
 
@@ -254,6 +259,23 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
               const li = $createListItemNode();
               const contentNode = child.querySelector('cmd') || child;
               parseTextNodes(contentNode).forEach(n => li.append(n));
+
+              // Add affordance chips for <info> block children (invisible to serializer)
+              if (child.tagName === 'step') {
+                Array.from(child.querySelectorAll(':scope > info')).forEach(info => {
+                  const blockChildren = Array.from(info.children);
+                  let chipLabel: string;
+                  if (blockChildren.length === 0) {
+                    chipLabel = '[info]';
+                  } else if (blockChildren.length === 1) {
+                    chipLabel = `[${blockChildren[0].tagName.toLowerCase()}]`;
+                  } else {
+                    chipLabel = `[info: ${blockChildren.length} elements]`;
+                  }
+                  li.append($createDitaPhRefNode('info-chip', chipLabel, ''));
+                });
+              }
+
               ol.append(li);
             }
           });

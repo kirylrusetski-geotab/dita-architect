@@ -21,6 +21,82 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.3',
+    date: '2026-04-14',
+    title: 'Cross-references look like links, placeholder text signals editability, and the Heretto connected indicator tells the truth.',
+    sections: [
+      {
+        heading: 'Visual Editor',
+        items: [
+          'Xrefs are now visually distinct from prose \u2014 `<xref>` elements render with an underline in the visual editor. This sounds like a small CSS fix, but it unblocked the whole validation layer: the broken-xref red wavy underline and unresolved-keyref highlight both assumed authors could already see where their cross-references were. They couldn\u2019t. The alarm was built before the house.',
+          'Template placeholder text now looks like a prompt, not content \u2014 the default `Task title` and `Short description of the task.` text renders muted and italic in the visual editor. Until now it was visually identical to real content, with no signal that anything needed replacing.',
+          'Topic type conversion no longer carries stale placeholder text \u2014 converting a new tab from task to concept (or any other type) now swaps the template title and short description to match the target type. `"Task title"` no longer survives a task \u2192 concept conversion unchanged. If you\u2019ve already edited those fields, they\u2019re left exactly as-is.',
+        ],
+      },
+      {
+        heading: 'Reliability',
+        items: [
+          'The Heretto connected indicator no longer lies \u2014 when `~/heretto.json` is missing at startup, the Vite proxy is never registered and any request to `/heretto-api/\u2026` falls through to the SPA handler, which returns `index.html` at HTTP\u00a0200. The old check saw `res.ok` and lit the green dot. The new check also verifies the response carries an `application/xml` content-type \u2014 an HTML body is never a valid Heretto reply. Maya Chen flagged this as the first lie in a two-step failure: the status indicator says \u201cConnected\u201d and then the save falls apart.',
+          'Save error toasts no longer dump raw HTML \u2014 when a save fails and the server returns an HTML page, the toast used to read `"Failed to save to Heretto: Failed to save (HTTP\u00a0500)\u00a0\u2014\u00a0<!DOCTYPE html>\u2026"`. Authors now see: `"Heretto returned an unexpected response \u2014 if you just added credentials, restart the dev server and try again."` That\u2019s the second lie fixed.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.9.2',
+    date: '2026-04-10',
+    title: 'Broken links surface earlier \u2014 `<xref>` elements with an empty or missing `href` now show a red wavy underline in both editors the moment you write them, not after a build.',
+    sections: [
+      {
+        heading: 'Visual Editor',
+        items: [
+          'Broken xref underlines \u2014 `<xref>` elements with an empty or missing `href` attribute now show a red wavy underline in the visual editor. The indicator appears as soon as the XML syncs and clears the moment a valid href is added. Authors no longer need to build to discover a cross-reference that points nowhere.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Monaco xref validation \u2014 the XML editor\u2019s `validateDita()` function now scans for `<xref>` tags with empty, missing, or whitespace-only `href` attributes and flags them as Warning markers. The yellow squiggle in the XML pane and the red wavy underline in the visual pane are independent signals that agree: this link needs an href.',
+          'New `XrefValidationPlugin` \u2014 a headless Lexical plugin that uses `registerMutationListener(LinkNode, \u2026)` to toggle the `dita-xref-broken` CSS class on link DOM elements in real time. Follows the same mutation-listener pattern as `ShortdescPlugin`. No tree mutations, no serialization side effects \u2014 the broken-xref indicator is purely visual.',
+          '14 source-code inspection tests covering the plugin structure, Monaco validation logic, CSS class definition, and plugin mounting in `dita-architect.tsx`.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.9.1.1',
+    date: '2026-04-07',
+    title: 'Note types, section bars, and a sweep of polish \u2014 `<note type="warning">` gets a color and a label, steps surface hidden `<info>` content, and a batch of copy and UX refinements lands across the board.',
+    sections: [
+      {
+        heading: 'Visual Editor',
+        items: [
+          'Note type labels and color bars \u2014 `<note type="warning">` elements now render with a colored left bar and a `WARNING` label above the content. Caution, Tip, Danger, and Note types each get a distinct color that adapts to all six themes. Authors can see the note type at a glance without checking the XML.',
+          'Section heading left bar \u2014 `<title>` elements inside `<section>` elements now render with a left border, making section boundaries visually scannable in long topics. The bar color follows each theme.',
+          'Info affordance chips in steps \u2014 `<step>` elements with `<info>` block children now show inline chips after the command text: `[codeblock]`, `[p]`, or `[info: 3 elements]` depending on what\u2019s inside. The chips are invisible to the XML serializer \u2014 they don\u2019t appear in saved output \u2014 but they close the silent-failure gap where step content existed in the XML but wasn\u2019t visible anywhere in the editor.',
+          'Short description divider \u2014 a subtle horizontal rule now separates the short description from the body content, making the two-part structure of a DITA topic visible without switching to XML.',
+        ],
+      },
+      {
+        heading: 'Polish',
+        items: [
+          'Replace in Heretto modal is now wider \u2014 the diff viewer expands from 600px to 900px (max 90vw) and fills the available vertical space instead of a fixed 400px height. The diff is the whole point of the preview step; it shouldn\u2019t be cramped.',
+          'Table operations now explain why they\u2019re blocked \u2014 attempting to delete the only remaining table row or column now shows a toast: `"Can\'t delete the last row"` / `"Can\'t delete the last column"`. Previously this was silent.',
+          'Heretto search path separators normalized \u2014 search results now display consistently regardless of how paths are formatted in the Heretto API response.',
+          'Insert Table modal clarifications \u2014 help text now shows the size limits (`up to 50 rows, 10 columns`), the header row checkbox reads `"Include header row (first row as table headers)"`, and the keyboard hint aligns with the link modal: `"Press Enter to insert, Escape to cancel."`',
+          'Table context menu labels simplified \u2014 separate \u201cConvert to header row\u201d / \u201cConvert to body row\u201d items consolidated to a single `"Toggle header row"`. Merge cells label shortened from `"Merge cells (select multiple cells)"` to `"Merge cells (requires selection)"`.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'All API endpoints now include a `success` field \u2014 every `/api/*` response carries `success: true` or `success: false`. Error messages are specific: `"Tab with ID \\"abc\\" not found"` and `"Invalid API endpoint format. Expected: /api/tabs/{id}/content"` instead of the generic `"Not found"`. 405 responses now include a JSON body describing the allowed methods.',
+          'Two failing test fixes \u2014 corrected assertions in the Heretto image resolution and pending-loads test suites.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.1',
     date: '2026-04-07',
     title: 'Link integrity and Replace reliability \u2014 links you add in the visual editor now save correctly, and Replace in Heretto no longer cries wolf after a successful upload.',

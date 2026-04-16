@@ -65,20 +65,20 @@ class LoadContentApiHandler {
           const { xml, fileName, herettoTargetUuid } = JSON.parse(body);
           if (!xml || !fileName) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'xml and fileName are required' }));
+            res.end(JSON.stringify({ success: false, error: 'xml and fileName are required' }));
             return;
           }
           this.pendingLoads.push({ xml, fileName, herettoTargetUuid });
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'loaded' }));
+          res.end(JSON.stringify({ success: true, status: 'loaded' }));
         } catch {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+          res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
         }
       });
     } else {
-      res.writeHead(405);
-      res.end();
+      res.writeHead(405, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports POST requests.' }));
     }
   }
 
@@ -87,10 +87,10 @@ class LoadContentApiHandler {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       const loads = [...this.pendingLoads];
       this.pendingLoads.length = 0; // Clear the queue
-      res.end(JSON.stringify(loads));
+      res.end(JSON.stringify({ success: true, loads }));
     } else {
-      res.writeHead(405);
-      res.end();
+      res.writeHead(405, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports GET requests.' }));
     }
   }
 
@@ -122,7 +122,7 @@ describe('External Content API', () => {
       handler.handleLoadContent(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ status: 'loaded' }));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: true, status: 'loaded' }));
       expect(handler.getPendingLoadsCount()).toBe(1);
     });
 
@@ -137,7 +137,7 @@ describe('External Content API', () => {
       handler.handleLoadContent(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ status: 'loaded' }));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: true, status: 'loaded' }));
       expect(handler.getPendingLoadsCount()).toBe(1);
     });
 
@@ -150,7 +150,7 @@ describe('External Content API', () => {
       handler.handleLoadContent(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ error: 'xml and fileName are required' }));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: false, error: 'xml and fileName are required' }));
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
 
@@ -163,7 +163,7 @@ describe('External Content API', () => {
       handler.handleLoadContent(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ error: 'xml and fileName are required' }));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: false, error: 'xml and fileName are required' }));
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
 
@@ -185,7 +185,7 @@ describe('External Content API', () => {
       handler.handleLoadContent(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ error: 'Invalid JSON' }));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: false, error: 'Invalid JSON' }));
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
 
@@ -195,8 +195,10 @@ describe('External Content API', () => {
 
       handler.handleLoadContent(req, res);
 
-      expect(res.writeHead).toHaveBeenCalledWith(405);
-      expect(res.end).toHaveBeenCalledWith();
+      expect(res.writeHead).toHaveBeenCalledWith(405, { 'Content-Type': 'application/json' });
+      const response = JSON.parse(res._body);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Method not allowed');
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
 
@@ -225,7 +227,7 @@ describe('External Content API', () => {
       handler.handlePendingLoads(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'application/json' });
-      expect(res.end).toHaveBeenCalledWith(JSON.stringify([]));
+      expect(res.end).toHaveBeenCalledWith(JSON.stringify({ success: true, loads: [] }));
     });
 
     it('returns pending loads and clears the queue', async () => {
@@ -246,9 +248,10 @@ describe('External Content API', () => {
       handler.handlePendingLoads(req, res);
 
       expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'application/json' });
-      const returnedLoads = JSON.parse(res._body);
-      expect(returnedLoads).toHaveLength(1);
-      expect(returnedLoads[0]).toEqual({
+      const response = JSON.parse(res._body);
+      expect(response.success).toBe(true);
+      expect(response.loads).toHaveLength(1);
+      expect(response.loads[0]).toEqual({
         xml: '<task id="test"><title>Test</title></task>',
         fileName: 'test.dita'
       });
@@ -276,10 +279,11 @@ describe('External Content API', () => {
 
       handler.handlePendingLoads(req, res);
 
-      const returnedLoads = JSON.parse(res._body);
-      expect(returnedLoads).toHaveLength(2);
-      expect(returnedLoads[0]).toEqual(loads[0]);
-      expect(returnedLoads[1]).toEqual(loads[1]);
+      const response = JSON.parse(res._body);
+      expect(response.success).toBe(true);
+      expect(response.loads).toHaveLength(2);
+      expect(response.loads[0]).toEqual(loads[0]);
+      expect(response.loads[1]).toEqual(loads[1]);
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
 
@@ -289,8 +293,10 @@ describe('External Content API', () => {
 
       handler.handlePendingLoads(req, res);
 
-      expect(res.writeHead).toHaveBeenCalledWith(405);
-      expect(res.end).toHaveBeenCalledWith();
+      expect(res.writeHead).toHaveBeenCalledWith(405, { 'Content-Type': 'application/json' });
+      const response = JSON.parse(res._body);
+      expect(response.success).toBe(false);
+      expect(response.error).toContain('Method not allowed');
     });
 
     it('clears queue atomically to prevent race conditions', async () => {
@@ -314,11 +320,11 @@ describe('External Content API', () => {
       handler.handlePendingLoads(req2, res2);
 
       // First request should get the load, second should get empty array
-      const loads1 = JSON.parse(res1._body);
-      const loads2 = JSON.parse(res2._body);
+      const response1 = JSON.parse(res1._body);
+      const response2 = JSON.parse(res2._body);
 
-      expect(loads1).toHaveLength(1);
-      expect(loads2).toHaveLength(0);
+      expect(response1.loads).toHaveLength(1);
+      expect(response2.loads).toHaveLength(0);
       expect(handler.getPendingLoadsCount()).toBe(0);
     });
   });

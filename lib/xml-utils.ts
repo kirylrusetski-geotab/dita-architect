@@ -13,6 +13,7 @@
  * - Time formatting utilities
  */
 import { RECOGNIZED_ELEMENTS, STRUCTURAL_CONTAINERS } from '../constants/heretto';
+import { DITA_PLACEHOLDER_TITLES, DITA_PLACEHOLDER_SHORTDESCS } from '../constants/dita';
 // ── XML Formatting ──────────────────────────────────────────────────────────
 
 type XmlToken = { type: 'opening' | 'closing' | 'self-closing' | 'text' | 'comment' | 'pi' | 'doctype'; text: string };
@@ -421,6 +422,16 @@ export function convertDitaTopic(
       steps.appendChild(step);
       taskBody.appendChild(steps);
     }
+  }
+
+  // Swap placeholder title/shortdesc if the writer hasn't edited them yet
+  const titleEl = newRoot.querySelector('title');
+  if (titleEl && titleEl.textContent === DITA_PLACEHOLDER_TITLES[currentType as DitaTopicType]) {
+    titleEl.textContent = DITA_PLACEHOLDER_TITLES[targetType];
+  }
+  const shortdescEl = newRoot.querySelector('shortdesc');
+  if (shortdescEl && shortdescEl.textContent === DITA_PLACEHOLDER_SHORTDESCS[currentType as DitaTopicType]) {
+    shortdescEl.textContent = DITA_PLACEHOLDER_SHORTDESCS[targetType];
   }
 
   const serializer = new XMLSerializer();

@@ -9,6 +9,7 @@ interface DiffViewerProps {
   modifiedLabel?: string;
   className?: string;
   height?: number;
+  grow?: boolean;
 }
 
 export const DiffViewer = ({
@@ -18,6 +19,7 @@ export const DiffViewer = ({
   modifiedLabel = "Your editor",
   className = "",
   height = 400,
+  grow = false,
 }: DiffViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<import('monaco-editor').editor.IStandaloneDiffEditor | null>(null);
@@ -123,7 +125,7 @@ export const DiffViewer = ({
   }, [originalContent, modifiedContent]);
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col ${grow ? 'flex-1 min-h-0' : ''} ${className}`}>
       {/* Labels */}
       <div className="flex mb-2">
         <div className="flex-1 text-xs font-medium px-2" style={{ color: 'var(--app-text-secondary)' }}>
@@ -138,7 +140,7 @@ export const DiffViewer = ({
       <div
         ref={containerRef}
         style={{
-          height: `${height}px`,
+          ...(grow ? { flex: 1, minHeight: 0 } : { height: `${height}px` }),
           border: '1px solid var(--app-border-subtle)',
           borderRadius: '8px',
           overflow: 'hidden',

@@ -1135,3 +1135,170 @@ The diff view is the whole reason the preview step exists. Authors are supposed 
 Making the modal wider addresses the most immediate pain. The flex-fill height change is the more valuable of the two, though. Right now the modal can be tall (it's `max-h-[90vh]`) but the diff is always a fixed 400px regardless — so you get empty modal chrome above and below the diff on larger screens, while the diff itself is still cramped. Letting the diff fill the available height means the modal space is actually *used*.
 
 The `"No changes detected — your content matches the version in Heretto"` status line at the bottom of the diff viewer also benefits — at 400px it can get pushed below the fold on content-heavy diffs, so authors sometimes miss it entirely. With flex-fill it stays visible relative to the content height.
+
+---
+
+## FR-035: "Connect a Map" — key registry, keyref validation, and cross-file xref validation
+
+**Requested:** 2026-04-10
+**Source:** Kiryl Rusetski, with engineering scoping by Rafael Santos and UX scoping by Maya Chen
+**Status:** Open
+**Priority:** P2 (tracked as P2-27 in BACKLOG.md)
+**Impact:** High — closes the validation gap on keyref chips and cross-file xrefs; brings authoring-time signal to content that previously failed silently at build time
+
+### Description
+
+Writers currently see all keyref chips in a neutral state with no indication of whether the key resolves. Cross-file xref targets (`href="other-file.dita#id"`) are also unvalidated. This feature delivers the full ditamap-aware validation layer.
+
+### Scoping decisions (2026-04-10)
+
+All decisions from the formal scoping session are preserved here:
+
+**Entry point and naming**
+- Action label: `"Connect a Map"` (not `"Load ditamap"` — too jargon-heavy for writers who don't think in maps)
+- Lives in the Heretto dropdown for the current toolbar; future top-level menu bar redesign tracked separately
+
+**Loader**
+- Source: Heretto (by UUID), fetched via existing authenticated API. Local file upload deferred.
+- Depth: 3 levels of `<mapref>` recursion. The Altitude warehouse hierarchy requires this: root → `Altitude_variables_within_variables.ditamap` → `Altitude_variables.ditamap`.
+- Writers select the correct map manually — they know which map defines their keys. A map discovery tool is tracked separately as FR-036.
+- Real-world key count (Altitude User Guide): 18 keys across 2 levels (1 root keydef `VARS` + 17 `GLOS-*` glossrefs via `Glossary_Altitude.ditamap`). Warehouse keys (`varsAltitude`, `varsAltitudeUI`, `varsAltitudeNotes`, `varsAltitudeNav`, `varsAltitudeXREF`) live in separate ditamaps and require connecting a different root map.
+
+**Persistence**
+- UUID written to `localStorage` automatically on successful connect; silently restored on next launch.
+- No close-tab modal (browsers block `beforeunload`).
+- Manual `"Reload map"` button in Heretto dropdown.
+- Auto-refresh of the registry is a future feature request.
+
+**Three chip states** (UX review, Kiryl)
+All three states are visually distinct:
+1. No map loaded: neutral chip + tooltip `"Load a ditamap to verify this key resolves"`
+2. Map loaded, key not found: yellow highlight + tooltip `"Key not found in the loaded map"`
+3. Map loaded, key resolved: neutral chip + tooltip `"Key found in [MapName.ditamap]"`
+
+**Feedback**
+- Success: toast — `"Connected [MapName.ditamap] — N key definitions loaded"`
+- Failure (network error, bad UUID, malformed XML): modal with specific error message per failure type; keyrefs remain in their previous state on failure
+
+**Cross-file xref validation (in scope for same item)**
+- For `href` values referencing another file (`other-file.dita` or `other-file.dita#id`), fetch the target topic from Heretto and check that the fragment ID exists.
+- Broken: red wavy underline (`dita-validation-broken-xref`, already styled).
+- Same-document `#anchor` validation already shipped in v0.9.0 and is unaffected.
+
+### Technical implementation sketch
+
+- `useDitamap` hook: fetches root ditamap XML from Heretto, walks `<mapref>` elements recursively (max 3 levels), extracts `<keydef>` and `<glossref>` elements, builds `Map<string, { href: string; mapName: string }>` registry, persists UUID to `localStorage`
+- `DitamapContext` or prop passed down to `InlineValidationPlugin`
+- `InlineValidationPlugin` extended to validate `DitaPhRefNode` key values against registry (in addition to existing `LinkNode` href validation)
+- Cross-file xref: parse `href` to separate file path from anchor, fetch target topic by path from Heretto, extract ID set, validate anchor presence
+
+---
+
+## FR-036: Map discovery — surface ditamaps that reference the current topic
+
+**Requested:** 2026-04-10
+**Source:** Kiryl Rusetski (emerged from FR-035 scoping session)
+**Status:** Open
+**Priority:** P3
+**Impact:** Medium — reduces friction for new writers who don't know which map to connect
+
+### Description
+
+When a writer opens a topic from Heretto and wants to use "Connect a Map" (FR-035), they need to know which ditamap to point the tool at. Experienced writers know this. New writers or writers unfamiliar with the publication structure may not.
+
+A discovery tool would surface ditamaps that include the currently open topic in their `<topicref>` hierarchy — giving writers an informed starting point rather than requiring them to navigate the CMS manually.
+
+### Proposed approach (for scoping)
+
+On open or on demand, query Heretto for all ditamap files accessible to the user. For each map, check whether the current topic's UUID appears as a `<topicref href>` at any depth. Surface matching maps in a `"Connect a Map"` picker panel with the map name, folder path, and a connect button.
+
+### Constraints
+
+- Heretto does not expose a "find maps referencing this topic" API directly — this would require fetching and parsing all ditamaps, which may be slow.
+- Could be approximated by searching within known parent folders rather than the full CMS.
+- Caching parsed maps between sessions would mitigate performance concerns.
+
+### Notes
+
+This is explicitly deferred from FR-035. Writers know which map to connect in the current workflow. Discovery becomes more valuable as the tool is adopted by writers less familiar with the publication structure.
+
+---
+
+## FR-037: General discoverability — empty states, onboarding hints, and feature surfacing
+
+**Requested:** 2026-04-13
+**Source:** Maya Chen (UX Engineer, product review session)
+**Status:** Open
+**Priority:** P3
+**Impact:** High for new users, low for experienced users — reduces learning curve without changing functionality
+
+### Description
+
+New writers open DITA Architect and see a visual editor on the right and XML on the left, but there's no moment where the tool explains itself. They don't know that `Ctrl+Enter` syncs the two panes, what the toolbar buttons do beyond their icons, or that a `+` menu for inline elements exists (once shipped).
+
+### Proposed improvements
+
+1. **Empty state coach mark** — First time a new tab opens, show a one-time hint: `"This editor has two views — edit here or in the XML pane on the left, then press Ctrl+Enter to sync"`. Dismiss after first sync or manual close. Persist in `localStorage`.
+
+2. **Better placeholder copy** — `"Task title"` looks like real content. `"Click to add title"` or `"Enter your task title"` signal the action more clearly. (Visual treatment addressed by P3-25 + P3-41; this covers the copy itself.)
+
+3. **Tooltip coverage audit** — Full toolbar pass to ensure every interactive element explains itself on hover. The topic type badge (`TASK`) has no tooltip (Maya, 2026-03-16); add `"Topic type: task"`.
+
+4. **Out-of-sync banner** (P3-26) — When XML diverges without `Ctrl+Enter`, show: `"Visual editor is out of sync — press Ctrl+Enter to refresh"`. Surfaces the sync gesture in context.
+
+5. **Success feedback for Connect a Map** (P2-27) — Toast: `"Connected [MapName.ditamap] — N key definitions loaded"`. Already scoped in P2-27; flagged here as a discoverability principle.
+
+6. **Keyboard shortcut cheat sheet** (P3-9) — Overlay via `?` or `Cmd+/`. Already backlogged; included here as part of the discoverability theme.
+
+### Notes (Maya Chen, 2026-04-13)
+
+Discoverability isn't one feature — it's a perspective. Each new feature should ship with its success feedback, its tooltip, and its empty state built in — not as follow-on items. The gap between "works" and "feels right" is this work.
+
+---
+
+## FR-038: Base visual styling for xrefs in the visual editor
+
+**Requested:** 2026-04-14
+**Source:** Kiryl Rusetski, with UX notes from Maya Chen
+**Status:** Open
+**Priority:** P2 (tracked as P2-30 in BACKLOG.md)
+**Impact:** High — without base xref styling, the broken-xref validation layer (v0.9.0/v0.9.2) is functionally invisible to authors
+
+### Description
+
+`<xref>` elements are correctly parsed into Lexical `LinkNode` objects (`parseXmlToLexical.ts:92`) and render as `<a>` tags in the DOM. However, `index.css` has no base styling for `a` elements inside the editor content area — so valid xrefs are visually identical to plain text. Authors have no way to know a cross-reference exists unless they switch to the XML pane.
+
+The broken-xref validation (`.dita-validation-broken-xref`, red wavy underline) and unresolved-keyref highlight shipped in v0.9.0 and v0.9.2, but those features assume authors can already distinguish xrefs from surrounding text. Without the base styling, the alarm works but the house is invisible.
+
+### Fix
+
+Add a scoped CSS rule to the editor content area:
+
+```css
+.dita-editor-content a {
+  color: var(--color-dita-500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+```
+
+Verify the color resolves correctly across all six themes (dark, light, claude, nord, solarized, geotab). The `--color-dita-500` token is already defined globally.
+
+### UX notes (Maya Chen, 2026-04-14)
+
+The sequencing here is backwards — we built the alarm system before we built the house. The broken-xref wavy underline only lands if the author already knows `"beginner guide"` is an xref. If they don't — and why would they, it looks like a sentence — they see a red squiggle under what looks like plain text and assume they misspelled something.
+
+**Three-state model** — once base styling is in, xref visual states become legible as a system:
+- **Styled, unvalidated** (cross-file xref, no map loaded) — blue underline, no squiggle. Author sees it's a link; validation is deferred to P2-27.
+- **Styled, broken** — blue underline + red wavy overlay. Clearly a link, clearly wrong.
+- **Styled, resolved** — blue underline, clean. Confirmed by P2-27 "Connect a Map".
+
+**Inline icon** — have you considered a small `↗` or chain-link glyph after the link text, like Notion's external link indicator? It would make xrefs visually distinct from `<codeph>` and `<term>`, which otherwise compete with link styling.
+
+**Hover title** — show the href on hover via a `title` attribute: `"Linked to: _Calls.dita#getting_started_altitude_api"`. Authors can verify the target without switching to XML. This can be wired through `InlineValidationPlugin`'s `applyValidationStyles` pattern, extended to cover all `LinkNode`s — not just broken ones.
+
+### Implementation notes
+
+- **CSS** — one scoped rule; verify across all six themes. Sonnet-sized.
+- **Hover title** — extend `InlineValidationPlugin` to set `title` attribute on all `LinkNode` DOM elements (not just broken ones). Add alongside CSS in the same pass.
+- **Inline icon** — optional polish; can ship independently or bundle with P2-27.

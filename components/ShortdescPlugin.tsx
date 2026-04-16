@@ -10,8 +10,12 @@ import {
   $createParagraphNode,
   ParagraphNode,
 } from 'lexical';
-import { $isHeadingNode } from '@lexical/rich-text';
+import { $isHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { useSyncContext } from '../sync';
+import { DITA_PLACEHOLDER_TITLES, DITA_PLACEHOLDER_SHORTDESCS } from '../constants/dita';
+
+const ALL_PLACEHOLDER_TITLES = new Set(Object.values(DITA_PLACEHOLDER_TITLES));
+const ALL_PLACEHOLDER_SHORTDESCS = new Set(Object.values(DITA_PLACEHOLDER_SHORTDESCS));
 
 const BODY_TAG_CLASSES: Record<string, string> = {
   shortdesc: 'dita-editor-shortdesc',
@@ -21,6 +25,15 @@ const BODY_TAG_CLASSES: Record<string, string> = {
   postreq: 'dita-editor-postreq',
 };
 const ALL_BODY_CLASSES = Object.values(BODY_TAG_CLASSES);
+
+const NOTE_TYPE_CLASSES: Record<string, string> = {
+  WARNING: 'dita-editor-note-warning',
+  CAUTION: 'dita-editor-note-caution',
+  TIP: 'dita-editor-note-tip',
+  DANGER: 'dita-editor-note-danger',
+  NOTE: 'dita-editor-note-note',
+};
+const ALL_NOTE_TYPE_CLASSES = Object.values(NOTE_TYPE_CLASSES);
 
 /**
  * Handles the DITA authoring flow: H1 (title) → shortdesc → paragraph.
@@ -109,10 +122,85 @@ export const ShortdescPlugin = () => {
             ALL_BODY_CLASSES.forEach(className => {
               domElement.classList.remove(className);
             });
+            domElement.classList.remove('dita-editor-placeholder-shortdesc');
 
             // Add the appropriate class if origin tag matches
             if (origin?.tag && BODY_TAG_CLASSES[origin.tag]) {
               domElement.classList.add(BODY_TAG_CLASSES[origin.tag]);
+              // Mark shortdesc as placeholder when it still contains template text
+              if (origin.tag === 'shortdesc') {
+                const text = node.getTextContent();
+                if (ALL_PLACEHOLDER_SHORTDESCS.has(text)) {
+                  domElement.classList.add('dita-editor-placeholder-shortdesc');
+                }
+              }
+            }
+          });
+        });
+      },
+    );
+
+    // ── Mutation listener: apply note-type CSS class on QuoteNode DOM nodes ──
+    const removeQuoteMutationListener = editor.registerMutationListener(
+      QuoteNode,
+      () => {
+        editor.getEditorState().read(() => {
+          const root = $getRoot();
+          root.getChildren().forEach((node) => {
+            if (!$isElementNode(node) || node.getType() !== 'quote') return;
+
+            const key = node.getKey();
+            const origin = nodeOriginMap.get(key);
+            const domElement = editor.getElementByKey(key);
+            if (!domElement) return;
+
+            // Remove all managed note-type classes first
+            ALL_NOTE_TYPE_CLASSES.forEach(className => {
+              domElement.classList.remove(className);
+            });
+            // Remove the data-note-type label attribute
+            domElement.removeAttribute('data-note-type');
+
+            // Apply type-specific class and label
+            if (origin?.tag === 'note' && origin.noteType) {
+              const cls = NOTE_TYPE_CLASSES[origin.noteType] ?? NOTE_TYPE_CLASSES['NOTE'];
+              domElement.classList.add(cls);
+              domElement.setAttribute('data-note-type', origin.noteType);
+            }
+          });
+        });
+      },
+    );
+
+    // ── Mutation listener: apply section-title and placeholder CSS classes on HeadingNode DOM nodes ──
+    const removeHeadingMutationListener = editor.registerMutationListener(
+      HeadingNode,
+      () => {
+        editor.getEditorState().read(() => {
+          const root = $getRoot();
+          root.getChildren().forEach((node) => {
+            if (!$isHeadingNode(node)) return;
+
+            const key = node.getKey();
+            const origin = nodeOriginMap.get(key);
+            const domElement = editor.getElementByKey(key);
+            if (!domElement) return;
+
+            if (node.getTag() === 'h2') {
+              if (origin?.tag === 'section-title') {
+                domElement.classList.add('dita-editor-section-title');
+              } else {
+                domElement.classList.remove('dita-editor-section-title');
+              }
+            }
+
+            if (node.getTag() === 'h1') {
+              const text = node.getTextContent();
+              if (ALL_PLACEHOLDER_TITLES.has(text)) {
+                domElement.classList.add('dita-editor-placeholder-title');
+              } else {
+                domElement.classList.remove('dita-editor-placeholder-title');
+              }
             }
           });
         });
@@ -122,6 +210,8 @@ export const ShortdescPlugin = () => {
     return () => {
       removeEnterListener();
       removeMutationListener();
+      removeQuoteMutationListener();
+      removeHeadingMutationListener();
     };
   }, [editor, nodeOriginMap]);
 

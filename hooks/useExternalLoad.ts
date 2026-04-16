@@ -33,8 +33,8 @@ export function useExternalLoad({
         const response = await fetch('/api/pending-loads');
         if (cancelled || !response.ok) return;
 
-        const pendingLoads: PendingLoad[] = await response.json();
-        if (cancelled || pendingLoads.length === 0) {
+        const { loads: pendingLoads }: { loads: PendingLoad[] } = await response.json();
+        if (cancelled || !pendingLoads || pendingLoads.length === 0) {
           scheduleNext();
           return;
         }

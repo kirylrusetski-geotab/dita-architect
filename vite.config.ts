@@ -281,8 +281,8 @@ export default defineConfig({
                 }
               });
             } else {
-              res.writeHead(405);
-              res.end();
+              res.writeHead(405, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports GET and PUT requests.' }));
             }
           });
         },
@@ -299,20 +299,20 @@ export default defineConfig({
                   const { xml, fileName, herettoTargetUuid } = JSON.parse(body);
                   if (!xml || !fileName) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ error: 'xml and fileName are required' }));
+                    res.end(JSON.stringify({ success: false, error: 'xml and fileName are required' }));
                     return;
                   }
                   pendingLoads.push({ xml, fileName, herettoTargetUuid });
                   res.writeHead(200, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ status: 'loaded' }));
+                  res.end(JSON.stringify({ success: true, status: 'loaded' }));
                 } catch {
                   res.writeHead(400, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                  res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
                 }
               });
             } else {
-              res.writeHead(405);
-              res.end();
+              res.writeHead(405, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports POST requests.' }));
             }
           });
 
@@ -321,10 +321,10 @@ export default defineConfig({
               res.writeHead(200, { 'Content-Type': 'application/json' });
               const loads = [...pendingLoads];
               pendingLoads.length = 0; // Clear the queue
-              res.end(JSON.stringify(loads));
+              res.end(JSON.stringify({ success: true, loads }));
             } else {
-              res.writeHead(405);
-              res.end();
+              res.writeHead(405, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports GET requests.' }));
             }
           });
         },
@@ -337,6 +337,7 @@ export default defineConfig({
             if (req.method === 'GET') {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
+                success: true,
                 version: editorState.version,
                 herettoConnected: editorState.herettoConnected,
                 tabCount: editorState.tabCount,
@@ -344,8 +345,8 @@ export default defineConfig({
                 theme: editorState.theme
               }));
             } else {
-              res.writeHead(405);
-              res.end();
+              res.writeHead(405, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports GET requests.' }));
             }
           });
 
@@ -356,7 +357,7 @@ export default defineConfig({
               const match = urlPath.match(/^\/api\/tabs\/([^\/]+)\/content$/);
               if (!match) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Not found' }));
+                res.end(JSON.stringify({ success: false, error: 'Invalid API endpoint format. Expected: /api/tabs/{id}/content' }));
                 return;
               }
 
@@ -364,12 +365,13 @@ export default defineConfig({
               const tab = editorState.tabs.get(tabId);
               if (!tab) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Tab not found' }));
+                res.end(JSON.stringify({ success: false, error: `Tab with ID "${tabId}" not found` }));
                 return;
               }
 
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
+                success: true,
                 id: tab.id,
                 fileName: tab.fileName,
                 herettoFile: tab.herettoFile,
@@ -394,12 +396,13 @@ export default defineConfig({
               }));
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
+                success: true,
                 activeTabId: editorState.activeTabId,
                 tabs
               }));
             } else {
-              res.writeHead(405);
-              res.end();
+              res.writeHead(405, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Method not allowed. This endpoint only supports GET requests.' }));
             }
           });
         },
@@ -414,7 +417,7 @@ export default defineConfig({
               const match = urlPath.match(/^\/api\/tabs\/([^\/]+)\/content$/);
               if (!match) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Not found' }));
+                res.end(JSON.stringify({ success: false, error: 'Invalid API endpoint format. Expected: /api/tabs/{id}/content' }));
                 return;
               }
 
@@ -422,7 +425,7 @@ export default defineConfig({
               const tab = editorState.tabs.get(tabId);
               if (!tab) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Tab not found' }));
+                res.end(JSON.stringify({ success: false, error: `Tab with ID "${tabId}" not found` }));
                 return;
               }
 
@@ -478,7 +481,7 @@ export default defineConfig({
               const match = urlPath.match(/^\/api\/tabs\/([^\/]+)\/save$/);
               if (!match) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Not found' }));
+                res.end(JSON.stringify({ success: false, error: 'Invalid API endpoint format. Expected: /api/tabs/{id}/save' }));
                 return;
               }
 
@@ -486,13 +489,13 @@ export default defineConfig({
               const tab = editorState.tabs.get(tabId);
               if (!tab) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Tab not found' }));
+                res.end(JSON.stringify({ success: false, error: `Tab with ID "${tabId}" not found` }));
                 return;
               }
 
               if (!tab.herettoFile) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Tab has no associated Heretto file to save to' }));
+                res.end(JSON.stringify({ success: false, error: 'Tab has no associated Heretto file to save to' }));
                 return;
               }
 

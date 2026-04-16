@@ -144,7 +144,7 @@ export const HerettoReplaceModal = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby={modalId}
-        className="rounded-xl p-6 w-[600px] max-h-[90vh] flex flex-col shadow-2xl"
+        className="rounded-xl p-6 w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl"
         style={{
           backgroundColor: 'var(--app-surface)',
           border: '1px solid var(--app-border-subtle)',
@@ -229,7 +229,7 @@ export const HerettoReplaceModal = ({
               modifiedContent={editorContent}
               originalLabel="Current in Heretto"
               modifiedLabel="Your editor"
-              height={400}
+              grow
               className="mb-4"
             />
 
