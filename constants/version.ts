@@ -21,6 +21,27 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.3.1',
+    date: '2026-05-12',
+    title: 'Print / Export PDF — topics leave the editor as clean, readable documents instead of 10MB browser screenshots.',
+    sections: [
+      {
+        heading: 'New Features',
+        items: [
+          'Print / Export PDF — File Options now includes a `Print / Export PDF` item. Clicking it opens your topic in a clean print window with proper A4 layout and calls the browser print dialog. Save as PDF from there. The output is a real document: Inter body text, JetBrains Mono for code, colored note borders (Warning, Caution, Danger, Tip), prereq/context/result blocks with their labeled left bars, and bordered tables. Steps render as a numbered list with substeps as a lettered sub-list. Previously, printing meant using the browser\'s File > Print on the live editor, which rasterized web fonts, Monaco internals, and the Lexical DOM into a 10MB+ file for a single page of text.',
+          'Full DITA element coverage in print output — the serializer handles CALS tables (`<tgroup>/<thead>/<tbody>/<row>/<entry>`), simple tables, definition lists, figures with captions, inline elements (`<uicontrol>` as `<kbd>`, `<filepath>/<varname>/<cmdname>` as monospace, `<xref>` as linked text), footnotes, and all note types. Unknown elements pass through their children transparently rather than dropping content.',
+          'Pop-up blocked? A toast says so — if Chrome\'s pop-up blocker prevents the print window from opening, you see `"Print blocked — allow pop-ups for this site"` instead of silent failure.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Heretto dropdown no longer clips behind the collapsed XML pane — the File Options and Heretto dropdowns were rendering at `z-index: 20` inside a top bar stacked at the same level, which let the collapsed XML pane\'s overlay (`z-index: 10`) visually cut them off. The top bar is now `z-index: 30`, so its dropdowns always clear the panel.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.3',
     date: '2026-04-14',
     title: 'Cross-references look like links, placeholder text signals editability, and the Heretto connected indicator tells the truth.',

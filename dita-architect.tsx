@@ -35,7 +35,7 @@ import { DitaPhRefNode } from './components/DitaPhRefNode';
 import { TrackedDeletionNode } from './components/TrackedDeletionNode';
 import { ValidationDecoratorNode } from './components/ValidationDecoratorNode';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
-import { Code, CheckCircle, AlertTriangle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2 } from 'lucide-react';
+import { Code, CheckCircle, AlertTriangle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { TopicTypeModal } from './components/TopicTypeModal';
 import { SaveTopicModal } from './components/SaveTopicModal';
@@ -49,6 +49,7 @@ import { HerettoReplaceBar } from './components/HerettoReplaceBar';
 import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
 import { formatRelativeTime, formatXml } from './lib/xml-utils';
+import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { updateEditorStatus, updateTabsState, setSyncTriggerCallback, setSaveHandlerCallback } from './lib/editor-state-bridge';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
@@ -349,6 +350,29 @@ export default function ProfessionalDitaEditor() {
     setActiveTabId,
   });
 
+  const handlePrint = () => {
+    const title = derivePrintTitle(
+      activeTab.localFileName,
+      activeTab.herettoFile?.name ?? null,
+    );
+    const html = generatePrintHtml(activeTab.xmlContent, title);
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) {
+      toast.error('Print blocked — allow pop-ups for this site');
+      return;
+    }
+
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+
+    win.addEventListener('afterprint', () => win.close());
+    win.setTimeout(() => win.print(), 250);
+
+    toast.success('Print dialog opened');
+  };
+
   const handleFormatClick = () => {
     const monacoApiRef = activeTab.monacoApiRef;
     if (!monacoApiRef?.current) return;
@@ -523,7 +547,7 @@ export default function ProfessionalDitaEditor() {
         style={{
           backgroundColor: 'var(--app-surface)',
           borderBottom: '1px solid var(--app-border)',
-          zIndex: 20,
+          zIndex: 30,
           position: 'relative',
         }}
       >
@@ -639,6 +663,15 @@ export default function ProfessionalDitaEditor() {
                 >
                   <Save className="w-3.5 h-3.5" />
                   Save
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => { setIsFileOptionsOpen(false); handlePrint(); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
+                  style={{ color: 'var(--app-text-secondary)' }}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print / Export PDF
                 </button>
                 <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
                 <button
