@@ -21,11 +21,11 @@ describe('DITA terminology fix for postrequisites', () => {
   });
 
   describe('postrequisites terminology correction', () => {
-    it('corrects the label from "Post-Requisite" to "Postrequisites" on line 546', () => {
+    it('corrects the label from "Post-Requisite" to "Postrequisites" on line 555', () => {
       const lines = cssContent.split('\n');
-      const line546 = lines[545]; // 0-indexed, so line 546 is index 545
+      const line555 = lines[554]; // 0-indexed, so line 555 is index 554
 
-      expect(line546).toContain('content: \'Postrequisites\';');
+      expect(line555).toContain('content: \'Postrequisites\';');
     });
 
     it('uses DITA standard terminology - "Postrequisites" is one word without hyphen', () => {
@@ -53,17 +53,17 @@ describe('DITA terminology fix for postrequisites', () => {
   });
 
   describe('CSS structure and formatting preservation', () => {
-    it('preserves the CSS selector structure around line 546', () => {
+    it('preserves the CSS selector structure around line 555', () => {
       const lines = cssContent.split('\n');
 
-      // Line 545 should be the selector
-      expect(lines[544]).toContain('.dita-editor-postreq::after');
+      // Line 554 should be the selector
+      expect(lines[553]).toContain('.dita-editor-postreq::after');
 
-      // Line 546 should be the content property
-      expect(lines[545]).toContain('content: \'Postrequisites\';');
+      // Line 555 should be the content property
+      expect(lines[554]).toContain('content: \'Postrequisites\';');
 
-      // Line 547 should be the closing brace
-      expect(lines[546]).toContain('}');
+      // Line 556 should be the closing brace
+      expect(lines[555]).toContain('}');
     });
 
     it('maintains proper CSS formatting and indentation', () => {

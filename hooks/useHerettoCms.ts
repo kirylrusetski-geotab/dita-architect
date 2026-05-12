@@ -4,7 +4,7 @@ import { createTab } from '../types/tab';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus, ImportVerificationState } from '../types/heretto';
 import { HERETTO_ROOT_UUID, herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
-import { escapeXml, getTopicId, findUnrecognizedElements, compareXml } from '../lib/xml-utils';
+import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml } from '../lib/xml-utils';
 import { formatXml } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
@@ -42,6 +42,9 @@ export function useHerettoCms({
   const herettoDropdownRef = useRef<HTMLDivElement>(null);
   const [herettoSaveFileName, setHerettoSaveFileName] = useState('');
   const [herettoRefreshing, setHerettoRefreshing] = useState(false);
+  // P2-25: session-only memory of the last successfully saved folder location
+  const lastSavedBreadcrumbsRef = useRef<{ uuid: string; name: string }[] | null>(null);
+  const [herettoAtLastSavedLocation, setHerettoAtLastSavedLocation] = useState(false);
 
   // --- Abort refs for in-flight save/refresh to prevent race conditions ---
   const herettoSaveAbortRef = useRef<AbortController | null>(null);
@@ -339,9 +342,20 @@ export function useHerettoCms({
     setHerettoSearchResults([]);
     setHerettoSearchStatus({ phase: 'idle' });
     if (mode === 'save') {
-      const topicId = getTopicId(activeTab.xmlContent);
-      setHerettoSaveFileName(topicId ? `${topicId}.dita` : 'topic.dita');
+      // P2-23: pre-populate filename from topic title, falling back to "topic"
+      const title = getTitleFromXml(activeTab.xmlContent);
+      const slug = title ? slugifyToFilename(title) : 'topic';
+      setHerettoSaveFileName(`${slug}.dita`);
+      // P2-25: restore last saved location if available
+      if (lastSavedBreadcrumbsRef.current) {
+        const saved = lastSavedBreadcrumbsRef.current;
+        setHerettoAtLastSavedLocation(true);
+        await herettoNavigate(saved[saved.length - 1].uuid, saved[saved.length - 1].name, true);
+        setHerettoBreadcrumbs(saved);
+        return;
+      }
     }
+    setHerettoAtLastSavedLocation(false);
     await herettoNavigate(HERETTO_ROOT_UUID, 'Content Root', true);
   }, [herettoNavigate, activeTab?.xmlContent]);
 
@@ -589,7 +603,12 @@ export function useHerettoCms({
     const fileName = herettoSaveFileName.trim() || 'topic.dita';
     const finalName = fileName.endsWith('.dita') || fileName.endsWith('.xml') ? fileName : `${fileName}.dita`;
     const tabId = activeTab.id;
-    const content = activeTab.xmlContent;
+
+    // P2-24: derive root ID from title if still at a template default
+    const title = getTitleFromXml(activeTab.xmlContent);
+    const content = title
+      ? withUpdatedTopicId(activeTab.xmlContent, slugifyToId(title))
+      : activeTab.xmlContent;
 
     setHerettoSaving(true);
     try {
@@ -618,6 +637,10 @@ export function useHerettoCms({
       // Update savedXmlRef outside the state updater to avoid mutating React state.
       activeTab.savedXmlRef.current = content;
 
+      // P2-25: store current folder path for next save in this session
+      lastSavedBreadcrumbsRef.current = herettoBreadcrumbs;
+      setHerettoAtLastSavedLocation(false);
+
       const ancestorUuids = herettoBreadcrumbs.map(b => b.uuid);
 
       // Defensive check to ensure ancestorUuids is never empty
@@ -637,6 +660,8 @@ export function useHerettoCms({
             parentFolderUuid: folderUuid,
             ancestorUuids,
           },
+          xmlContent: content,
+          lastUpdatedBy: 'code' as const,
         };
       }));
       setIsHerettoBrowserOpen(false);
@@ -647,6 +672,12 @@ export function useHerettoCms({
       setHerettoSaving(false);
     }
   }, [herettoSaveFileName, activeTab, herettoBreadcrumbs, setTabs]);
+
+  const onBrowseFromRoot = useCallback(async () => {
+    setHerettoAtLastSavedLocation(false);
+    setHerettoBreadcrumbs([]);
+    await herettoNavigate(HERETTO_ROOT_UUID, 'Content Root', true);
+  }, [herettoNavigate]);
 
   const handleHerettoReplace = useCallback(async (target: { uuid: string; name: string; path: string }) => {
     const tabId = activeTab.id;
@@ -770,5 +801,7 @@ export function useHerettoCms({
     handleHerettoDisconnect,
     handleHerettoSaveNew,
     handleHerettoReplace,
+    herettoAtLastSavedLocation,
+    onBrowseFromRoot,
   };
 }

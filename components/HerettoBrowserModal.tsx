@@ -33,6 +33,8 @@ interface HerettoBrowserModalProps {
   onSaveNew: (folderUuid: string) => void;
   onCreateNew?: () => void;
   onClose: () => void;
+  isLastSavedLocation?: boolean;
+  onBrowseFromRoot?: () => void;
 }
 
 export const HerettoBrowserModal = ({
@@ -58,6 +60,8 @@ export const HerettoBrowserModal = ({
   onSaveNew,
   onCreateNew,
   onClose,
+  isLastSavedLocation,
+  onBrowseFromRoot,
 }: HerettoBrowserModalProps) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
     <div
@@ -181,6 +185,21 @@ export const HerettoBrowserModal = ({
               </button>
             </React.Fragment>
           ))}
+        </div>
+      )}
+
+      {/* P2-25: Last save location indicator */}
+      {mode === 'save' && isLastSavedLocation && !searchQuery.trim() && (
+        <div className="flex items-center gap-1.5 text-xs mb-2" style={{ color: 'var(--app-text-muted)' }}>
+          <span>Last save location</span>
+          <span>&middot;</span>
+          <button
+            onClick={onBrowseFromRoot}
+            className="hover:underline transition-colors"
+            style={{ color: 'var(--editor-accent)' }}
+          >
+            Browse from root
+          </button>
         </div>
       )}
 
