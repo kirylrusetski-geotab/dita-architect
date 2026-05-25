@@ -1,6 +1,6 @@
 # DITA Architect Backlog
 
-**Last updated:** 2026-04-07 (P2-24, P3-29, P3-30, P3-31 added; P2-25, P3-32–P3-39 added; P3-31 scoped and broken out; P3-30 superseded); 2026-04-07 (P1-13 shipped; P2-26 added; P1-14 shipped; P3-40 added); 2026-04-10 (P2-27 added; v0.9.2 shipped — empty-href xref validation in Monaco + visual editor); 2026-04-13 (P3-41 added — placeholder swap on topic type conversion, bundled with P3-25; P3-37/P3-38 promoted to P2-28/P2-29; P3-42 added for conditional text; FR-037 added for general discoverability); 2026-04-14 (P2-30 added — base xref visual styling; P3-25/41, P3-32–35, P3-36, P3-39 promoted to P2-31–P2-37); 2026-04-14 (v0.9.3 shipped — Sonnet sweep: P2-30, P2-31, P3-40 shipped); 2026-04-14 (backlog cleanup: removed shipped/promoted stale rows from P2 and P3 tables; added v0.9.1.1 Completed section); 2026-05-12 (v0.9.3.1 shipped — Print/Export PDF, dropdown z-index fix); 2026-05-20 (v0.9.4 shipped — resizable split pane, word wrap, sync hint, Heretto loading feedback, readability tooltip); 2026-05-25 (v0.9.5 shipped — P3-12, P2-35, shortdesc placeholder, block + button, theme contrast fixes); 2026-05-25 (backlog audit — P2-23, P2-24, P2-26 Phase 1, P3-26, P3-27 moved to Completed; found shipped but untracked); 2026-05-25 (P3 audit — P3-13, P3-22, P3-24 moved to Completed as untracked ships; P3-15 deleted — stale claim; P3-18 deferred; P3-5, P3-42, P3-43 explicitly parked with unblock conditions); 2026-05-25 (v0.9.6 shipped — P3-7, P3-8, P3-9, P3-44 shipped; discoverability sweep + theme polish); 2026-05-25 (P2-39, P2-40, P2-41 added — macOS native app menu bar structure from FR-039 UI/UX review)
+**Last updated:** 2026-04-07 (P2-24, P3-29, P3-30, P3-31 added; P2-25, P3-32–P3-39 added; P3-31 scoped and broken out; P3-30 superseded); 2026-04-07 (P1-13 shipped; P2-26 added; P1-14 shipped; P3-40 added); 2026-04-10 (P2-27 added; v0.9.2 shipped — empty-href xref validation in Monaco + visual editor); 2026-04-13 (P3-41 added — placeholder swap on topic type conversion, bundled with P3-25; P3-37/P3-38 promoted to P2-28/P2-29; P3-42 added for conditional text; FR-037 added for general discoverability); 2026-04-14 (P2-30 added — base xref visual styling; P3-25/41, P3-32–35, P3-36, P3-39 promoted to P2-31–P2-37); 2026-04-14 (v0.9.3 shipped — Sonnet sweep: P2-30, P2-31, P3-40 shipped); 2026-04-14 (backlog cleanup: removed shipped/promoted stale rows from P2 and P3 tables; added v0.9.1.1 Completed section); 2026-05-12 (v0.9.3.1 shipped — Print/Export PDF, dropdown z-index fix); 2026-05-20 (v0.9.4 shipped — resizable split pane, word wrap, sync hint, Heretto loading feedback, readability tooltip); 2026-05-25 (v0.9.5 shipped — P3-12, P2-35, shortdesc placeholder, block + button, theme contrast fixes); 2026-05-25 (backlog audit — P2-23, P2-24, P2-26 Phase 1, P3-26, P3-27 moved to Completed; found shipped but untracked); 2026-05-25 (P3 audit — P3-13, P3-22, P3-24 moved to Completed as untracked ships; P3-15 deleted — stale claim; P3-18 deferred; P3-5, P3-42, P3-43 explicitly parked with unblock conditions); 2026-05-25 (v0.9.6 shipped — P3-7, P3-8, P3-9, P3-44 shipped; discoverability sweep + theme polish); 2026-05-25 (P2-39, P2-40, P2-41 added — macOS native app menu bar structure from FR-039 UI/UX review); 2026-05-25 (v0.9.6.1 shipped — P1-15 placeholder Lexical format inheritance fix; P3-45 added — Before/After/Wrap insertion modes from FR-040)
 
 This is the single prioritized backlog for DITA Architect. Every actionable item — bugs, features, integration work, asset extraction — lives here with a clear priority, dependency chain, and execution criteria.
 
@@ -31,7 +31,7 @@ No open P0 items.
 
 No open P1 items.
 
-> P1-8 through P1-14 have all shipped (v0.6.0–v0.9.1). See Completed section for details.
+> P1-8 through P1-15 have all shipped (v0.6.0–v0.9.6.1). See Completed section for details.
 
 ---
 
@@ -71,6 +71,7 @@ No open P1 items.
 | P3-18 | API authentication for production | Tech debt | **Deferred — no localhost deployment.** Pipeline wrapup (Rafael Santos, P2-20): endpoints expose full XML content with no auth. Fine for localhost dev, but needs an auth gate if the editor is ever exposed beyond the local machine. Re-evaluate if/when network deployment becomes a goal. |
 | P3-43 | [Map discovery — surface ditamaps referencing the current topic](feature-requests.md#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic) | Feature | **Parked — unblock after P2-27 ships and writers report not knowing which map to connect.** When using "Connect a Map" (P2-27), writers must know which ditamap to point the tool at. A discovery tool would query Heretto for all accessible ditamaps, check which ones include the current topic as a `<topicref>`, and surface them in a picker. Heretto has no "find maps referencing this topic" API so it requires fetching and parsing all maps (potentially slow without caching). |
 | P3-42 | Conditional text support (audience, platform, product attributes) | Feature | **Parked — no current user demand for multi-variant authoring.** DITA's multi-variant content model — `@audience`, `@platform`, `@product` filtering — is not supported. Two-phase approach if ever prioritized: (1) **Phase 1 — Visual indicator:** badge or border on conditionalized elements; (2) **Phase 2 — Filtering:** preview topic rendered for a specific audience. Worth tracking if DA scales to larger teams. Filed 2026-04-13. |
+| P3-45 | Element insertion mode (Before/After/Wrap) for the `+` menu | Feature | Add an insertion mode selector to the block `+` menu (shipped in v0.9.5). Inspired by Heretto's insertion mode panel. **Before** inserts the new element before the block at the cursor; **After** inserts after (current default); **Wrap** wraps the selected block(s) in a structural parent (e.g. `<section>`, `<info>`) using Lexical `$wrapNodes`. Mode displayed as a small toggle above the search field or surfaced in the `+` button tooltip; persists to localStorage. **Depends on P2-28** (inline `+` menu shell — the same element picker should handle both block and inline contexts before the mode selector is unified). Filed from [FR-040](feature-requests.md#fr-040-element-insertion-mode-beforeafterwrap-for-the--menu). Sonnet-sized. |
 | P3-30 | ~~Polish body element hover frame interaction~~ | ~~Polish~~ | **Superseded by P3-35.** The hover frame approach is being replaced entirely with an always-visible border box. The three issues this item targeted (layout shift, missing transition, label offset) are resolved as a side effect of the P3-35 redesign. Do not implement separately. |
 | P3-31 | [Extend body element indicators to non-task topic types](feature-requests.md#fr-032-extend-body-element-indicators-to-non-task-topic-types) | Feature | **Scoped and broken out — promoted to P2.** Design session (2026-04-07) split this into four discrete items: P2-32 (shortdesc divider, shipped v0.9.1.1), P2-33 (note type labels, shipped v0.9.1.1), P2-34 (section left bar, shipped v0.9.1.1), P2-35 (always-visible border box, active). Original broad item retired for traceability. |
 
@@ -107,6 +108,16 @@ No open P1 items.
 ---
 
 ## Completed
+
+### Shipped in v0.9.6.1 (2026-05-25)
+
+Placeholder Lexical format inheritance fix.
+
+| Former ID | Item | Type | Resolution |
+|-----------|------|------|------------|
+| P1-15 | Typed text inherits muted italic style when editing inside a placeholder field | Bug | Placeholder `TextNode`s in `sync/parseXmlToLexical.ts` were created with `setFormat('italic')` and `setStyle('color: var(--app-text-muted)')`. Lexical's format inheritance mechanism propagates those properties to characters typed at the cursor position, making new text appear muted and italic. Fix: removed both calls — placeholder `TextNode`s are now plain nodes. Visual appearance (muted, italic) is entirely handled by CSS classes on the parent element via `ShortdescPlugin` (`dita-editor-placeholder-title` / `dita-editor-placeholder-shortdesc`), which do not touch Lexical's format state. Bug report: `bugreports/BUG-placeholder-text-color-on-edit.md`. |
+
+---
 
 ### Shipped in v0.9.6 (2026-05-25)
 

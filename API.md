@@ -11,7 +11,9 @@ All endpoints return JSON. No authentication is required.
 | **Native app** (`DITA Architect.app`) | `3001` | Built-in HTTP server; no terminal needed |
 | **Vite dev server** (`npm run dev`) | `3000` | Vite middleware; requires a running terminal |
 
-Use port 3001 when running the native app. Use port 3000 when running the dev server. The native app does not expose `/api/pending-loads` (it's not needed — `POST /api/load-content` opens tabs directly instead of queuing them).
+Use port 3001 when running the native app. Use port 3000 when running the dev server.
+
+`POST /api/load-content` behaves differently per mode: in the native app it opens tabs immediately via the JS bridge; in the dev server it queues the content for the editor to pick up on its next poll cycle. `GET /api/pending-loads` exists on both ports but always returns an empty queue on port 3001 — the native app never uses the queue mechanism.
 
 ---
 
@@ -43,7 +45,7 @@ curl -s http://localhost:3000/api/status | jq
 **Response:**
 ```json
 {
-  "version": "0.7.3",
+  "version": "0.9.6",
   "herettoConnected": true,
   "tabCount": 2,
   "activeTabId": "tab-1710612345678",
@@ -221,7 +223,11 @@ curl -s -X POST http://localhost:3000/api/tabs/tab-1710612345678/save
 
 ### POST /api/load-content
 
-Queues a DITA topic for the editor to open as a new tab. The editor polls `/api/pending-loads` and opens each queued item. Optionally targets an existing Heretto file to replace.
+Opens a DITA topic in the editor as a new tab. Optionally targets an existing Heretto file to replace.
+
+**Native app (port 3001):** The tab opens immediately — `JSBridge` calls `window.__ditaApi.loadContent()` directly and the editor responds in the same request cycle. No polling involved.
+
+**Dev server (port 3000):** The content is queued. The editor polls `GET /api/pending-loads` on an interval and opens queued items on each cycle.
 
 **Request:**
 ```bash
@@ -247,7 +253,7 @@ curl -s -X POST http://localhost:3000/api/load-content \
 { "success": true, "status": "loaded" }
 ```
 
-The response confirms the content was queued — the editor will open it on its next poll cycle.
+On port 3001 (native app), the tab is already open when this response is returned. On port 3000 (dev server), the editor will open it on its next poll cycle.
 
 **Error responses:**
 
@@ -262,7 +268,7 @@ The response confirms the content was queued — the editor will open it on its 
 
 ### GET /api/pending-loads
 
-Returns all queued content loads and clears the queue atomically. The editor calls this on a poll interval to pick up new tabs.
+Returns all queued content loads and clears the queue atomically. The editor calls this on a poll interval to pick up new tabs. **This endpoint always returns an empty queue on port 3001 (native app)** — the native app never uses the queue mechanism; tabs open immediately via the JS bridge.
 
 **Request:**
 ```bash
@@ -377,4 +383,4 @@ Error responses return JSON with an `error` field, and sometimes a `details` fie
 - If a tab was opened from Heretto, `herettoFile.uuid` can be used to cross-reference with the Heretto CMS REST API.
 - `PUT /api/tabs/:id/content` runs a structural XML validation before applying the update. It catches tag mismatches and unclosed tags but does not validate against the DITA DTD.
 - `POST /api/tabs/:id/save` requires the tab to have a `herettoFile` — tabs that were created locally or via `POST /api/load-content` without a `herettoTargetUuid` cannot be saved through this endpoint.
-- The `POST /api/load-content` → `GET /api/pending-loads` queue is cleared atomically on each read to prevent duplicate opens.
+- On port 3000 (dev server), the `POST /api/load-content` → `GET /api/pending-loads` queue is cleared atomically on each read to prevent duplicate opens. On port 3001 (native app) the queue is never used — `POST /api/load-content` opens tabs immediately.

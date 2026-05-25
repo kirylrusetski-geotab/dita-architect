@@ -1424,3 +1424,47 @@ This is also a prerequisite for future features. Every document-level capability
 - The visual editor vs XML editor split is unchanged.
 - The Heretto status indicator in the header stays.
 - The web app (browser) is unaffected — it has no macOS menu bar.
+
+---
+
+## FR-040: Element insertion mode — Before, After, Wrap in the `+` menu
+
+**Requested:** 2026-05-25
+**Status:** Open
+**Priority:** P3
+**Impact:** High for authoring precision; low urgency until P2-28 (the `+` menu shell) ships
+**Depends on:** P2-28
+
+### Description
+
+The `+` menu (P2-28) currently inserts elements at a fixed position relative to the cursor. Heretto's equivalent menu exposes an explicit insertion mode selector at the top of the panel:
+
+- **Intelligently** — editor decides the best placement based on DITA content model context
+- **Before** — insert the new element immediately before the current block
+- **After** — insert the new element immediately after the current block
+- **Wrap** — wrap the current selection (or current block if nothing is selected) inside the new element
+
+The mode selector sits above the search field, always visible. The selected mode persists for the session so repeated insertions use the same mode without re-selecting.
+
+### Value Proposition
+
+Without an explicit mode, "insert paragraph" is ambiguous — does it go before or after the cursor block? "Wrap selection in `<ph>`" is impossible with a single insertion gesture today. These three modes turn the `+` menu from a creation tool into a structural editing tool. Wrap is especially valuable for inline elements: the author selects text, chooses Wrap, picks `<uicontrol>`, and the selection becomes `<uicontrol>selected text</uicontrol>` in one gesture instead of requiring XML editing.
+
+### Suggested Approach
+
+- Add a `mode` selector component above the search field in the `+` menu (P2-28 shell). Four options: Intelligently, Before, After, Wrap. Default: Intelligently.
+- Persist the selected mode in `localStorage` under `dita-architect-insert-mode`.
+- **Before / After:** use Lexical's `insertBefore` / `insertAfter` on the nearest block ancestor of the current selection.
+- **Wrap:** for block elements, wrap the current block node. For inline elements, wrap the current text selection in the chosen element (use `$wrapNodes` or `$wrapLeafNodesInElements` from `@lexical/selection`).
+- **Intelligently:** current default behavior — insert at cursor, let the DITA content model filter (P2-37) handle validity.
+- Disable **Wrap** in the selector when nothing is selected and the insertion target is an inline-only element (wrapping a block in `<codeph>` is invalid).
+
+### Scope
+
+- Does not change the element catalog (P2-29) or content model filtering (P2-37).
+- Does not affect the block-level `+` hover button (shipped v0.9.5) — that button always inserts after the current block and does not need a mode selector.
+- The mode selector only appears in the modal `+` menu (P2-28), not in the hover button.
+
+### Reference
+
+Heretto CMS (screenshot, 2026-05-25): mode selector positioned as a dropdown at the top of the element insertion panel, above the search field. Options: Intelligently, Before, After, Wrap. Wrap is checkmarked when selected.

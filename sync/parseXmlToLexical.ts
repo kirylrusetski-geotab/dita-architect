@@ -87,10 +87,13 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
               const isPlaceholder = placeholderPatterns.some(pattern => pattern.test(text.trim()));
 
               if (isPlaceholder) {
-                const textNode = $createTextNode(text.trim());
-                textNode.setFormat('italic');
-                textNode.setStyle('color: var(--app-text-muted)');
-                nodes.push(textNode);
+                // Plain TextNode — no format/style. The parent element gets
+                // dita-editor-placeholder-title / dita-editor-placeholder-shortdesc
+                // via ShortdescPlugin CSS classes, which provide the muted/italic
+                // appearance without affecting Lexical's format state. Setting
+                // format/style here causes newly typed characters to inherit
+                // the muted italic appearance (Lexical format inheritance bug).
+                nodes.push($createTextNode(text.trim()));
               } else {
                 nodes.push($createTextNode(text));
               }
