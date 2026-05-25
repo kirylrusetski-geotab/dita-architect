@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
@@ -27,6 +27,7 @@ import { EditModePlugin } from './components/EditModePlugin';
 import { TrackedChangesPlugin } from './components/TrackedChangesPlugin';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
+import { InsertElementPlugin } from './components/InsertElementPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { DitaOpaqueNode } from './components/DitaOpaqueNode';
@@ -36,22 +37,25 @@ import { DitaPhRefNode } from './components/DitaPhRefNode';
 import { TrackedDeletionNode } from './components/TrackedDeletionNode';
 import { ValidationDecoratorNode } from './components/ValidationDecoratorNode';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
-import { Code, CheckCircle, AlertTriangle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer } from 'lucide-react';
+import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { TopicTypeModal } from './components/TopicTypeModal';
 import { SaveTopicModal } from './components/SaveTopicModal';
 import { HerettoStatusModal } from './components/HerettoStatusModal';
 import { HerettoBrowserModal } from './components/HerettoBrowserModal';
 import { ReleaseNotesModal } from './components/ReleaseNotesModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { CoachMark } from './components/CoachMark';
 import { APP_VERSION } from './constants/version';
 import { ImportVerificationModal } from './components/ImportVerificationModal';
 import { HerettoReplaceModal } from './components/HerettoReplaceModal';
 import { HerettoReplaceBar } from './components/HerettoReplaceBar';
 import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
-import { formatRelativeTime, formatXml } from './lib/xml-utils';
+import { formatRelativeTime, formatXml, validateDitaXml } from './lib/xml-utils';
 import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { updateEditorStatus, updateTabsState, setSyncTriggerCallback, setSaveHandlerCallback } from './lib/editor-state-bridge';
+import { registerNativeApiBridge } from './lib/native-api-bridge';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
 import { createTab } from './types/tab';
@@ -116,6 +120,10 @@ const editorConfig = {
 
 // Custom table insertion command
 export const INSERT_TABLE_COMMAND = createCommand<{ rows: number; columns: number; includeHeaders: boolean }>('INSERT_TABLE_COMMAND');
+
+// Commands so the InsertElementPlugin can open the Toolbar's existing modals
+export const OPEN_INSERT_TABLE_MODAL_COMMAND = createCommand<void>('OPEN_INSERT_TABLE_MODAL_COMMAND');
+export const OPEN_INSERT_LINK_MODAL_COMMAND = createCommand<void>('OPEN_INSERT_LINK_MODAL_COMMAND');
 
 // Table insertion plugin
 function TableInsertPlugin() {
@@ -182,6 +190,46 @@ export default function ProfessionalDitaEditor() {
   const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [isHerettoReplaceModalOpen, setIsHerettoReplaceModalOpen] = useState(false);
+
+  const [wordWrapEnabled, setWordWrapEnabled] = useState<boolean>(() =>
+    localStorage.getItem('ditaWordWrap') === 'true'
+  );
+  const toggleWordWrap = useCallback(() => {
+    setWordWrapEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('ditaWordWrap', String(next));
+      return next;
+    });
+  }, []);
+
+  // Split-pane resize
+  const [leftPaneWidth, setLeftPaneWidth] = useState<number>(() => {
+    const stored = localStorage.getItem('ditaSplitWidth');
+    return stored ? parseFloat(stored) : 50;
+  });
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const [isSplitDragging, setIsSplitDragging] = useState(false);
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setIsSplitDragging(true);
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = Math.max(20, Math.min(80, ((ev.clientX - rect.left) / rect.width) * 100));
+      setLeftPaneWidth(pct);
+      localStorage.setItem('ditaSplitWidth', String(pct));
+    };
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      setIsSplitDragging(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
 
   // Show "What's New" on first launch after a version update
   useEffect(() => {
@@ -286,6 +334,8 @@ export default function ProfessionalDitaEditor() {
     isFileOptionsOpen,
     setIsFileOptionsOpen,
     fileOptionsRef,
+    isKeyboardShortcutsOpen,
+    setIsKeyboardShortcutsOpen,
     handleThemeChange,
     handleSyntaxThemeChange,
   } = useEditorUi({
@@ -335,6 +385,20 @@ export default function ProfessionalDitaEditor() {
     });
   }, [updateTab, handleHerettoSave, tabs]);
 
+  // Register native app API bridge — activates only when running inside the Swift WKWebView (dita:// protocol)
+  useEffect(() => {
+    registerNativeApiBridge({
+      getTabs: () => tabs,
+      getActiveTabId: () => activeTabId,
+      getHerettoConnected: () => herettoConnected,
+      getTheme: () => appTheme,
+      updateTab,
+      handleHerettoSave,
+      setTabs,
+      setActiveTabId,
+    });
+  }, [tabs, activeTabId, herettoConnected, appTheme, updateTab, handleHerettoSave, setTabs, setActiveTabId]);
+
   const {
     fileInputRef,
     isSaveModalOpen,
@@ -352,6 +416,33 @@ export default function ProfessionalDitaEditor() {
     setTabs,
     setActiveTabId,
   });
+
+  // Sync hint — show only when one editor has unsynchronized changes
+  const prevSyncLastUpdatedByRef = useRef<string | undefined>(undefined);
+  const prevSyncTriggerRef = useRef<number | undefined>(undefined);
+  const prevSyncTabIdRef = useRef<string | undefined>(undefined);
+  const [syncHintVisible, setSyncHintVisible] = useState(false);
+
+  useEffect(() => {
+    if (!activeTab) { setSyncHintVisible(false); return; }
+
+    if (activeTab.id !== prevSyncTabIdRef.current) {
+      prevSyncTabIdRef.current = activeTab.id;
+      prevSyncLastUpdatedByRef.current = activeTab.lastUpdatedBy;
+      prevSyncTriggerRef.current = activeTab.syncTrigger;
+      setSyncHintVisible(false);
+      return;
+    }
+
+    if (prevSyncTriggerRef.current !== undefined && activeTab.syncTrigger !== prevSyncTriggerRef.current) {
+      setSyncHintVisible(false);
+    } else if (prevSyncLastUpdatedByRef.current !== undefined && activeTab.lastUpdatedBy !== prevSyncLastUpdatedByRef.current) {
+      setSyncHintVisible(true);
+    }
+
+    prevSyncLastUpdatedByRef.current = activeTab.lastUpdatedBy;
+    prevSyncTriggerRef.current = activeTab.syncTrigger;
+  }, [activeTab?.id, activeTab?.lastUpdatedBy, activeTab?.syncTrigger]);
 
   const handlePrint = () => {
     const title = derivePrintTitle(
@@ -433,6 +524,11 @@ export default function ProfessionalDitaEditor() {
       {/* Release Notes Modal */}
       {isReleaseNotesOpen && (
         <ReleaseNotesModal onClose={() => setIsReleaseNotesOpen(false)} />
+      )}
+
+      {/* Keyboard Shortcuts Modal */}
+      {isKeyboardShortcutsOpen && (
+        <KeyboardShortcutsModal onClose={() => setIsKeyboardShortcutsOpen(false)} />
       )}
 
       {/* Confirmation Modal */}
@@ -582,7 +678,9 @@ export default function ProfessionalDitaEditor() {
               <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: 'var(--app-text-muted)' }}>
                 <span className={`w-1.5 h-1.5 rounded-full ${activeTab.lastUpdatedBy === 'editor' ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
                 Last update: {activeTab.lastUpdatedBy === 'editor' ? 'Visual Editor' : 'Source Code'}
-                <span style={{ opacity: 0.6 }}>&middot; Press Ctrl+Enter to sync between editors</span>
+                {syncHintVisible && (
+                  <span style={{ opacity: 0.6 }}>&middot; Press Ctrl+Enter to sync between editors</span>
+                )}
               </div>
             </div>
           </div>
@@ -687,6 +785,16 @@ export default function ProfessionalDitaEditor() {
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Convert
+                </button>
+                <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
+                <button
+                  role="menuitem"
+                  onClick={() => { setIsFileOptionsOpen(false); setIsKeyboardShortcutsOpen(true); }}
+                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
+                  style={{ color: 'var(--app-text-secondary)' }}
+                >
+                  <Keyboard className="w-3.5 h-3.5" />
+                  Keyboard Shortcuts
                 </button>
               </div>
             )}
@@ -806,7 +914,7 @@ export default function ProfessionalDitaEditor() {
                 key={tab.id}
                 className="flex items-center gap-1.5 pl-3 pr-1 h-[32px] text-xs font-medium cursor-pointer select-none shrink-0 max-w-[180px] group/tab"
                 style={{
-                  backgroundColor: isActive ? 'var(--editor-bg)' : 'transparent',
+                  backgroundColor: isActive ? 'var(--editor-canvas-bg)' : 'transparent',
                   borderTop: isActive ? '2px solid var(--editor-accent)' : '2px solid transparent',
                   borderRight: '1px solid var(--app-border-subtle)',
                   color: isActive ? 'var(--app-text-primary)' : 'var(--app-text-muted)',
@@ -853,15 +961,21 @@ export default function ProfessionalDitaEditor() {
       </div>
 
       {/* Split View Container */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" ref={splitContainerRef}>
         {/* LEFT: VISUAL EDITOR (Lexical) — one per tab, show/hide */}
         <div
-          className="flex-1 flex flex-col min-w-0 min-h-0 relative group"
+          className="flex flex-col min-w-0 min-h-0 relative group"
           style={{
-            backgroundColor: 'var(--editor-bg)',
+            backgroundColor: 'var(--editor-canvas-bg)',
             borderRight: '1px solid var(--app-border)',
+            flex: codeEditorCollapsed ? '1 1 0%' : `0 0 ${leftPaneWidth}%`,
+            transition: isSplitDragging ? 'none' : 'flex 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
+          {/* First-run sync hint */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex justify-center">
+            <CoachMark />
+          </div>
           {tabs.map(tab => (
             <LexicalComposer key={tab.id} initialConfig={{ ...editorConfig, namespace: `DitaEditor-${tab.id}` }}>
               <div
@@ -995,15 +1109,25 @@ export default function ProfessionalDitaEditor() {
                   </div>
                 )}
                 <div className={`flex-1 overflow-y-auto custom-scrollbar pb-10 relative ${tab.herettoFile ? 'pt-[92px]' : 'pt-14'}`}>
-                  <RichTextPlugin
-                    contentEditable={<ContentEditable className="outline-none max-w-6xl mx-auto px-12 min-h-[500px]" />}
-                    placeholder={
-                      <div className="absolute top-14 left-0 right-0 italic pointer-events-none max-w-6xl mx-auto px-12 leading-relaxed" style={{ color: 'var(--app-text-muted)' }}>
-                        Start typing your DITA content here...
-                      </div>
-                    }
-                    ErrorBoundary={LexicalErrorBoundary}
-                  />
+                  <div
+                    className="max-w-6xl mx-auto mt-1 mb-12 rounded-lg relative"
+                    style={{
+                      backgroundColor: 'var(--editor-page-bg)',
+                      boxShadow: 'var(--editor-page-shadow)',
+                      border: 'var(--editor-page-border)',
+                      padding: '3rem',
+                    }}
+                  >
+                    <RichTextPlugin
+                      contentEditable={<ContentEditable className="outline-none min-h-[500px]" />}
+                      placeholder={
+                        <div className="absolute italic pointer-events-none leading-relaxed" style={{ top: '3rem', left: '3rem', color: 'var(--app-text-muted)' }}>
+                          Start typing your DITA content here...
+                        </div>
+                      }
+                      ErrorBoundary={LexicalErrorBoundary}
+                    />
+                  </div>
                   <HistoryPlugin />
                   <ListPlugin />
                   <LinkPlugin />
@@ -1012,6 +1136,7 @@ export default function ProfessionalDitaEditor() {
                   <ClearEditorPlugin />
                   <EmptyToH1Plugin />
                   <XrefValidationPlugin />
+                  <InsertElementPlugin />
 
                   <SyncManager
                     xmlContent={tab.xmlContent}
@@ -1057,6 +1182,25 @@ export default function ProfessionalDitaEditor() {
             </LexicalComposer>
           ))}
         </div>
+
+        {/* Resize handle between visual and XML panes */}
+        {!codeEditorCollapsed && (
+          <div
+            className="w-1 shrink-0 cursor-col-resize flex flex-col items-center justify-center group/handle transition-colors hover:bg-sky-500/10"
+            onMouseDown={handleDragStart}
+            title="Drag to resize"
+          >
+            <div className="flex flex-col gap-0.5 opacity-0 group-hover/handle:opacity-100 transition-opacity">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-0.5 h-0.5 rounded-full"
+                  style={{ backgroundColor: 'var(--app-text-muted)' }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* RIGHT: CODE EDITOR (Monaco) */}
         <div
@@ -1172,17 +1316,35 @@ export default function ProfessionalDitaEditor() {
             </div>
 
             <div className="flex items-center gap-2">
-              {currentTopicType !== 'undefined' && (
-                <div
-                  className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider"
-                  style={{
-                    backgroundColor: `var(--badge-${currentTopicType}-bg, var(--app-surface-raised))`,
-                    border: `1px solid var(--badge-${currentTopicType}-border, var(--app-border-subtle))`,
-                    color: `var(--badge-${currentTopicType}-text, var(--app-text-muted))`,
-                  }}
+              {SYNTAX_THEME_OPTIONS.find(o => o.value === syntaxTheme)?.mode === 'light' && appTheme !== 'light' && (
+                <Tooltip content="Daylight is a light syntax theme — pairs best with the Light visual theme">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--editor-note-warning)' }} />
+                </Tooltip>
+              )}
+              <Tooltip content={wordWrapEnabled ? 'Disable word wrap' : 'Enable word wrap'}>
+                <button
+                  onClick={toggleWordWrap}
+                  className="p-1 rounded transition-colors hover-app-text"
+                  style={{ color: wordWrapEnabled ? 'var(--editor-accent)' : 'var(--app-text-muted)' }}
+                  aria-label="Toggle word wrap"
+                  aria-pressed={wordWrapEnabled}
                 >
-                  {currentTopicType}
-                </div>
+                  <WrapText className="w-3.5 h-3.5" />
+                </button>
+              </Tooltip>
+              {currentTopicType && currentTopicType !== 'undefined' && (
+                <Tooltip content={`${currentTopicType.charAt(0).toUpperCase() + currentTopicType.slice(1)} topic`} placement="bottom">
+                  <div
+                    className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider"
+                    style={{
+                      backgroundColor: `var(--badge-${currentTopicType}-bg, var(--app-surface-raised))`,
+                      border: `1px solid var(--badge-${currentTopicType}-border, var(--app-border-subtle))`,
+                      color: `var(--badge-${currentTopicType}-text, var(--app-text-muted))`,
+                    }}
+                  >
+                    {currentTopicType}
+                  </div>
+                </Tooltip>
               )}
               <Tooltip content="Format XML (Shift+Alt+F)">
                 <button
@@ -1223,6 +1385,7 @@ export default function ProfessionalDitaEditor() {
                 }}
                 editorTheme={appTheme}
                 syntaxTheme={syntaxTheme}
+                wordWrapEnabled={wordWrapEnabled}
                 onEditorReady={(api) => { tab.monacoApiRef.current = api; }}
                 onFormat={handleFormatClick}
               />

@@ -5,13 +5,18 @@ import {
   UNDO_COMMAND,
   REDO_COMMAND,
   CLEAR_EDITOR_COMMAND,
+  COMMAND_PRIORITY_EDITOR,
   $getSelection,
   $isRangeSelection,
 } from 'lexical';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
 // Import custom table command from main component
-import { INSERT_TABLE_COMMAND } from '../dita-architect';
+import {
+  INSERT_TABLE_COMMAND,
+  OPEN_INSERT_TABLE_MODAL_COMMAND,
+  OPEN_INSERT_LINK_MODAL_COMMAND,
+} from '../dita-architect';
 import { TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $setBlocksType } from '@lexical/selection';
 import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, Check, X } from 'lucide-react';
@@ -70,6 +75,31 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const removeTableListener = editor.registerCommand(
+      OPEN_INSERT_TABLE_MODAL_COMMAND,
+      () => {
+        setIsTableModalOpen(true);
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR,
+    );
+    const removeLinkListener = editor.registerCommand(
+      OPEN_INSERT_LINK_MODAL_COMMAND,
+      () => {
+        setLinkUrl('');
+        setLinkError('');
+        setIsLinkModalOpen(true);
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR,
+    );
+    return () => {
+      removeTableListener();
+      removeLinkListener();
+    };
+  }, [editor]);
 
   const formatHeading = (headingSize: 'h1' | 'h2') => {
     editor.update(() => {

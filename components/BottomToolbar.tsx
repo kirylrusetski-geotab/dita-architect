@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getRoot } from 'lexical';
 import { analyzeText } from '../textAnalysis';
+import { Tooltip } from './Tooltip';
 
 const DEBOUNCE_MS = 300;
 
@@ -83,10 +84,17 @@ export const BottomToolbar = () => {
         <span className="font-semibold" style={{ color: 'var(--editor-bottom-text-strong)' }}>{stats.characterCount}</span> characters
       </div>
       <div className="w-px h-3" style={{ backgroundColor: 'var(--editor-bottom-border)' }} />
-      <div className="flex items-center gap-1" title={stats.note !== '-' ? String(stats.note) : undefined}>
-        Readability: <span className="font-semibold" style={{ color: 'var(--editor-bottom-text-strong)' }}>{stats.score}</span>
-        {stats.gradeLevel !== '-' && <span className="ml-1" style={{ opacity: 0.6 }}>({stats.gradeLevel} grade)</span>}
-      </div>
+      <Tooltip
+        placement="top"
+        content={stats.score !== '-'
+          ? `${stats.note} — Flesch Reading Ease ${stats.score}/100 (60–70 is ideal for technical docs)`
+          : 'Flesch Reading Ease score — 60–70 is ideal for technical documentation'}
+      >
+        <div className="flex items-center gap-1">
+          Readability: <span className="font-semibold" style={{ color: 'var(--editor-bottom-text-strong)' }}>{stats.score}</span>
+          {stats.gradeLevel !== '-' && <span className="ml-1" style={{ opacity: 0.6 }}>({stats.gradeLevel} grade)</span>}
+        </div>
+      </Tooltip>
     </div>
   );
 };

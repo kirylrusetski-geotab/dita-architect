@@ -1,14 +1,27 @@
 # DITA Architect API
 
-DITA Architect exposes an API on `localhost:3000` that lets external tools — including Claude Code skills — read editor state, push content into open tabs, trigger saves to Heretto, and load new topics into the editor.
+DITA Architect exposes an HTTP API that lets external tools — including Claude Code skills — read editor state, push content into open tabs, trigger saves to Heretto, and load new topics into the editor.
 
-All endpoints return JSON. No authentication is required (this is a local dev server).
+All endpoints return JSON. No authentication is required.
+
+## Ports
+
+| Mode | Port | Notes |
+|---|---|---|
+| **Native app** (`DITA Architect.app`) | `3001` | Built-in HTTP server; no terminal needed |
+| **Vite dev server** (`npm run dev`) | `3000` | Vite middleware; requires a running terminal |
+
+Use port 3001 when running the native app. Use port 3000 when running the dev server. The native app does not expose `/api/pending-loads` (it's not needed — `POST /api/load-content` opens tabs directly instead of queuing them).
 
 ---
 
 ## Quick check: Is the editor running?
 
 ```bash
+# Native app
+curl -s http://localhost:3001/api/status
+
+# Dev server
 curl -s http://localhost:3000/api/status
 ```
 
@@ -278,10 +291,12 @@ Returns an empty `loads` array if nothing is queued. The queue is cleared on eve
 
 ## Common patterns for Claude Code skills
 
+The examples below use port `3001` (native app). Substitute `3000` for the dev server.
+
 ### Check if the editor is available
 
 ```bash
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/status)
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/status)
 if [ "$STATUS" = "200" ]; then
   echo "Editor is running"
 else
@@ -293,42 +308,42 @@ fi
 
 ```bash
 # Step 1: Get the active tab ID
-ACTIVE_TAB=$(curl -s http://localhost:3000/api/tabs | jq -r '.activeTabId')
+ACTIVE_TAB=$(curl -s http://localhost:3001/api/tabs | jq -r '.activeTabId')
 
 # Step 2: Fetch its XML content
-curl -s "http://localhost:3000/api/tabs/${ACTIVE_TAB}/content" | jq -r '.xml'
+curl -s "http://localhost:3001/api/tabs/${ACTIVE_TAB}/content" | jq -r '.xml'
 ```
 
 ### List all dirty (unsaved) tabs
 
 ```bash
-curl -s http://localhost:3000/api/tabs | jq '.tabs[] | select(.dirty == true) | .fileName'
+curl -s http://localhost:3001/api/tabs | jq '.tabs[] | select(.dirty == true) | .fileName'
 ```
 
 ### Check for XML errors across all tabs
 
 ```bash
-curl -s http://localhost:3000/api/tabs | jq '.tabs[] | select(.xmlErrorCount > 0) | {fileName, xmlErrorCount}'
+curl -s http://localhost:3001/api/tabs | jq '.tabs[] | select(.xmlErrorCount > 0) | {fileName, xmlErrorCount}'
 ```
 
 ### Write updated XML to the active tab and save it
 
 ```bash
-ACTIVE_TAB=$(curl -s http://localhost:3000/api/tabs | jq -r '.activeTabId')
+ACTIVE_TAB=$(curl -s http://localhost:3001/api/tabs | jq -r '.activeTabId')
 
 # Write new XML
-curl -s -X PUT "http://localhost:3000/api/tabs/${ACTIVE_TAB}/content" \
+curl -s -X PUT "http://localhost:3001/api/tabs/${ACTIVE_TAB}/content" \
   -H "Content-Type: application/json" \
   -d "{\"xml\": \"$(cat updated.dita | sed 's/"/\\"/g')\"}"
 
 # Save to Heretto
-curl -s -X POST "http://localhost:3000/api/tabs/${ACTIVE_TAB}/save"
+curl -s -X POST "http://localhost:3001/api/tabs/${ACTIVE_TAB}/save"
 ```
 
 ### Load a new topic into the editor
 
 ```bash
-curl -s -X POST http://localhost:3000/api/load-content \
+curl -s -X POST http://localhost:3001/api/load-content \
   -H "Content-Type: application/json" \
   -d '{
     "xml": "<concept id=\"intro\"><title>Introduction</title><conbody/></concept>",

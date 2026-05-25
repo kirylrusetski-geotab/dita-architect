@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Tab } from '../types/tab';
 import type { ThemeName } from '../components/Toolbar';
 import type { SyntaxThemeName } from '../components/MonacoDitaEditor';
+import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
 
 interface UseEditorUiParams {
   activeTabId: string;
@@ -27,6 +28,21 @@ export function useEditorUi({
   const handleThemeChange = useCallback((newTheme: ThemeName) => {
     setTheme(newTheme);
     localStorage.setItem('dita-architect-theme', newTheme);
+
+    // Auto-correct syntax theme when light/dark parity would be violated
+    setSyntaxTheme(prev => {
+      const prevMode = SYNTAX_THEME_OPTIONS.find(o => o.value === prev)?.mode ?? 'dark';
+      const goingLight = newTheme === 'light';
+      if (goingLight && prevMode === 'dark') {
+        localStorage.setItem('dita-architect-syntax-theme', 'daylight');
+        return 'daylight';
+      }
+      if (!goingLight && prevMode === 'light') {
+        localStorage.setItem('dita-architect-syntax-theme', 'material');
+        return 'material';
+      }
+      return prev;
+    });
   }, []);
 
   const [syntaxTheme, setSyntaxTheme] = useState<SyntaxThemeName>(() => {
@@ -50,6 +66,8 @@ export function useEditorUi({
 
   const [isFileOptionsOpen, setIsFileOptionsOpen] = useState(false);
   const fileOptionsRef = useRef<HTMLDivElement>(null);
+
+  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
 
   // Close syntax theme dropdown on outside click (only registered while open)
   useEffect(() => {
@@ -90,11 +108,20 @@ export function useEditorUi({
   }, [herettoDropdownRef, setIsHerettoDropdownOpen]);
 
   // Ctrl+Enter to sync between editors (active tab)
+  // ? or Cmd+/ to open keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, syncTrigger: t.syncTrigger + 1 } : t));
+      }
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if (!isEditing) {
+        if (e.key === '?' || ((e.ctrlKey || e.metaKey) && e.key === '/')) {
+          e.preventDefault();
+          setIsKeyboardShortcutsOpen(prev => !prev);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -135,6 +162,8 @@ export function useEditorUi({
     isFileOptionsOpen,
     setIsFileOptionsOpen,
     fileOptionsRef,
+    isKeyboardShortcutsOpen,
+    setIsKeyboardShortcutsOpen,
     handleThemeChange,
     handleSyntaxThemeChange,
   };

@@ -71,6 +71,12 @@ body {
   --badge-reference-border: rgba(134, 239, 172, 0.25);
   --badge-reference-text: #86efac;
 
+  /* Editor page surface */
+  --editor-page-bg: #1e1e1e;
+  --editor-canvas-bg: #0f0f0f;
+  --editor-page-shadow: none;
+  --editor-page-border: 1px solid var(--app-border);
+
   /* Body element bars */
   --editor-prereq-bar: #60a5fa;
   --editor-context-bar: #a78bfa;
@@ -174,6 +180,12 @@ body {
   --badge-reference-border: rgba(22, 163, 74, 0.25);
   --badge-reference-text: #16a34a;
 
+  /* Editor page surface */
+  --editor-page-bg: #ffffff;
+  --editor-canvas-bg: #f5f5f4;
+  --editor-page-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --editor-page-border: none;
+
   /* Body element bars */
   --editor-prereq-bar: #3b82f6;
   --editor-context-bar: #8b5cf6;
@@ -244,6 +256,12 @@ body {
   --badge-reference-border: rgba(196, 181, 168, 0.25);
   --badge-reference-text: #c4b5a8;
 
+  /* Editor page surface */
+  --editor-page-bg: #2d2019;
+  --editor-canvas-bg: #1f150f;
+  --editor-page-shadow: none;
+  --editor-page-border: 1px solid var(--app-border);
+
   /* Body element bars */
   --editor-prereq-bar: #93c5fd;
   --editor-context-bar: #c4b5fd;
@@ -312,6 +330,12 @@ body {
   --badge-reference-bg: rgba(163, 190, 140, 0.10);
   --badge-reference-border: rgba(163, 190, 140, 0.25);
   --badge-reference-text: #a3be8c;
+
+  /* Editor page surface */
+  --editor-page-bg: #2e3440;
+  --editor-canvas-bg: #242933;
+  --editor-page-shadow: none;
+  --editor-page-border: 1px solid var(--app-border);
 
   /* Body element bars */
   --editor-prereq-bar: #81a1c1;
@@ -383,6 +407,12 @@ body {
   --badge-reference-border: rgba(133, 153, 0, 0.25);
   --badge-reference-text: #859900;
 
+  /* Editor page surface */
+  --editor-page-bg: #002b36;
+  --editor-canvas-bg: #001e28;
+  --editor-page-shadow: none;
+  --editor-page-border: 1px solid var(--app-border);
+
   /* Body element bars */
   --editor-prereq-bar: #268bd2;
   --editor-context-bar: #6c71c4;
@@ -452,6 +482,12 @@ body {
   --badge-reference-bg: rgba(60, 81, 100, 0.15);
   --badge-reference-border: rgba(60, 81, 100, 0.30);
   --badge-reference-text: #8db3cc;
+
+  /* Editor page surface */
+  --editor-page-bg: #1e2b3c;
+  --editor-canvas-bg: #111820;
+  --editor-page-shadow: none;
+  --editor-page-border: 1px solid var(--app-border);
 
   /* Body element bars */
   --editor-prereq-bar: #5b8db8;
@@ -670,17 +706,13 @@ body {
 .dita-editor-shortdesc {
   position: relative;
 }
-.dita-editor-shortdesc::after {
-  content: 'Short Description';
+.dita-editor-shortdesc:has(br:only-child)::before {
+  content: 'Short description';
   position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.5rem;
-  font-style: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.5;
+  pointer-events: none;
+  font-style: italic;
+  color: var(--app-text-muted);
+  opacity: 0.6;
 }
 
 /* Body element indicators */
@@ -689,79 +721,44 @@ body {
 .dita-editor-result,
 .dita-editor-postreq {
   position: relative;
-  padding-left: 0.75rem;
-  padding-right: 6rem;
-  margin-bottom: 1rem;
+  padding: 0.75rem;
+  margin: 1.5rem 0;
   line-height: 1.625;
   color: var(--editor-text);
+  border: 1px solid var(--app-border-subtle);
+  border-left: 3px solid var(--app-border-subtle);
+  border-radius: 6px;
+  transition: border-left-color 0.15s ease;
 }
 
-.dita-editor-prereq {
-  border-left: 3px solid var(--editor-prereq-bar);
-}
+.dita-editor-prereq:hover   { border-left-color: var(--editor-prereq-bar); }
+.dita-editor-context:hover  { border-left-color: var(--editor-context-bar); }
+.dita-editor-result:hover   { border-left-color: var(--editor-result-bar); }
+.dita-editor-postreq:hover  { border-left-color: var(--editor-postreq-bar); }
 
-.dita-editor-context {
-  border-left: 3px solid var(--editor-context-bar);
-}
-
-.dita-editor-result {
-  border-left: 3px solid var(--editor-result-bar);
-}
-
-.dita-editor-postreq {
-  border-left: 3px solid var(--editor-postreq-bar);
-}
-
-.dita-editor-prereq::after,
-.dita-editor-context::after,
-.dita-editor-result::after,
-.dita-editor-postreq::after {
+.dita-editor-prereq::before,
+.dita-editor-context::before,
+.dita-editor-result::before,
+.dita-editor-postreq::before {
   position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.5rem;
+  top: -0.6em;
+  left: 0.75rem;
+  padding: 0 0.4rem;
+  background-color: var(--editor-page-bg);
+  font-size: 0.625rem;
   font-style: normal;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s ease;
 }
 
-.dita-editor-prereq::after {
-  content: 'Prerequisite';
-}
-
-.dita-editor-context::after {
-  content: 'Context';
-}
-
-.dita-editor-result::after {
-  content: 'Result';
-}
-
-.dita-editor-postreq::after {
-  content: 'Postrequisites';
-}
-
-.dita-editor-prereq:hover,
-.dita-editor-context:hover,
-.dita-editor-result:hover,
-.dita-editor-postreq:hover {
-  border-top: 1px solid var(--app-border-subtle);
-  border-right: 1px solid var(--app-border-subtle);
-  border-bottom: 1px solid var(--app-border-subtle);
-  border-radius: 0 4px 4px 0;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
-
-.dita-editor-prereq:hover::after,
-.dita-editor-context:hover::after,
-.dita-editor-result:hover::after,
-.dita-editor-postreq:hover::after {
-  opacity: 0.5;
-}
+.dita-editor-prereq:hover::before   { content: 'Prerequisite';   color: var(--editor-prereq-bar);   opacity: 1; }
+.dita-editor-context:hover::before  { content: 'Context';        color: var(--editor-context-bar);  opacity: 1; }
+.dita-editor-result:hover::before   { content: 'Result';         color: var(--editor-result-bar);   opacity: 1; }
+.dita-editor-postreq:hover::before  { content: 'Postrequisites'; color: var(--editor-postreq-bar);  opacity: 1; }
 
 .dita-editor-section-title {
   border-left: 3px solid var(--editor-section-bar);

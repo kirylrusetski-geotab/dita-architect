@@ -1,11 +1,12 @@
 {
   "name": "dita-architect",
   "private": true,
-  "version": "0.9.3.1",
+  "version": "0.9.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:app": "vite build && rm -rf \"DITA Architect.app/Contents/Resources/dist\" && cp -r dist \"DITA Architect.app/Contents/Resources/dist\"",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",

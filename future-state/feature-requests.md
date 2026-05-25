@@ -337,7 +337,7 @@ Placeholder text is a micro-affordance — it answers "what goes here?" at a gla
 ## FR-015: Rename `Commit` button to `Save to Heretto`
 
 **Requested:** 2026-03-13
-**Status:** Proposed
+**Status:** Shipped (v0.9.1.1, 2026-04-07)
 **Priority:** Low
 **Impact:** Medium
 
@@ -359,7 +359,7 @@ Authors think in terms of "save my work." They don't think in terms of "commit."
 ## FR-016: Use writer-friendly vocabulary in Heretto status bar
 
 **Requested:** 2026-03-13
-**Status:** Proposed
+**Status:** Shipped (v0.9.1.1, 2026-04-07)
 **Priority:** Low
 **Impact:** Medium
 
@@ -718,7 +718,7 @@ The context menu works correctly for mouse users but is invisible to screen read
 
 **Requested:** 2026-03-16
 **Source:** Maya Chen UX review of FR-024 implementation
-**Status:** Proposed
+**Status:** Shipped (v0.9.1.1, 2026-04-07)
 **Priority:** Medium
 **Impact:** Medium
 
@@ -744,7 +744,7 @@ Silent failure when trying to delete the last row or column violates the princip
 
 **Requested:** 2026-03-16
 **Source:** Maya Chen UX review of body element indicators (FR-006/FR-007)
-**Status:** Proposed
+**Status:** Superseded — replaced by FR-032 (always-visible border box, shipped v0.9.5). The three issues targeted here (layout shift, missing transition, label offset) are all resolved as a side effect of the always-visible treatment. Do not implement separately.
 **Priority:** Medium
 **Impact:** Medium
 
@@ -778,7 +778,7 @@ The label spacing is smaller but worth fixing at the same time. When the label r
 
 **Requested:** 2026-03-16
 **Source:** Kiryl Rusetski, with reference to Heretto CMS's author view
-**Status:** Proposed
+**Status:** Shipped (v0.9.5, 2026-05-21)
 **Priority:** P3
 **Impact:** Medium
 
@@ -846,7 +846,7 @@ One thing to watch: the page wrapper should not interfere with the body element 
 
 **Requested:** 2026-03-27
 **Source:** Product question session (Rafael Santos + Maya Chen)
-**Status:** Proposed
+**Status:** Shipped (v0.9.0 + patches — all four root-cause bugs resolved; see `bugreports/BUG-heretto-image-resolution-fails.md`)
 **Priority:** P2
 **Impact:** High
 
@@ -908,7 +908,7 @@ For image-heavy topics (e.g., Altitude FAQ guides), the visual editor stops feel
 
 **Requested:** 2026-03-27
 **Source:** Kiryl Rusetski, with input from Rafael Santos and Maya Chen
-**Status:** Proposed
+**Status:** Shipped (`herettoJustLoaded` field added to Tab type; `compareXml` used in polling to eliminate false positives)
 **Priority:** P3
 **Impact:** Medium
 
@@ -996,7 +996,7 @@ Add a new branch in the status bar conditional (`dita-architect.tsx:891`), befor
 
 **Requested:** 2026-03-27
 **Source:** Maya Chen (UX Engineer), based on observation by Kiryl Rusetski
-**Status:** Needs design thought
+**Status:** Shipped — scoped and broken into four discrete items, all delivered: P2-32 (shortdesc divider, v0.9.1.1), P2-33 (note type labels, v0.9.1.1), P2-34 (section left bar, v0.9.1.1), P2-35 (always-visible border box with label chips, v0.9.5)
 **Priority:** Unassigned — needs scoping before committing to a tier
 **Impact:** Medium
 
@@ -1059,7 +1059,7 @@ Adding new elements is mechanically straightforward — it's a map entry, a CSS 
 
 **Requested:** 2026-03-30
 **Source:** Kiryl Rusetski, with UX notes from Maya Chen (UX Engineer)
-**Status:** Open
+**Status:** Shipped (v0.9.1.1, 2026-04-07 — `useHerettoCms.ts:255` normalizes with `.replace(/[\s_-]+/g, ' ')`)
 **Priority:** P2
 **Impact:** High — directly affects discoverability of files in the Heretto browser
 
@@ -1105,7 +1105,7 @@ One more thing worth pairing with this: the `No results found` empty state curre
 
 **Requested:** 2026-04-06
 **Source:** Kiryl Rusetski, with UX notes from Maya Chen (UX Engineer)
-**Status:** Open
+**Status:** Shipped (v0.9.1.1, 2026-04-07)
 **Priority:** P3
 **Impact:** Medium — improves readability of the diff preview step without changing any behaviour
 
@@ -1260,7 +1260,7 @@ Discoverability isn't one feature — it's a perspective. Each new feature shoul
 
 **Requested:** 2026-04-14
 **Source:** Kiryl Rusetski, with UX notes from Maya Chen
-**Status:** Open
+**Status:** Shipped (v0.9.3, 2026-04-14 — underline styling added; `InlineValidationPlugin` stamps `title` attributes on all `LinkNode` DOM elements)
 **Priority:** P2 (tracked as P2-30 in BACKLOG.md)
 **Impact:** High — without base xref styling, the broken-xref validation layer (v0.9.0/v0.9.2) is functionally invisible to authors
 

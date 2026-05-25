@@ -14,8 +14,18 @@ import { $isHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { useSyncContext } from '../sync';
 import { DITA_PLACEHOLDER_TITLES, DITA_PLACEHOLDER_SHORTDESCS } from '../constants/dita';
 
-const ALL_PLACEHOLDER_TITLES = new Set(Object.values(DITA_PLACEHOLDER_TITLES));
-const ALL_PLACEHOLDER_SHORTDESCS = new Set(Object.values(DITA_PLACEHOLDER_SHORTDESCS));
+const ALL_PLACEHOLDER_TITLES = new Set([
+  ...Object.values(DITA_PLACEHOLDER_TITLES),
+  'Task title',
+  'Concept title',
+  'Reference title',
+]);
+const ALL_PLACEHOLDER_SHORTDESCS = new Set([
+  ...Object.values(DITA_PLACEHOLDER_SHORTDESCS),
+  'Short description of the task.',
+  'Short description of the concept.',
+  'Short description of the reference.',
+]);
 
 const BODY_TAG_CLASSES: Record<string, string> = {
   shortdesc: 'dita-editor-shortdesc',

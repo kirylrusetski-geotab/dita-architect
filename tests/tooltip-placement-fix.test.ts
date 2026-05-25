@@ -56,7 +56,7 @@ describe('Tooltip component placement prop functionality', () => {
         'px-2 py-1',
         'bg-slate-900',
         'text-slate-200',
-        'text-[10px]',
+        'text-[11px]',
         'font-medium',
         'rounded',
         'opacity-0',
@@ -160,7 +160,7 @@ describe('Tooltip component placement prop functionality', () => {
 
       // Text properties should work for both orientations
       expect(tooltipContent).toContain('whitespace-nowrap');
-      expect(tooltipContent).toContain('text-[10px]');
+      expect(tooltipContent).toContain('text-[11px]');
     });
   });
 

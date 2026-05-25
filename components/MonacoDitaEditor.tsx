@@ -6,13 +6,13 @@ import type { ThemeName } from './Toolbar';
 // ── Syntax Theme Types & Options ────────────────────────────────────────────
 
 export const SYNTAX_THEME_OPTIONS = [
-  { value: 'material', label: 'Material' },
-  { value: 'github', label: 'GitHub' },
-  { value: 'monokai', label: 'Monokai' },
-  { value: 'dracula', label: 'Dracula' },
-  { value: 'one-dark', label: 'One Dark' },
-  { value: 'catppuccin', label: 'Catppuccin' },
-  { value: 'daylight', label: 'Daylight' },
+  { value: 'material',   label: 'Material',   mode: 'dark'  },
+  { value: 'github',     label: 'GitHub',     mode: 'dark'  },
+  { value: 'monokai',    label: 'Monokai',    mode: 'dark'  },
+  { value: 'dracula',    label: 'Dracula',    mode: 'dark'  },
+  { value: 'one-dark',   label: 'One Dark',   mode: 'dark'  },
+  { value: 'catppuccin', label: 'Catppuccin', mode: 'dark'  },
+  { value: 'daylight',   label: 'Daylight',   mode: 'light' },
 ] as const;
 
 export type SyntaxThemeName = typeof SYNTAX_THEME_OPTIONS[number]['value'];
@@ -524,6 +524,7 @@ interface MonacoDitaEditorProps {
   readOnly?: boolean;
   editorTheme?: ThemeName;
   syntaxTheme?: SyntaxThemeName;
+  wordWrapEnabled?: boolean;
   onEditorReady?: (api: { revealLine: (line: number, col?: number) => void }) => void;
   onFormat?: () => void;
 }
@@ -535,6 +536,7 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
   readOnly = false,
   editorTheme = 'dark',
   syntaxTheme = 'material',
+  wordWrapEnabled = false,
   onEditorReady,
   onFormat,
 }) => {
@@ -855,6 +857,10 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
     return () => clearTimeout(t);
   }, [value]);
 
+  useEffect(() => {
+    editorRef.current?.updateOptions({ wordWrap: wordWrapEnabled ? 'on' : 'off' });
+  }, [wordWrapEnabled]);
+
   return (
     <div className="h-full w-full relative">
       <Editor
@@ -874,6 +880,7 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
           renderValidationDecorations: 'on',
           padding: { top: 16, bottom: 16 },
           formatOnPaste: true,
+          wordWrap: wordWrapEnabled ? 'on' : 'off',
         }}
       />
     </div>

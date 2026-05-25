@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2, FileText, Folder, ChevronDown, Network, MapIcon, Search, XCircle } from 'lucide-react';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus } from '../types/heretto';
 import { HERETTO_ROOT_UUID } from '../constants/heretto';
@@ -62,7 +62,19 @@ export const HerettoBrowserModal = ({
   onClose,
   isLastSavedLocation,
   onBrowseFromRoot,
-}: HerettoBrowserModalProps) => (
+}: HerettoBrowserModalProps) => {
+  const [showBrowseRetry, setShowBrowseRetry] = useState(false);
+
+  useEffect(() => {
+    if (!browsing) { setShowBrowseRetry(false); return; }
+    const timer = setTimeout(() => setShowBrowseRetry(true), 3000);
+    return () => clearTimeout(timer);
+  }, [browsing]);
+
+  const currentFolderUuid = breadcrumbs[breadcrumbs.length - 1]?.uuid ?? HERETTO_ROOT_UUID;
+  const currentFolderName = breadcrumbs[breadcrumbs.length - 1]?.name ?? 'Heretto';
+
+  return (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
     <div
       role="dialog"
@@ -230,8 +242,13 @@ export const HerettoBrowserModal = ({
               </div>
             )}
             {searchResults.length === 0 && (searchStatus.phase === 'searching' || searchStatus.phase === 'idle') && (
-              <div className="flex items-center justify-center h-full py-12">
+              <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--editor-accent)' }} />
+                <span className="text-xs" style={{ color: 'var(--app-text-muted)' }}>
+                  {searchStatus.phase === 'searching' && searchStatus.foldersTotal > 0
+                    ? `Searching… ${searchStatus.foldersVisited} / ${searchStatus.foldersTotal} folders`
+                    : 'Searching your Heretto files…'}
+                </span>
               </div>
             )}
             {searchResults.map(item => (
@@ -285,8 +302,18 @@ export const HerettoBrowserModal = ({
           // Normal browse mode
           <>
             {browsing ? (
-              <div className="flex items-center justify-center h-full py-12">
+              <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--editor-accent)' }} />
+                <span className="text-xs" style={{ color: 'var(--app-text-muted)' }}>Loading your Heretto folders…</span>
+                {showBrowseRetry && (
+                  <button
+                    onClick={() => navigate(currentFolderUuid, currentFolderName, true)}
+                    className="text-xs underline"
+                    style={{ color: 'var(--editor-accent)' }}
+                  >
+                    Taking too long? Retry
+                  </button>
+                )}
               </div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full py-12 text-sm" style={{ color: 'var(--app-text-muted)' }}>
@@ -415,4 +442,5 @@ export const HerettoBrowserModal = ({
       </div>
     </div>
   </div>
-);
+  );
+};

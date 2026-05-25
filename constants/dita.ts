@@ -5,8 +5,8 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
   task: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
 <task id="new_task">
-  <title>Task title</title>
-  <shortdesc>Short description of the task.</shortdesc>
+  <title>Enter your task title</title>
+  <shortdesc>Enter a short description of the task.</shortdesc>
   <taskbody>
     <steps>
       <step><cmd>First step.</cmd></step>
@@ -16,8 +16,8 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
   concept: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
 <concept id="new_concept">
-  <title>Concept title</title>
-  <shortdesc>Short description of the concept.</shortdesc>
+  <title>Enter your concept title</title>
+  <shortdesc>Enter a short description of the concept.</shortdesc>
   <conbody>
     <p>Concept content goes here.</p>
   </conbody>
@@ -25,8 +25,8 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
   reference: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="new_reference">
-  <title>Reference title</title>
-  <shortdesc>Short description of the reference.</shortdesc>
+  <title>Enter your reference title</title>
+  <shortdesc>Enter a short description of the reference.</shortdesc>
   <refbody>
     <p>Reference content goes here.</p>
   </refbody>
@@ -34,15 +34,15 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
 };
 
 export const DITA_PLACEHOLDER_TITLES: Record<DitaTopicType, string> = {
-  task: 'Task title',
-  concept: 'Concept title',
-  reference: 'Reference title',
+  task: 'Enter your task title',
+  concept: 'Enter your concept title',
+  reference: 'Enter your reference title',
 };
 
 export const DITA_PLACEHOLDER_SHORTDESCS: Record<DitaTopicType, string> = {
-  task: 'Short description of the task.',
-  concept: 'Short description of the concept.',
-  reference: 'Short description of the reference.',
+  task: 'Enter a short description of the task.',
+  concept: 'Enter a short description of the concept.',
+  reference: 'Enter a short description of the reference.',
 };
 
 export const INITIAL_DITA: string = DITA_TEMPLATES.task

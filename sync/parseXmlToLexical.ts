@@ -64,19 +64,30 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
               // Detect template placeholder text and mark with special class
               const placeholderPatterns = [
                 /^Task title$/i,
-                /^Short description of the task$/i,
+                /^Enter your task title$/i,
+                /^Short description of the task\.?$/i,
+                /^Enter a short description of the task\.?$/i,
+                /^Concept title$/i,
+                /^Enter your concept title$/i,
+                /^Short description of the concept\.?$/i,
+                /^Enter a short description of the concept\.?$/i,
+                /^Reference title$/i,
+                /^Enter your reference title$/i,
+                /^Short description of the reference\.?$/i,
+                /^Enter a short description of the reference\.?$/i,
                 /^Brief task description$/i,
                 /^Brief description$/i,
                 /^Enter task title here$/i,
                 /^Enter short description here$/i,
                 /^Task description$/i,
+                /^Task description goes here$/i,
                 /^Short task description$/i
               ];
 
               const isPlaceholder = placeholderPatterns.some(pattern => pattern.test(text.trim()));
 
               if (isPlaceholder) {
-                const textNode = $createTextNode(text);
+                const textNode = $createTextNode(text.trim());
                 textNode.setFormat('italic');
                 textNode.setStyle('color: var(--app-text-muted)');
                 nodes.push(textNode);

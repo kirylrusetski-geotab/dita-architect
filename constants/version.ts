@@ -21,6 +21,82 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.6',
+    date: '2026-05-25',
+    title: 'Discoverability sweep — a keyboard shortcut cheat sheet, a What\'s New version browser, a first-run coach mark, action-oriented placeholder copy, and a tooltip polish pass.',
+    sections: [
+      {
+        heading: 'Discoverability',
+        items: [
+          'Keyboard shortcut cheat sheet — press `?` or `Cmd+/` (Mac) / `Ctrl+/` (Windows/Linux) to open a modal listing every shortcut grouped by category (Sync, XML editor, Modals). Also reachable from File Options → "Keyboard shortcuts" for mouse-first discoverability. Until now the shortcuts existed but were undiscoverable without reading the source.',
+          'What\'s New version browser — the release notes modal now has a left-rail version selector so you can flip between every shipped version, not just the latest. Default selection is the most recent release; the existing one-shot "show on version bump" behavior is unchanged.',
+          'First-run coach mark — the first time you open a tab, a hint appears over the editor split: `"Edit here or in the XML pane — press Ctrl+Enter to sync"`. Dismissed on first successful sync or explicit close and never shown again. New writers no longer have to guess at the two-pane model.',
+        ],
+      },
+      {
+        heading: 'Copy & Polish',
+        items: [
+          'Action-oriented placeholder titles — `"Task title"`, `"Concept title"`, and `"Reference title"` become `"Enter your task title"`, etc. Renders muted-italic and disappears the moment you start typing. The old copy looked too much like real content.',
+          'Tooltip font size — bumped from 10px to 11px across the toolbar. Small change, noticeably more legible at glance distance.',
+          'Theme description copy refresh — the dropdown descriptions are tightened to a consistent "what / for whom" pattern: Dark → "High contrast for low-light work", Geotab → "Geotab brand colors", and similar for the rest.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Placeholder text styling is now preserved end-to-end — the visual editor parser detects template placeholder strings (`"Enter your task title"`, `"Short description of the task."`, and the older variants) and applies italic + muted color on import. Backward-compatible: existing topics with `"Task title"` or `"Concept title"` still render styled, since the previous shortdesc/placeholder treatment is preserved alongside the new copy.',
+          'Single-source keyboard shortcut registry — new `constants/keyboard-shortcuts.ts` so future shortcuts have one place to register. Drives the cheat sheet directly.',
+          'Backlog reconciliation — four P3 items (table context menu ARIA, Insert Table modal ARIA + aria-labels, colspan/rowspan tests) confirmed shipped untracked and moved to Completed. Four others (LLM-dependent items, conditional text, map discovery) explicitly parked with unblock conditions so they stop surfacing as actionable.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.9.5',
+    date: '2026-05-21',
+    title: 'The editor feels like a document — a page-canvas layout, redesigned body element indicators, and a + button for inserting blocks without touching XML.',
+    sections: [
+      {
+        heading: 'Visual Editor',
+        items: [
+          'Page-canvas layout — the editor surface now sits on a visible "page" that floats on a contrasting "canvas" background, the layout every modern writing tool uses to give content a clear home. Light theme gets a soft drop shadow; dark themes get a clean border. Canvas and page colors are tuned per theme so the two surfaces are always legible against each other.',
+          'Body element indicators redesigned — PREREQUISITE / CONTEXT / RESULT / POSTREQ sections now render as always-visible full bordered boxes. Hovering a section lights up the left border in its accent color and fades in a small label chip at the top left. Because the border space is always reserved, nothing shifts when you hover — the layout-shift bug from the old hover-reveal treatment is gone.',
+          'Short description placeholder — the floating "SHORT DESCRIPTION" label is gone. When the short description field is empty, a soft italic placeholder appears exactly where you\'d start typing and disappears the moment you do. Standard placeholder behavior, applied to the field that needed it most.',
+        ],
+      },
+      {
+        heading: 'Content Insertion',
+        items: [
+          '+ button for block insertion — hover any block in the visual editor and a + button appears in the left margin, in the canvas gutter just outside the page. Click it to open a searchable element menu: Paragraph, Bulleted list, Numbered list, Note, Code block, Table, Image, and Link. Type to filter, press Enter or click to insert. The new block drops in directly after the hovered element. Table and Link open their existing dialogs; everything else inserts in place.',
+        ],
+      },
+      {
+        heading: 'Theme',
+        items: [
+          'Dark theme contrast — the page and canvas backgrounds were only five lightness steps apart, barely enough to distinguish them. Both values are recalibrated to match the separation established in other dark themes.',
+          'Geotab theme canvas — the canvas background was near pure black, making the page feel disconnected from the rest of the app chrome. Both values are now anchored in the blue-navy palette the theme is built around.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.9.4',
+    date: '2026-05-20',
+    title: 'Resizable split pane, word wrap, and a sync hint that knows when to be quiet: five quality-of-life improvements for long editing sessions.',
+    sections: [
+      {
+        heading: 'Polish',
+        items: [
+          'Split pane is now resizable: drag the handle between the visual and XML editors to adjust the split to whatever ratio your current task needs. Clamped at 20–80% so neither pane collapses out of reach, and your chosen width is remembered across sessions. Previously the 50/50 split was fixed.',
+          'Word wrap toggle in the XML editor: a new button in the XML toolbar wraps long lines to the pane width instead of running off the right edge. Toggling is immediate and the preference persists. Deeply nested or attribute-heavy elements no longer require horizontal scrolling just to read a single tag.',
+          'Sync hint only appears when editors diverge: "Press Ctrl+Enter to sync between editors" now shows only after an edit in one pane creates a divergence, and disappears the moment you sync. It was permanently visible before, which trained authors to ignore it.',
+          'Heretto browser tells you what\'s loading: the folder browser now shows "Loading your Heretto folders…" instead of a bare spinner, and search shows live progress: "Searching… 12 / 34 folders." If loading takes more than three seconds, a retry option appears.',
+          'Readability score tooltip: hover the score in the status bar to see what the number means — the human label and a note that 60–70 is the right range for technical documentation. The number was there; the interpretation wasn\'t.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.3.1',
     date: '2026-05-12',
     title: 'Print / Export PDF — topics leave the editor as clean, readable documents instead of 10MB browser screenshots.',

@@ -32,6 +32,9 @@ coverage/
 # TypeScript build info
 *.tsbuildinfo
 
+# macOS app bundle (build artifact — rebuilt via macos/build.sh)
+DITA Architect.app/
+
 # Development infrastructure (kept locally, not shared)
 agents/
 .claude/
