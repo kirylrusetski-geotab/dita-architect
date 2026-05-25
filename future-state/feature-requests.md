@@ -1302,3 +1302,125 @@ The sequencing here is backwards — we built the alarm system before we built t
 - **CSS** — one scoped rule; verify across all six themes. Sonnet-sized.
 - **Hover title** — extend `InlineValidationPlugin` to set `title` attribute on all `LinkNode` DOM elements (not just broken ones). Add alongside CSS in the same pass.
 - **Inline icon** — optional polish; can ship independently or bundle with P2-27.
+
+---
+
+## FR-039: macOS native app — menu bar structure and item placement policy
+
+**Requested:** 2026-05-25
+**Status:** Open
+**Priority:** P2
+**Impact:** High — establishes the correct native macOS UX pattern for all future feature work on the native app
+
+### Description
+
+The native macOS app (`macos/`) currently has a minimal menu bar (DITA Architect → Quit; Edit → Cut/Copy/Paste/Undo/Redo; Window → Minimise/Zoom) and an in-app header with a "File Options" dropdown and a "Heretto" dropdown. As the native app grows, there is a risk of duplicating commands in inconsistent places, confusing users who expect macOS conventions, and making actions undiscoverable to keyboard users.
+
+This feature request establishes the correct structure and a placement policy for all future items.
+
+### Current State
+
+**macOS menu bar (AppDelegate.swift):**
+- DITA Architect: Quit `⌘Q`
+- Edit: Cut `⌘X`, Copy `⌘C`, Paste `⌘V`, Select All `⌘A`, Undo `⌘Z`, Redo `⇧⌘Z`
+- Window: Minimise `⌘M`, Zoom
+
+**In-app header bar (web UI):**
+- File Options dropdown — New Topic (Task/Concept/Reference), Open Local File, Save Locally, Export PDF, What's New, Keyboard Shortcuts
+- Heretto dropdown — Connect/Disconnect, Open from Heretto, Browse, Replace in Heretto, Reload Map, Connect a Map
+
+**In-app formatting toolbar (web UI):**
+- Theme selector, Undo/Redo, H1/H2, Bold/Italic, Lists, Table, Note, Link, Edit mode, Delete
+- XML theme selector, Format XML, Word wrap, View toggle, Topic type badge
+
+### Placement Principle
+
+macOS has two layers with distinct jobs:
+
+| Layer | Job | User mental model |
+|---|---|---|
+| **macOS menu bar** | App-wide commands, document lifecycle, keyboard shortcuts | "How do I do X to this document?" |
+| **In-app toolbar/header** | Active editing controls, view state, connection status | "I need this while I'm writing" |
+
+**Decision rule:** If an action deserves a `⌘` shortcut or applies to the document as a whole, it belongs in the menu bar (or both). If it is a formatting control used mid-sentence or a view toggle, it belongs in the toolbar. If it shows connection status as much as it provides actions, it belongs in the header.
+
+### Recommended Menu Bar Structure
+
+**DITA Architect menu (expand from current)**
+| Item | Shortcut | Action |
+|---|---|---|
+| About DITA Architect | — | Info panel (version, build) |
+| What's New... | — | Opens release notes modal via JS bridge |
+| Keyboard Shortcuts... | — | Opens shortcut modal via JS bridge |
+| *(separator)* | | |
+| Quit DITA Architect | `⌘Q` | Existing |
+
+**File menu (new — does not exist yet)**
+| Item | Shortcut | Action |
+|---|---|---|
+| New Task | `⌘N` | Opens new task topic via JS bridge |
+| New Concept | `⇧⌘N` | Opens new concept topic via JS bridge |
+| New Reference | `⌥⌘N` | Opens new reference topic via JS bridge |
+| *(separator)* | | |
+| Open Local File... | `⌘O` | Opens file picker via JS bridge |
+| Close Tab | `⌘W` | Closes the active tab via JS bridge |
+| *(separator)* | | |
+| Save to Heretto | `⌘S` | Saves active tab to Heretto via JS bridge |
+| Replace in Heretto... | — | Opens replace workflow via JS bridge |
+| Export as PDF... | — | Opens print/export via JS bridge |
+| *(separator)* | | |
+| Connect to Heretto... | — | Opens Heretto connection modal via JS bridge |
+| Open from Heretto... | — | Opens Heretto browser modal via JS bridge |
+
+**Edit menu (no changes needed)**
+Existing items (Cut, Copy, Paste, Select All, Undo, Redo) are correct.
+
+**View menu (new — does not exist yet)**
+| Item | Shortcut | Action |
+|---|---|---|
+| Toggle XML Pane | `⌘\` | Show/hide the Monaco XML panel |
+| Toggle Split View | — | Cycle view modes |
+| *(separator)* | | |
+| Theme | submenu | Lists all app themes |
+| XML Syntax Theme | submenu | Lists all XML syntax themes |
+
+**Window menu (no changes needed)**
+
+### In-App Header — Policy Going Forward
+
+- The **Heretto button/dropdown** stays in the header permanently — it is a connection status indicator as much as a menu. Its actions (Connect, Open from Heretto, etc.) should appear in the File menu too (dual-path is acceptable and expected for Mac apps), but the header button is not going away.
+- The **File Options dropdown** should stop growing. Any new document-level action (new export format, history, versioning) should be added to the macOS File menu, not to File Options. File Options may eventually be removed from the native app once the File menu is complete, but that is not required immediately.
+
+### Technical Approach
+
+Each menu item requires two things:
+
+1. **Swift side (`AppDelegate.swift`):** An `NSMenuItem` with a target/action selector that calls into `jsBridge`.
+2. **Web app side (`dita-architect.tsx` or a new `lib/macos-api.ts`):** A `window.__ditaApi.methodName()` function exposed to the JS context that the bridge can call via `callAsyncJavaScript`.
+
+Existing pattern (from `HttpServer.swift`):
+```swift
+bridge.call("window.__ditaApi.getStatus") { result in ... }
+```
+
+New File menu action example:
+```swift
+@objc func newTask(_ sender: Any?) {
+    jsBridge?.call("window.__ditaApi.newTopic", args: ["type": "task"], body: "return window.__ditaApi.newTopic(type)") { _ in }
+}
+```
+
+The `window.__ditaApi` surface in the web app needs new entries for any action not already exposed via the HTTP API.
+
+### Value Proposition
+
+Mac users have 40+ years of muscle memory for `⌘N`, `⌘O`, `⌘S`, `⌘W`. When those shortcuts don't work in a native app, users notice immediately — they either give up on keyboard-driven workflows or feel the app is unfinished. Beyond shortcuts, the macOS menu bar is the universal discoverability surface: new users who don't know what an app can do open the menu and read. "File Options" inside the web UI is invisible to this discovery path.
+
+This is also a prerequisite for future features. Every document-level capability added to the native app — version history, map export, multi-file operations — needs a home in the menu bar before it can have a keyboard shortcut.
+
+### What This Does Not Change
+
+- The formatting toolbar stays exactly as-is. Bold, Italic, lists, tables, undo/redo, theme selectors — all toolbar, all correct.
+- The visual editor vs XML editor split is unchanged.
+- The Heretto status indicator in the header stays.
+- The web app (browser) is unaffected — it has no macOS menu bar.
