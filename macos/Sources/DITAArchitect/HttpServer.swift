@@ -113,6 +113,8 @@ final class HttpServer {
             handlePutTabContent(connection: connection, tabId: parts[2], body: body)
         } else if method == "POST" && parts.count == 4 && parts[0] == "api" && parts[1] == "tabs" && parts[3] == "save" {
             handlePostTabSave(connection: connection, tabId: parts[2])
+        } else if method == "POST" && parts.count == 4 && parts[0] == "api" && parts[1] == "tabs" && parts[3] == "insert-section" {
+            handlePostInsertSection(connection: connection, tabId: parts[2], body: body)
         } else if method == "POST" && parts == ["api", "load-content"] {
             handlePostLoadContent(connection: connection, body: body)
         } else if method == "GET" && parts == ["api", "pending-loads"] {
@@ -203,6 +205,23 @@ final class HttpServer {
             case .failure(let error):
                 self.sendError(connection: connection, status: 500, message: error.localizedDescription)
             }
+        }
+    }
+
+    private func handlePostInsertSection(connection: NWConnection, tabId: String, body: Data) {
+        guard
+            let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+            let sectionXml = json["xml"] as? String
+        else {
+            sendError(connection: connection, status: 400, message: "Missing 'xml' field")
+            return
+        }
+        bridge.call(
+            "window.__ditaApi.insertSection",
+            args: ["tabId": tabId, "sectionXml": sectionXml],
+            body: "return window.__ditaApi.insertSection(tabId, sectionXml)"
+        ) { [weak self] result in
+            self?.dispatchWriteResult(result, to: connection)
         }
     }
 

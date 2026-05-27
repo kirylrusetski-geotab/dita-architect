@@ -4,6 +4,20 @@ import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
 import { toast } from 'sonner';
 
+let sectionInsertExecutor: ((tabId: string, xml: string) => void) | null = null;
+
+export function registerSectionInsertExecutor(fn: (tabId: string, xml: string) => void): void {
+  sectionInsertExecutor = fn;
+}
+
+function scheduleSectionInsert(tabId: string, sectionXml: string): void {
+  setTimeout(() => {
+    if (sectionInsertExecutor) {
+      sectionInsertExecutor(tabId, sectionXml);
+    }
+  }, 50);
+}
+
 export interface NativeApiBridgeHandlers {
   getTabs: () => Tab[];
   getActiveTabId: () => string;
@@ -102,6 +116,31 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
           error: error instanceof Error ? error.message : 'Unknown error during save',
         });
       }
+    },
+
+    insertSection: (tabId: string, sectionXml: string): string => {
+      const tabs = getTabs();
+      const tab = tabs.find(t => t.id === tabId);
+      if (!tab) return JSON.stringify({ success: false, error: `Tab "${tabId}" not found` });
+
+      // Validate the incoming XML fragment
+      const probe = `<?xml version="1.0"?><concept id="x"><title>x</title><conbody>${sectionXml}</conbody></concept>`;
+      const validation = validateDitaXml(probe);
+      if (!validation.valid) {
+        return JSON.stringify({ success: false, error: `Invalid XML: ${validation.error ?? 'parse error'}` });
+      }
+
+      // Enter edit mode — increment enterTrigger so EditModePlugin captures a baseline snapshot
+      setTabs(prev => prev.map(t =>
+        t.id === tabId
+          ? { ...t, editMode: true, editModeEnterTrigger: (t.editModeEnterTrigger ?? 0) + 1 }
+          : t
+      ));
+
+      // After the React render cycle (snapshot captured), insert nodes into the live Lexical tree
+      scheduleSectionInsert(tabId, sectionXml);
+
+      return JSON.stringify({ success: true, status: 'inserting' });
     },
 
     loadContent: (xml: string, fileName: string, herettoTargetUuid?: string): string => {

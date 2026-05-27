@@ -1,6 +1,6 @@
 export type { NodeOrigin, NodeOriginMapType } from './nodeOriginMap';
 export { createNodeOriginMap } from './nodeOriginMap';
-export { parseXmlToLexical } from './parseXmlToLexical';
+export { parseXmlToLexical, parseSectionFragment } from './parseXmlToLexical';
 export { serializeLexicalToXml, createXmlMetaCache } from './serializeLexicalToXml';
 export type { XmlMetaCache } from './serializeLexicalToXml';
 export { SyncContext, useSyncContext } from './SyncContext';

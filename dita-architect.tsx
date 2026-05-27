@@ -24,6 +24,7 @@ import { SyncManager } from './components/SyncManager';
 import { TableColumnSizer } from './components/TableColumnSizer';
 import { TableActionMenuPlugin } from './components/TableActionMenuPlugin';
 import { EditModePlugin } from './components/EditModePlugin';
+import { SectionInsertPlugin } from './components/SectionInsertPlugin';
 import { TrackedChangesPlugin } from './components/TrackedChangesPlugin';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
@@ -1163,6 +1164,7 @@ export default function ProfessionalDitaEditor() {
                       onAcceptEdits={(tabId, xml) => updateTab(tabId, { editMode: false, xmlContent: xml, lastUpdatedBy: 'editor' })}
                       onRejectEdits={(tabId) => updateTab(tabId, { editMode: false })}
                     />
+                    <SectionInsertPlugin tabId={tab.id} />
                   </SyncManager>
                   <InlineValidationPlugin
                     xmlContent={tab.xmlContent}

@@ -21,6 +21,27 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.6.1',
+    date: '2026-05-27',
+    title: 'AI-assisted editing — inject a new section directly into the live editor and see it highlighted as a tracked change, ready to accept or reject.',
+    sections: [
+      {
+        heading: 'New API Endpoint',
+        items: [
+          '`POST /api/tabs/:id/insert-section` — send a `<section>` XML fragment to an open tab and it appears immediately in the visual editor, highlighted in green as a tracked insertion. The tab enters Edit Mode automatically; the author clicks Accept to keep the change or Reject to discard it. Designed for AI tools that want to propose new content without replacing the whole document.',
+        ],
+      },
+      {
+        heading: 'How it works',
+        items: [
+          'The endpoint validates the incoming XML fragment, enters Edit Mode to capture a baseline snapshot of the current editor state, then appends the new section nodes directly into the live Lexical tree. Because the new nodes were not in the baseline, `TrackedChangesPlugin` marks them with the green `tracked-addition` style — the same visual treatment used for manual tracked edits.',
+          'Existing content is untouched. Only the appended section carries the green highlight.',
+          'Request body: `{ "xml": "<section><title>...</title><p>...</p></section>" }`. Returns `{ "success": true, "status": "inserting" }` on success, or a descriptive error on invalid XML or unknown tab ID.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.6',
     date: '2026-05-25',
     title: 'Discoverability sweep — a keyboard shortcut cheat sheet, a What\'s New version browser, a first-run coach mark, action-oriented placeholder copy, and a tooltip polish pass.',
