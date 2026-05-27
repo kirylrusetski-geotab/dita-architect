@@ -33,7 +33,7 @@ final class JSBridge {
                 functionBody,
                 arguments: args,
                 in: nil,
-                in: .defaultClient
+                in: .page
             ) { result in
                 switch result {
                 case .success(let value):
