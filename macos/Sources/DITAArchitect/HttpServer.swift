@@ -216,10 +216,20 @@ final class HttpServer {
             sendError(connection: connection, status: 400, message: "Missing 'xml' field")
             return
         }
+
+        var args: [String: Any] = ["tabId": tabId, "sectionXml": sectionXml]
+        let fnBody: String
+        if let replaceId = json["replaceId"] as? String {
+            args["replaceId"] = replaceId
+            fnBody = "return window.__ditaApi.insertSection(tabId, sectionXml, replaceId)"
+        } else {
+            fnBody = "return window.__ditaApi.insertSection(tabId, sectionXml)"
+        }
+
         bridge.call(
             "window.__ditaApi.insertSection",
-            args: ["tabId": tabId, "sectionXml": sectionXml],
-            body: "return window.__ditaApi.insertSection(tabId, sectionXml)"
+            args: args,
+            body: fnBody
         ) { [weak self] result in
             self?.dispatchWriteResult(result, to: connection)
         }

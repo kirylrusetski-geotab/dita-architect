@@ -60,9 +60,20 @@ export function useExternalLoad({
             const newTab = createTab(formattedXml);
             newTab.localFileName = fileName;
 
-            // Set Heretto replace target if provided
+            // Set Heretto connection if a target UUID is provided. Populating
+            // herettoFile enables the Save-to-Heretto button (gated on tab.herettoFile).
+            // We use fileName for name/path because the API caller knows the file by
+            // those values; richer breadcrumb metadata would require traversing the
+            // Heretto folder tree, which is left to the open-from-Heretto flow.
             if (herettoTargetUuid) {
               newTab.herettoReplaceTarget = { uuid: herettoTargetUuid };
+              newTab.herettoFile = {
+                uuid: herettoTargetUuid,
+                name: fileName,
+                path: fileName,
+              };
+              newTab.herettoLastSaved = new Date();
+              newTab.herettoJustLoaded = true;
             }
 
             // Add tab and set as active

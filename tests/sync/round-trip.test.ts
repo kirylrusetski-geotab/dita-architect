@@ -10,7 +10,7 @@ import { DitaOpaqueNode } from '../../components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
 import { DitaImageNode } from '../../components/DitaImageNode';
 import { DitaPhRefNode } from '../../components/DitaPhRefNode';
-import { parseXmlToLexical } from '../../sync/parseXmlToLexical';
+import { parseXmlToLexical, parseSectionFragment, parseBlockFragment, findLexicalKeyByXmlId } from '../../sync/parseXmlToLexical';
 import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeLexicalToXml';
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
 
@@ -899,5 +899,137 @@ describe('visual editor mutation: link creation', () => {
     const output = serializeLexicalToXml(editorState, plainXml, originMap, cache);
     const body = getBodyContent(output);
     expect(body).toContain('<xref href="https://example.com" format="html">our website</xref>');
+  });
+});
+
+// ─── describe: P1-16: inserted-section accept-path inline preservation ────────
+
+describe('P1-16: parseSectionFragment + serialize preserves DITA inline tags', () => {
+  const baseTaskXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="t1"><title>T</title><taskbody><context><p>existing</p></context></taskbody></task>`;
+
+  function insertAndSerialize(fragmentXml: string): string {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+
+    parseXmlToLexical(baseTaskXml, editor, originMap, true);
+
+    editor.update(
+      () => {
+        const nodes = parseSectionFragment(fragmentXml, originMap);
+        if (!nodes) throw new Error('parseSectionFragment returned no nodes');
+        const root = $getRoot();
+        nodes.forEach(n => root.append(n));
+      },
+      { discrete: true }
+    );
+
+    return serializeLexicalToXml(editor.getEditorState(), baseTaskXml, originMap, cache);
+  }
+
+  it('preserves <uicontrol> instead of emitting <b>', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Click <uicontrol>OK</uicontrol> to proceed.</p></section>'
+    );
+    expect(out).toContain('<uicontrol>OK</uicontrol>');
+    expect(out).not.toMatch(/<b[ >]/);
+  });
+
+  it('preserves <wintitle> instead of emitting <i>', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Open <wintitle>Settings</wintitle> window.</p></section>'
+    );
+    expect(out).toContain('<wintitle>Settings</wintitle>');
+    expect(out).not.toMatch(/<i[ >]/);
+  });
+
+  it('preserves <ph conkeyref="..."/> on inserted content', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>See <ph conkeyref="x/y">placeholder</ph> docs.</p></section>'
+    );
+    expect(out).toContain('conkeyref="x/y"');
+  });
+
+  it('does not leak XHTML namespace onto the appended section', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Click <uicontrol>OK</uicontrol>.</p></section>'
+    );
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+});
+
+// ─── describe: P2-43: block-level fragment parsing ────────────────────────────
+
+describe('P2-43: parseBlockFragment accepts block-level top-level elements', () => {
+  function parseInEditor(fragmentXml: string): any[] | null {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    let result: any[] | null = null;
+    editor.update(
+      () => {
+        result = parseBlockFragment(fragmentXml, originMap);
+      },
+      { discrete: true }
+    );
+    return result;
+  }
+
+  it('parses a bare <p>', () => {
+    const nodes = parseInEditor('<p>just a paragraph</p>');
+    expect(nodes).not.toBeNull();
+    expect(nodes!.length).toBe(1);
+    expect(nodes![0].getType()).toBe('paragraph');
+  });
+
+  it('parses a bare <ul>', () => {
+    const nodes = parseInEditor('<ul><li>one</li><li>two</li></ul>');
+    expect(nodes).not.toBeNull();
+    expect(nodes!.length).toBe(1);
+    expect(nodes![0].getType()).toBe('list');
+  });
+
+  it('parses a bare <note>', () => {
+    const nodes = parseInEditor('<note type="warning">heads up</note>');
+    expect(nodes).not.toBeNull();
+    expect(nodes!.length).toBe(1);
+    expect(nodes![0].getType()).toBe('quote');
+  });
+
+  it('parses multiple top-level blocks', () => {
+    const nodes = parseInEditor('<p>first</p><p>second</p>');
+    expect(nodes).not.toBeNull();
+    expect(nodes!.length).toBe(2);
+  });
+
+  it('rejects disallowed top-level element (<title>)', () => {
+    const nodes = parseInEditor('<title>nope</title>');
+    expect(nodes).toBeNull();
+  });
+
+  it('still unwraps <section> for back-compat', () => {
+    const nodes = parseInEditor('<section><title>S</title><p>x</p></section>');
+    expect(nodes).not.toBeNull();
+    expect(nodes!.length).toBeGreaterThanOrEqual(2);
+    expect(nodes![0].getType()).toBe('heading');
+  });
+});
+
+describe('P2-43: findLexicalKeyByXmlId locates nodes for replaceId', () => {
+  it('finds a paragraph by its DITA id attribute', () => {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="c1"><title>T</title><conbody>
+  <p id="intro">intro</p>
+  <p id="body">body</p>
+</conbody></concept>`;
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    const key = findLexicalKeyByXmlId(originMap, 'body');
+    expect(key).not.toBeNull();
+    expect(findLexicalKeyByXmlId(originMap, 'nonexistent')).toBeNull();
   });
 });

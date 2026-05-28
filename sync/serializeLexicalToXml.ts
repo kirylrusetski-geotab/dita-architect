@@ -67,8 +67,11 @@ const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
 
 /**
  * Serialize inline content from a Lexical node into child nodes for a DOM element.
+ * If originMap is provided, TextNodes parsed from DITA inline elements (e.g.
+ * <uicontrol>, <wintitle>) are re-emitted as their original DITA tag instead of
+ * the generic <b>/<i> fallback inferred from format flags.
  */
-const serializeInlineContent = (lexicalNode: any, doc: Document): Node[] => {
+const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: NodeOriginMapType): Node[] => {
   const nodes: Node[] = [];
   if (!lexicalNode.getChildren) return nodes;
 
@@ -79,6 +82,17 @@ const serializeInlineContent = (lexicalNode: any, doc: Document): Node[] => {
       const isBold = child.hasFormat('bold');
       const isItalic = child.hasFormat('italic');
       const isCode = child.hasFormat('code');
+
+      const origin = originMap?.get(child.getKey());
+      if (origin?.inlineTag) {
+        const el = doc.createElement(origin.inlineTag);
+        if (origin.inlineAttrs) {
+          Object.entries(origin.inlineAttrs).forEach(([k, v]) => el.setAttribute(k, v));
+        }
+        el.appendChild(doc.createTextNode(text));
+        nodes.push(el);
+        return;
+      }
 
       if (isCode) {
         const codeph = doc.createElement('codeph');
@@ -105,7 +119,7 @@ const serializeInlineContent = (lexicalNode: any, doc: Document): Node[] => {
       const xref = doc.createElement('xref');
       xref.setAttribute('href', child.getURL());
       xref.setAttribute('format', 'html');
-      const linkChildren = serializeInlineContent(child, doc);
+      const linkChildren = serializeInlineContent(child, doc, originMap);
       linkChildren.forEach(n => xref.appendChild(n));
       nodes.push(xref);
     } else if (child.getType() === 'ditaphref') {
@@ -140,13 +154,13 @@ const serializeInlineContent = (lexicalNode: any, doc: Document): Node[] => {
  * Replace all children of a DOM element with inline content from a Lexical node.
  * Preserves any processing instructions (e.g. Heretto review markers).
  */
-const replaceElementContent = (domEl: Element, lexicalNode: any, doc: Document) => {
+const replaceElementContent = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   // Save processing instructions before clearing
   const pis: Node[] = Array.from(domEl.childNodes).filter(
     child => child.nodeType === Node.PROCESSING_INSTRUCTION_NODE
   );
   while (domEl.firstChild) domEl.removeChild(domEl.firstChild);
-  serializeInlineContent(lexicalNode, doc).forEach(n => domEl.appendChild(n));
+  serializeInlineContent(lexicalNode, doc, originMap).forEach(n => domEl.appendChild(n));
   // Re-append preserved processing instructions
   pis.forEach(pi => domEl.appendChild(pi));
 };
@@ -312,7 +326,7 @@ const patchInlineNodes = (domEl: Element, lexicalNode: any): boolean => {
  * Attempts surgical inline update to preserve element wrappers before falling back
  * to full replacement.
  */
-const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document): boolean => {
+const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType): boolean => {
   const domText = getNormalizedDomText(domEl);
   const lexText = lexicalNode.getTextContent();
   if (domText === lexText) {
@@ -325,11 +339,11 @@ const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document): b
       return true; // untouched — all inline markup preserved
     }
     // Link structure changed — force full replacement
-    replaceElementContent(domEl, lexicalNode, doc);
+    replaceElementContent(domEl, lexicalNode, doc, originMap);
     return false;
   }
   if (!patchInlineNodes(domEl, lexicalNode)) {
-    replaceElementContent(domEl, lexicalNode, doc);
+    replaceElementContent(domEl, lexicalNode, doc, originMap);
   }
   return false;
 };
@@ -344,17 +358,17 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
   if (type === 'paragraph') {
     if (origin?.tag === 'prereq' || origin?.tag === 'context' || origin?.tag === 'result' || origin?.tag === 'postreq') {
       const el = doc.createElement(origin.tag);
-      serializeInlineContent(lexicalNode, doc).forEach(n => el.appendChild(n));
+      serializeInlineContent(lexicalNode, doc, originMap).forEach(n => el.appendChild(n));
       return el;
     }
     const el = doc.createElement('p');
-    serializeInlineContent(lexicalNode, doc).forEach(n => el.appendChild(n));
+    serializeInlineContent(lexicalNode, doc, originMap).forEach(n => el.appendChild(n));
     return el;
   }
 
   if (type === 'quote') {
     const el = doc.createElement('note');
-    serializeInlineContent(lexicalNode, doc).forEach(n => el.appendChild(n));
+    serializeInlineContent(lexicalNode, doc, originMap).forEach(n => el.appendChild(n));
     return el;
   }
 
@@ -368,10 +382,10 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
       const liEl = doc.createElement(childTag);
       if (tag === 'steps') {
         const cmd = doc.createElement('cmd');
-        serializeInlineContent(li, doc).forEach(n => cmd.appendChild(n));
+        serializeInlineContent(li, doc, originMap).forEach(n => cmd.appendChild(n));
         liEl.appendChild(cmd);
       } else {
-        serializeInlineContent(li, doc).forEach(n => liEl.appendChild(n));
+        serializeInlineContent(li, doc, originMap).forEach(n => liEl.appendChild(n));
       }
       el.appendChild(liEl);
     });
@@ -379,7 +393,7 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
   }
 
   if (type === 'table') {
-    return createTableFromLexical(lexicalNode, doc);
+    return createTableFromLexical(lexicalNode, doc, originMap);
   }
 
   if (type === 'ditacodeblock') {
@@ -396,7 +410,7 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
 /**
  * Create a CALS table element from a Lexical TableNode.
  */
-const createTableFromLexical = (tableNode: any, doc: Document): Element => {
+const createTableFromLexical = (tableNode: any, doc: Document, originMap?: NodeOriginMapType): Element => {
   const table = doc.createElement('table');
   const rows = tableNode.getChildren ? tableNode.getChildren() : [];
   const headerRows: any[] = [];
@@ -455,12 +469,12 @@ const createTableFromLexical = (tableNode: any, doc: Document): Element => {
 
       const cellChildren = cell.getChildren ? cell.getChildren() : [];
       if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-        serializeInlineContent(cellChildren[0], doc).forEach((n: Node) => entry.appendChild(n));
+        serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => entry.appendChild(n));
       } else {
         cellChildren.forEach((child: any) => {
           if (child.getType() === 'paragraph') {
             const p = doc.createElement('p');
-            serializeInlineContent(child, doc).forEach((n: Node) => p.appendChild(n));
+            serializeInlineContent(child, doc, originMap).forEach((n: Node) => p.appendChild(n));
             entry.appendChild(p);
           }
         });
@@ -491,7 +505,7 @@ const createTableFromLexical = (tableNode: any, doc: Document): Element => {
  * Patch a <steps> or <ol> or <ul> list element in the DOM with Lexical list items.
  * For <steps>, only update <cmd> text — leave <info>, <substeps>, etc. untouched.
  */
-const patchListElement = (domEl: Element, lexicalNode: any, doc: Document) => {
+const patchListElement = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   const tag = domEl.tagName.toLowerCase();
   const isSteps = tag === 'steps';
   const childTag = isSteps ? 'step' : 'li';
@@ -511,10 +525,10 @@ const patchListElement = (domEl: Element, lexicalNode: any, doc: Document) => {
       // Only patch <cmd> inside <step>, leave everything else
       const cmd = domItem.querySelector('cmd');
       if (cmd) {
-        patchElementContent(cmd, lexItem, doc);
+        patchElementContent(cmd, lexItem, doc, originMap);
       }
     } else {
-      patchElementContent(domItem, lexItem, doc);
+      patchElementContent(domItem, lexItem, doc, originMap);
     }
   }
 
@@ -523,10 +537,10 @@ const patchListElement = (domEl: Element, lexicalNode: any, doc: Document) => {
     const newItem = doc.createElement(childTag);
     if (isSteps) {
       const cmd = doc.createElement('cmd');
-      serializeInlineContent(lexicalItems[i], doc).forEach(n => cmd.appendChild(n));
+      serializeInlineContent(lexicalItems[i], doc, originMap).forEach(n => cmd.appendChild(n));
       newItem.appendChild(cmd);
     } else {
-      serializeInlineContent(lexicalItems[i], doc).forEach(n => newItem.appendChild(n));
+      serializeInlineContent(lexicalItems[i], doc, originMap).forEach(n => newItem.appendChild(n));
     }
     domEl.appendChild(newItem);
   }
@@ -541,11 +555,11 @@ const patchListElement = (domEl: Element, lexicalNode: any, doc: Document) => {
  * Patch a <table> element in the DOM with Lexical table data.
  * Walks rows and entries in parallel, updating only entry text content.
  */
-const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document) => {
+const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   const tag = domEl.tagName.toLowerCase();
 
   if (tag === 'simpletable') {
-    patchSimpleTable(domEl, lexicalNode, doc);
+    patchSimpleTable(domEl, lexicalNode, doc, originMap);
     return;
   }
 
@@ -578,7 +592,7 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document) => {
     const domRows = Array.from(thead.children).filter(c => c.tagName.toLowerCase() === 'row');
     for (const domRow of domRows) {
       if (lexIdx >= lexicalRows.length) break;
-      patchTableRow(domRow, lexicalRows[lexIdx], doc);
+      patchTableRow(domRow, lexicalRows[lexIdx], doc, originMap);
       lexIdx++;
     }
   }
@@ -589,13 +603,13 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document) => {
     const domRows = Array.from(tbody.children).filter(c => c.tagName.toLowerCase() === 'row');
     for (const domRow of domRows) {
       if (lexIdx >= lexicalRows.length) break;
-      patchTableRow(domRow, lexicalRows[lexIdx], doc);
+      patchTableRow(domRow, lexicalRows[lexIdx], doc, originMap);
       lexIdx++;
     }
   }
 };
 
-const patchTableRow = (domRow: Element, lexicalRow: any, doc: Document) => {
+const patchTableRow = (domRow: Element, lexicalRow: any, doc: Document, originMap?: NodeOriginMapType) => {
   const domEntries = Array.from(domRow.children).filter(
     c => c.tagName.toLowerCase() === 'entry'
   );
@@ -603,11 +617,11 @@ const patchTableRow = (domRow: Element, lexicalRow: any, doc: Document) => {
   const count = Math.min(domEntries.length, lexCells.length);
 
   for (let i = 0; i < count; i++) {
-    patchTableEntry(domEntries[i], lexCells[i], doc);
+    patchTableEntry(domEntries[i], lexCells[i], doc, originMap);
   }
 };
 
-const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document) => {
+const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, originMap?: NodeOriginMapType) => {
   const cellChildren = lexicalCell.getChildren ? lexicalCell.getChildren() : [];
 
   // Update colspan attributes if changed
@@ -651,7 +665,7 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document) => 
     const count = Math.min(domParagraphs.length, cellChildren.length);
     for (let i = 0; i < count; i++) {
       if (cellChildren[i].getType() === 'paragraph') {
-        patchElementContent(domParagraphs[i], cellChildren[i], doc);
+        patchElementContent(domParagraphs[i], cellChildren[i], doc, originMap);
       }
     }
   } else {
@@ -661,12 +675,12 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document) => 
     if (domText !== lexText) {
       while (domEntry.firstChild) domEntry.removeChild(domEntry.firstChild);
       if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-        serializeInlineContent(cellChildren[0], doc).forEach(n => domEntry.appendChild(n));
+        serializeInlineContent(cellChildren[0], doc, originMap).forEach(n => domEntry.appendChild(n));
       } else {
         cellChildren.forEach((child: any) => {
           if (child.getType() === 'paragraph') {
             const p = doc.createElement('p');
-            serializeInlineContent(child, doc).forEach(n => p.appendChild(n));
+            serializeInlineContent(child, doc, originMap).forEach(n => p.appendChild(n));
             domEntry.appendChild(p);
           }
         });
@@ -675,7 +689,7 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document) => 
   }
 };
 
-const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document) => {
+const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   const domRows = Array.from(domEl.children).filter(
     c => c.tagName.toLowerCase() === 'sthead' || c.tagName.toLowerCase() === 'strow'
   );
@@ -690,7 +704,7 @@ const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document) => {
     const entryCount = Math.min(domEntries.length, lexCells.length);
 
     for (let j = 0; j < entryCount; j++) {
-      patchTableEntry(domEntries[j], lexCells[j], doc);
+      patchTableEntry(domEntries[j], lexCells[j], doc, originMap);
     }
   }
 };
@@ -713,7 +727,7 @@ const patchSection = (
     // Patch section title
     const sectionTitle = sectionEl.querySelector(':scope > title');
     if (sectionTitle) {
-      patchElementContent(sectionTitle, firstNode, doc);
+      patchElementContent(sectionTitle, firstNode, doc, originMap);
     }
     lexicalBodyNodes = sectionLexicalNodes.slice(1);
   }
@@ -768,7 +782,7 @@ const patchBodyChildren = (
     const lexOrigin = originMap.get(lexNode.getKey());
 
     if (areTypesCompatible(domTag, lexType, lexOrigin, rootTag)) {
-      patchRecognizedElement(domChild, lexNode, doc, rootTag);
+      patchRecognizedElement(domChild, lexNode, doc, rootTag, originMap);
       lexIdx++;
     } else {
       // Type mismatch — check if the next DOM child matches this Lexical node (look-ahead)
@@ -831,17 +845,17 @@ const areTypesCompatible = (
 /**
  * Patch a single recognized DOM element with its matching Lexical node.
  */
-const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document, rootTag: string) => {
+const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document, rootTag: string, originMap?: NodeOriginMapType) => {
   const tag = domEl.tagName.toLowerCase();
 
   if (tag === 'p' || tag === 'prereq' || tag === 'context' || tag === 'result' || tag === 'postreq') {
-    patchElementContent(domEl, lexicalNode, doc);
+    patchElementContent(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'note') {
-    patchElementContent(domEl, lexicalNode, doc);
+    patchElementContent(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'steps' || tag === 'ol' || tag === 'ul') {
-    patchListElement(domEl, lexicalNode, doc);
+    patchListElement(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'table' || tag === 'simpletable') {
-    patchTableElement(domEl, lexicalNode, doc);
+    patchTableElement(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'codeblock') {
     const newCode = lexicalNode.getCode();
     if ((domEl.textContent || '') !== newCode) {
@@ -857,7 +871,7 @@ const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document,
     // The lexicalNode here is the h2. We need to collect following siblings.
     // But since we're called from patchBodyChildren which handles one node at a time,
     // we handle section differently — see the main serializer logic.
-    patchSectionFromHeading(domEl, lexicalNode, doc, rootTag);
+    patchSectionFromHeading(domEl, lexicalNode, doc, rootTag, originMap);
   }
 };
 
@@ -866,10 +880,10 @@ const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document,
  * we need to collect the h2 + following Lexical nodes that belong to this section.
  * This is handled specially in the main walk — this function just patches the title.
  */
-const patchSectionFromHeading = (sectionEl: Element, headingNode: any, doc: Document, _rootTag: string) => {
+const patchSectionFromHeading = (sectionEl: Element, headingNode: any, doc: Document, _rootTag: string, originMap?: NodeOriginMapType) => {
   const sectionTitle = sectionEl.querySelector(':scope > title');
   if (sectionTitle) {
-    patchElementContent(sectionTitle, headingNode, doc);
+    patchElementContent(sectionTitle, headingNode, doc, originMap);
   }
 };
 
@@ -920,20 +934,20 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
     // 1. Patch <title>
     const titleEl = rootEl.querySelector(':scope > title');
     if (titleEl && titleNode) {
-      patchElementContent(titleEl, titleNode, clonedDoc);
+      patchElementContent(titleEl, titleNode, clonedDoc, originMap);
     } else if (!titleEl && titleNode) {
       const newTitle = clonedDoc.createElement('title');
-      serializeInlineContent(titleNode, clonedDoc).forEach(n => newTitle.appendChild(n));
+      serializeInlineContent(titleNode, clonedDoc, originMap).forEach(n => newTitle.appendChild(n));
       rootEl.insertBefore(newTitle, rootEl.firstChild);
     }
 
     // 2. Patch <shortdesc>
     const shortdescEl = rootEl.querySelector(':scope > shortdesc');
     if (shortdescEl && shortdescNode) {
-      patchElementContent(shortdescEl, shortdescNode, clonedDoc);
+      patchElementContent(shortdescEl, shortdescNode, clonedDoc, originMap);
     } else if (!shortdescEl && shortdescNode) {
       const newShortdesc = clonedDoc.createElement('shortdesc');
-      serializeInlineContent(shortdescNode, clonedDoc).forEach(n => newShortdesc.appendChild(n));
+      serializeInlineContent(shortdescNode, clonedDoc, originMap).forEach(n => newShortdesc.appendChild(n));
       // Insert after title
       const afterTitle = rootEl.querySelector(':scope > title');
       if (afterTitle && afterTitle.nextSibling) {
@@ -986,7 +1000,7 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
           const lexOrigin = originMap.get(lexNode.getKey());
 
           if (areTypesCompatible(tag, lexType, lexOrigin, rootTag)) {
-            patchRecognizedElement(child, lexNode, clonedDoc, rootTag);
+            patchRecognizedElement(child, lexNode, clonedDoc, rootTag, originMap);
             lexGroupIdx++;
           } else {
             // Type mismatch — insert new element, remove old
@@ -1099,7 +1113,7 @@ const createSectionFromLexical = (nodes: any[], doc: Document, rootTag: string, 
 
   if (first && first.getType() === 'heading' && first.getTag() === 'h2') {
     const title = doc.createElement('title');
-    serializeInlineContent(first, doc).forEach(n => title.appendChild(n));
+    serializeInlineContent(first, doc, originMap).forEach(n => title.appendChild(n));
     section.appendChild(title);
   }
 

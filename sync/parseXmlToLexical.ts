@@ -22,7 +22,7 @@ import { $createDitaPhRefNode } from '../components/DitaPhRefNode';
 // Shared parsing helpers — module-level so parseSectionFragment can reuse them
 // ---------------------------------------------------------------------------
 
-const parseTextNodes = (node: Element): any[] => {
+const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] => {
   const nodes: any[] = [];
   const childNodes = Array.from(node.childNodes);
   childNodes.forEach((child, index) => {
@@ -93,7 +93,7 @@ const parseTextNodes = (node: Element): any[] => {
       if (elTag === 'xref') {
         const href = el.getAttribute('href') || '';
         const linkNode = $createLinkNode(href);
-        const linkChildren = parseTextNodes(el);
+        const linkChildren = parseTextNodes(el, originMap);
         linkChildren.forEach(n => linkNode.append(n));
         nodes.push(linkNode);
       } else if (elTag === 'ph' || elTag === 'term') {
@@ -103,7 +103,7 @@ const parseTextNodes = (node: Element): any[] => {
           nodes.push($createDitaPhRefNode(refType, ref, el.textContent || ''));
         } else {
           // No ref — transparent pass-through
-          parseTextNodes(el).forEach(n => nodes.push(n));
+          parseTextNodes(el, originMap).forEach(n => nodes.push(n));
         }
       } else if (elTag === 'image') {
         const href = el.getAttribute('href') || '';
@@ -116,10 +116,12 @@ const parseTextNodes = (node: Element): any[] => {
       } else if (elTag === 'uicontrol') {
         const textNode = $createTextNode(el.textContent || '');
         textNode.toggleFormat('bold');
+        originMap?.set(textNode.getKey(), { tag: 'uicontrol', bodyIndex: -1, inlineTag: 'uicontrol' });
         nodes.push(textNode);
       } else if (elTag === 'wintitle') {
         const textNode = $createTextNode(el.textContent || '');
         textNode.toggleFormat('italic');
+        originMap?.set(textNode.getKey(), { tag: 'wintitle', bodyIndex: -1, inlineTag: 'wintitle' });
         nodes.push(textNode);
       } else {
         const textNode = $createTextNode(el.textContent || '');
@@ -151,15 +153,27 @@ const parseTextNodes = (node: Element): any[] => {
 
 const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, bodyIndex?: number): any | any[] | null => {
   const tagName = xmlNode.tagName.toLowerCase();
+  const xmlId = xmlNode.getAttribute('id') || undefined;
+
+  const stampId = (node: any) => {
+    if (!xmlId || !node || typeof node.getKey !== 'function') return;
+    const existing = originMap.get(node.getKey());
+    if (existing) {
+      originMap.set(node.getKey(), { ...existing, xmlId });
+    } else {
+      originMap.set(node.getKey(), { tag: tagName, bodyIndex: bodyIndex ?? -1, xmlId });
+    }
+  };
 
   switch (tagName) {
     case 'title': {
       const level = xmlNode.parentElement?.tagName.toLowerCase() === 'section' ? 'h2' : 'h1';
       const heading = $createHeadingNode(level);
-      parseTextNodes(xmlNode).forEach(n => heading.append(n));
+      parseTextNodes(xmlNode, originMap).forEach(n => heading.append(n));
       if (level === 'h2') {
         originMap.set(heading.getKey(), { tag: 'section-title', bodyIndex: -1 });
       }
+      stampId(heading);
       return heading;
     }
 
@@ -185,8 +199,9 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
 
         const noteType = (xmlNode.getAttribute('type') || 'note').toUpperCase();
         const quote = $createQuoteNode();
-        parseTextNodes(xmlNode).forEach(n => quote.append(n));
+        parseTextNodes(xmlNode, originMap).forEach(n => quote.append(n));
         originMap.set(quote.getKey(), { tag: 'note', bodyIndex: bodyIndex ?? -1, noteType });
+        stampId(quote);
         return quote;
       }
 
@@ -235,16 +250,17 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element — parse as text nodes
-              parseTextNodes(el).forEach(n => inlineNodes.push(n));
+              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
         flushInline();
+        if (results.length > 0) stampId(results[0]);
         return results.length === 1 ? results[0] : results;
       }
 
       const p = $createParagraphNode();
-      parseTextNodes(xmlNode).forEach(n => p.append(n));
+      parseTextNodes(xmlNode, originMap).forEach(n => p.append(n));
       if (tagName === 'shortdesc') {
         originMap.set(p.getKey(), { tag: 'shortdesc', bodyIndex: -2 });
       } else if (tagName === 'prereq' || tagName === 'context' || tagName === 'result' || tagName === 'postreq') {
@@ -252,6 +268,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       } else if (tagName === 'p' && bodyIndex !== undefined) {
         originMap.set(p.getKey(), { tag: 'p', bodyIndex });
       }
+      stampId(p);
       return p;
     }
 
@@ -262,7 +279,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         if (child.tagName === 'step' || child.tagName === 'li') {
           const li = $createListItemNode();
           const contentNode = child.querySelector('cmd') || child;
-          parseTextNodes(contentNode).forEach(n => li.append(n));
+          parseTextNodes(contentNode, originMap).forEach(n => li.append(n));
 
           // Add affordance chips for <info> block children (invisible to serializer)
           if (child.tagName === 'step') {
@@ -283,6 +300,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
           ol.append(li);
         }
       });
+      stampId(ol);
       return ol;
     }
 
@@ -290,9 +308,10 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       const ul = $createListNode('bullet');
       Array.from(xmlNode.children).forEach(child => {
         const li = $createListItemNode();
-        parseTextNodes(child).forEach(n => li.append(n));
+        parseTextNodes(child, originMap).forEach(n => li.append(n));
         ul.append(li);
       });
+      stampId(ul);
       return ul;
     }
 
@@ -337,7 +356,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element: parse as text nodes
-              parseTextNodes(el).forEach(n => inlineNodes.push(n));
+              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
@@ -400,6 +419,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       const tbody = tgroup.querySelector('tbody');
       if (tbody) parseRows(tbody, false);
 
+      stampId(tableNode);
       return tableNode;
     }
 
@@ -442,7 +462,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element: parse as text nodes
-              parseTextNodes(el).forEach(n => inlineNodes.push(n));
+              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
@@ -475,6 +495,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         }
       });
 
+      stampId(tableNode);
       return tableNode;
     }
 
@@ -490,6 +511,8 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
           }
         }
       });
+      // For a <section id="..."> the id rides on the first node (typically the h2 title).
+      if (sectionNodes.length > 0) stampId(sectionNodes[0]);
       return sectionNodes;
     }
 
@@ -508,7 +531,9 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       };
       extractCodeText(xmlNode);
       const language = xmlNode.getAttribute('outputclass') || '';
-      return $createDitaCodeBlockNode(code, language);
+      const cb = $createDitaCodeBlockNode(code, language);
+      stampId(cb);
+      return cb;
     }
 
     case 'fig': {
@@ -595,37 +620,86 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
   return true;
 };
 
+// Block-level tags the API accepts at the top level of an insert fragment.
+// Kept in sync with the validation probe in lib/native-api-bridge.ts.
+const ALLOWED_FRAGMENT_BLOCK_TAGS = new Set([
+  'section', 'p', 'ul', 'ol', 'note', 'codeblock',
+  'table', 'simpletable', 'fig', 'image', 'dl', 'example',
+  'prereq', 'context', 'result', 'postreq', 'steps',
+]);
+
 /**
- * Parse a single `<section>` XML fragment into an array of Lexical nodes,
- * without replacing the entire editor root. Used by SectionInsertPlugin to
- * inject new content into the live tree so TrackedChangesPlugin can highlight
- * the additions.
+ * Parse a block-level XML fragment into an array of Lexical nodes, without
+ * replacing the entire editor root. Used by SectionInsertPlugin to inject new
+ * content into the live tree so TrackedChangesPlugin can highlight the additions.
+ *
+ * Accepts one or more block-level children: <section>, <p>, <ul>, <ol>, <note>,
+ * <codeblock>, <table>, <simpletable>, <fig>, <image>, etc. When the root element
+ * is <section>, its children are recursed into (preserving the original behavior
+ * of parseSectionFragment).
  *
  * Must be called inside editor.update().
  */
-export const parseSectionFragment = (sectionXml: string, originMap: NodeOriginMapType): any[] | null => {
+export const parseBlockFragment = (fragmentXml: string, originMap: NodeOriginMapType): any[] | null => {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(`<root>${sectionXml}</root>`, 'application/xml');
+  const doc = parser.parseFromString(`<root>${fragmentXml}</root>`, 'application/xml');
 
   if (doc.querySelector('parsererror')) {
-    console.warn('parseSectionFragment: invalid XML fragment');
+    console.warn('parseBlockFragment: invalid XML fragment');
     return null;
   }
 
-  const sectionEl = doc.querySelector('section');
-  if (!sectionEl) {
-    console.warn('parseSectionFragment: no <section> element found');
+  const root = doc.querySelector('root');
+  if (!root) return null;
+
+  const topChildren = Array.from(root.children);
+  if (topChildren.length === 0) {
+    console.warn('parseBlockFragment: no top-level elements');
     return null;
+  }
+
+  for (const child of topChildren) {
+    if (!ALLOWED_FRAGMENT_BLOCK_TAGS.has(child.tagName.toLowerCase())) {
+      console.warn(`parseBlockFragment: disallowed top-level element <${child.tagName}>`);
+      return null;
+    }
   }
 
   const nodes: any[] = [];
-  Array.from(sectionEl.children).forEach(child => {
-    const result = traverseXmlElement(child, originMap);
-    if (result) {
-      if (Array.isArray(result)) nodes.push(...result);
-      else nodes.push(result);
+  topChildren.forEach(child => {
+    if (child.tagName.toLowerCase() === 'section') {
+      // Unwrap <section>: recurse into its children. Matches the legacy
+      // parseSectionFragment behavior so inserted sections render as a flat
+      // sequence of body-level nodes rather than a nested DitaOpaqueNode.
+      Array.from(child.children).forEach(grandchild => {
+        const result = traverseXmlElement(grandchild, originMap);
+        if (result) {
+          if (Array.isArray(result)) nodes.push(...result);
+          else nodes.push(result);
+        }
+      });
+    } else {
+      const result = traverseXmlElement(child, originMap);
+      if (result) {
+        if (Array.isArray(result)) nodes.push(...result);
+        else nodes.push(result);
+      }
     }
   });
 
   return nodes.length > 0 ? nodes : null;
+};
+
+// Back-compat alias — existing callers use parseSectionFragment.
+export const parseSectionFragment = parseBlockFragment;
+
+/**
+ * Walk the origin map looking for a Lexical node key whose origin has the
+ * given XML id. Returns null if not found.
+ */
+export const findLexicalKeyByXmlId = (originMap: NodeOriginMapType, xmlId: string): string | null => {
+  for (const [key, origin] of originMap.entries()) {
+    if (origin.xmlId === xmlId) return key;
+  }
+  return null;
 };

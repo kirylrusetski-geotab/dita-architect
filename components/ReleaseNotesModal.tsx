@@ -1,22 +1,113 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen } from 'lucide-react';
-import { RELEASE_NOTES } from '../constants/version';
+import { RELEASE_NOTES, ReleaseNote } from '../constants/version';
 
 interface ReleaseNotesModalProps {
   onClose: () => void;
 }
 
+interface TagStyle {
+  label: string;
+  bg: string;
+  color: string;
+}
+
+const SECTION_TAG_MAP: Record<string, TagStyle> = {
+  'Bug Fixes':                    { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
+  'Reliability':                  { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
+  'Sync & Data Integrity':        { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
+  'New Features':                 { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'New API Endpoint':             { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Content Insertion':            { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Discoverability':              { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Edit Mode & Tracked Changes':  { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Heretto CMS Integration':      { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Visual Editor':                { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'API':                          { label: 'API',    bg: 'rgba(59,130,246,0.12)',   color: '#3b82f6' },
+  'How it works':                 { label: 'API',    bg: 'rgba(59,130,246,0.12)',   color: '#3b82f6' },
+  'Polish':                       { label: 'POLISH', bg: 'rgba(139,92,246,0.12)',   color: '#8b5cf6' },
+  'Copy & Polish':                { label: 'POLISH', bg: 'rgba(139,92,246,0.12)',   color: '#8b5cf6' },
+  'Editor Polish':                { label: 'POLISH', bg: 'rgba(139,92,246,0.12)',   color: '#8b5cf6' },
+  'Theme':                        { label: 'POLISH', bg: 'rgba(139,92,246,0.12)',   color: '#8b5cf6' },
+  'Terminology':                  { label: 'POLISH', bg: 'rgba(139,92,246,0.12)',   color: '#8b5cf6' },
+  'Accessibility':                { label: 'A11Y',   bg: 'rgba(20,184,166,0.12)',   color: '#14b8a6' },
+  'Under the Hood':               { label: 'DEV',    bg: 'rgba(148,163,184,0.12)',  color: '#94a3b8' },
+};
+
+const DEFAULT_TAG: TagStyle = { label: 'NOTE', bg: 'rgba(148,163,184,0.12)', color: '#94a3b8' };
+
+interface FlatItem {
+  tag: string;
+  bg: string;
+  color: string;
+  item: string;
+}
+
+function flattenSections(sections: ReleaseNote['sections']): FlatItem[] {
+  const result: FlatItem[] = [];
+  for (const section of sections) {
+    const style = SECTION_TAG_MAP[section.heading] ?? DEFAULT_TAG;
+    for (const item of section.items) {
+      result.push({ tag: style.label, bg: style.bg, color: style.color, item });
+    }
+  }
+  return result;
+}
+
+function renderInlineCode(text: string): React.ReactNode {
+  const parts = text.split(/(`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code
+          key={i}
+          className="font-mono text-[0.85em] px-1 py-0.5 rounded"
+          style={{
+            backgroundColor: 'var(--editor-code-bg)',
+            color: 'var(--editor-code-text)',
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
 export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
   const [selectedVersion, setSelectedVersion] = useState(RELEASE_NOTES[0].version);
   const release = RELEASE_NOTES.find(r => r.version === selectedVersion) ?? RELEASE_NOTES[0];
+  const flatItems = flattenSections(release.sections);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const versionListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [selectedVersion]);
+
+  const handleVersionKeyDown = (e: React.KeyboardEvent) => {
+    const versions = RELEASE_NOTES.map(r => r.version);
+    const idx = versions.indexOf(selectedVersion);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedVersion(versions[Math.min(idx + 1, versions.length - 1)]);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedVersion(versions[Math.max(idx - 1, 0)]);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
+      onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="release-notes-title"
-        className="rounded-xl p-6 w-[680px] max-h-[82vh] flex flex-col shadow-2xl"
+        className="rounded-xl p-6 w-[800px] max-w-[92vw] max-h-[82vh] flex flex-col shadow-2xl"
         style={{
           backgroundColor: 'var(--app-surface)',
           border: '1px solid var(--app-border-subtle)',
@@ -39,7 +130,10 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
         <div className="flex gap-4 flex-1 min-h-0">
           {/* Version list */}
           <div
-            className="w-32 shrink-0 overflow-y-auto rounded-lg py-1"
+            ref={versionListRef}
+            tabIndex={0}
+            onKeyDown={handleVersionKeyDown}
+            className="w-32 shrink-0 overflow-y-auto rounded-lg py-1 outline-none"
             style={{
               backgroundColor: 'var(--app-surface-raised)',
               border: '1px solid var(--app-border-subtle)',
@@ -62,34 +156,35 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
           </div>
 
           {/* Release content */}
-          <div className="flex-1 overflow-y-auto pr-1 space-y-4 text-sm" style={{ color: 'var(--app-text-secondary)' }}>
-            <div>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-sm font-bold" style={{ color: 'var(--app-text-primary)' }}>
-                  v{release.version}
-                </span>
-                <span className="text-[10px]" style={{ color: 'var(--app-text-muted)' }}>
-                  {release.date}
-                </span>
-              </div>
-              <p className="text-xs mb-4" style={{ color: 'var(--app-text-primary)' }}>
-                {release.title}
-              </p>
+          <div ref={contentRef} className="flex-1 overflow-y-auto pr-1">
+            {/* Version header */}
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-sm font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                v{release.version}
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--app-text-muted)' }}>
+                {release.date}
+              </span>
+            </div>
+            <p className="text-xs mb-5 leading-relaxed" style={{ color: 'var(--app-text-muted)' }}>
+              {renderInlineCode(release.title)}
+            </p>
 
-              <div className="space-y-3">
-                {release.sections.map((section) => (
-                  <section key={section.heading}>
-                    <h4 className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--app-text-muted)' }}>
-                      {section.heading}
-                    </h4>
-                    <ul className="space-y-1 text-xs list-disc list-inside">
-                      {section.items.map((item, i) => (
-                        <li key={i}>{item}</li>
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
+            {/* Flat tagged item list */}
+            <div className="space-y-3">
+              {flatItems.map(({ tag, bg, color, item }, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <span
+                    className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase"
+                    style={{ backgroundColor: bg, color }}
+                  >
+                    {tag}
+                  </span>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
+                    {renderInlineCode(item)}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

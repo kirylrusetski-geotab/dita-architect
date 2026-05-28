@@ -268,8 +268,8 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
         </button>
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
-      <Tooltip content="Enter Edit Mode">
-        <button aria-label="Enter edit mode" onClick={onEnterEditMode} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+      <Tooltip content={editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}>
+        <button aria-label={editMode ? 'Exit edit mode' : 'Enter edit mode'} onClick={onEnterEditMode} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Pencil className="w-3.5 h-3.5" />
         </button>
       </Tooltip>

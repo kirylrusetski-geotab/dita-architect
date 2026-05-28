@@ -1,6 +1,6 @@
 # DITA Architect Backlog
 
-**Last updated:** 2026-04-07 (P2-24, P3-29, P3-30, P3-31 added; P2-25, P3-32–P3-39 added; P3-31 scoped and broken out; P3-30 superseded); 2026-04-07 (P1-13 shipped; P2-26 added; P1-14 shipped; P3-40 added); 2026-04-10 (P2-27 added; v0.9.2 shipped — empty-href xref validation in Monaco + visual editor); 2026-04-13 (P3-41 added — placeholder swap on topic type conversion, bundled with P3-25; P3-37/P3-38 promoted to P2-28/P2-29; P3-42 added for conditional text; FR-037 added for general discoverability); 2026-04-14 (P2-30 added — base xref visual styling; P3-25/41, P3-32–35, P3-36, P3-39 promoted to P2-31–P2-37); 2026-04-14 (v0.9.3 shipped — Sonnet sweep: P2-30, P2-31, P3-40 shipped); 2026-04-14 (backlog cleanup: removed shipped/promoted stale rows from P2 and P3 tables; added v0.9.1.1 Completed section); 2026-05-12 (v0.9.3.1 shipped — Print/Export PDF, dropdown z-index fix); 2026-05-20 (v0.9.4 shipped — resizable split pane, word wrap, sync hint, Heretto loading feedback, readability tooltip); 2026-05-25 (v0.9.5 shipped — P3-12, P2-35, shortdesc placeholder, block + button, theme contrast fixes); 2026-05-25 (backlog audit — P2-23, P2-24, P2-26 Phase 1, P3-26, P3-27 moved to Completed; found shipped but untracked); 2026-05-25 (P3 audit — P3-13, P3-22, P3-24 moved to Completed as untracked ships; P3-15 deleted — stale claim; P3-18 deferred; P3-5, P3-42, P3-43 explicitly parked with unblock conditions); 2026-05-25 (v0.9.6 shipped — P3-7, P3-8, P3-9, P3-44 shipped; discoverability sweep + theme polish); 2026-05-25 (P2-39, P2-40, P2-41 added — macOS native app menu bar structure from FR-039 UI/UX review); 2026-05-25 (v0.9.6.1 shipped — P1-15 placeholder Lexical format inheritance fix; P3-45 added — Before/After/Wrap insertion modes from FR-040); 2026-05-28 (P1-16 added — insert-section accepted changes serialize to XHTML; P2-42/P2-43 added — load-content herettoUuid + block-level injection; P3-52 added — pencil icon tooltip stuck in edit mode; FR-041/042/043 added from Documents working copy)
+**Last updated:** 2026-04-07 (P2-24, P3-29, P3-30, P3-31 added; P2-25, P3-32–P3-39 added; P3-31 scoped and broken out; P3-30 superseded); 2026-04-07 (P1-13 shipped; P2-26 added; P1-14 shipped; P3-40 added); 2026-04-10 (P2-27 added; v0.9.2 shipped — empty-href xref validation in Monaco + visual editor); 2026-04-13 (P3-41 added — placeholder swap on topic type conversion, bundled with P3-25; P3-37/P3-38 promoted to P2-28/P2-29; P3-42 added for conditional text; FR-037 added for general discoverability); 2026-04-14 (P2-30 added — base xref visual styling; P3-25/41, P3-32–35, P3-36, P3-39 promoted to P2-31–P2-37); 2026-04-14 (v0.9.3 shipped — Sonnet sweep: P2-30, P2-31, P3-40 shipped); 2026-04-14 (backlog cleanup: removed shipped/promoted stale rows from P2 and P3 tables; added v0.9.1.1 Completed section); 2026-05-12 (v0.9.3.1 shipped — Print/Export PDF, dropdown z-index fix); 2026-05-20 (v0.9.4 shipped — resizable split pane, word wrap, sync hint, Heretto loading feedback, readability tooltip); 2026-05-25 (v0.9.5 shipped — P3-12, P2-35, shortdesc placeholder, block + button, theme contrast fixes); 2026-05-25 (backlog audit — P2-23, P2-24, P2-26 Phase 1, P3-26, P3-27 moved to Completed; found shipped but untracked); 2026-05-25 (P3 audit — P3-13, P3-22, P3-24 moved to Completed as untracked ships; P3-15 deleted — stale claim; P3-18 deferred; P3-5, P3-42, P3-43 explicitly parked with unblock conditions); 2026-05-25 (v0.9.6 shipped — P3-7, P3-8, P3-9, P3-44 shipped; discoverability sweep + theme polish); 2026-05-25 (P2-39, P2-40, P2-41 added — macOS native app menu bar structure from FR-039 UI/UX review); 2026-05-25 (v0.9.6.1 shipped — P1-15 placeholder Lexical format inheritance fix; P3-45 added — Before/After/Wrap insertion modes from FR-040); 2026-05-28 (P1-16 added — insert-section accepted changes serialize to XHTML; P2-42/P2-43 added — load-content herettoUuid + block-level injection; P3-52 added — pencil icon tooltip stuck in edit mode; FR-041/042/043 added from Documents working copy); 2026-05-28 (v0.9.7 shipped — P1-16, P2-42, P2-43, P3-52 shipped; P2-44 added — pencil button does not exit edit mode); 2026-05-28 (P1-17 added — "+" block tool in Edit Mode serializes XHTML namespace instead of DITA, corrupting topics)
 
 This is the single prioritized backlog for DITA Architect. Every actionable item — bugs, features, integration work, asset extraction — lives here with a clear priority, dependency chain, and execution criteria.
 
@@ -31,9 +31,9 @@ No open P0 items.
 
 | ID | Item | Type | Rationale |
 |----|------|------|-----------|
-| P1-16 | `insert-section` accepted tracked changes serialize to XHTML instead of DITA XML | Bug | When the author accepts a tracked insertion via `POST /api/tabs/:id/insert-section`, the content is written back to the tab in the XHTML namespace — conkeyrefs stripped, `<uicontrol>` downgraded to `<b>`, `class` attributes removed. `GET /api/tabs/:id/content` returns structurally invalid DITA that cannot be pushed to Heretto. Root cause: `TrackedChangesPlugin` likely serializes via Lexical's XHTML path rather than through `serializeLexicalToXml`. Current workaround: bypass the editor and build final XML by hand. See [FR-042](feature-requests.md#fr-042-insert-section-tracked-changes-must-serialize-back-to-dita-xml-on-accept). **Blocks P2-43.** |
+| P1-17 | "+" block tool in Edit Mode serializes XHTML namespace instead of DITA, corrupting topics | Bug | When a block element is inserted using the "+" tool in Edit Mode and the change is accepted, the serializer (`serializeLexicalToXml.ts`) emits XHTML-namespaced elements (`xmlns="http://www.w3.org/1999/xhtml"`) with no DITA `class` attributes, and `<li>` / `<note>` children are missing `<p>` wrappers. Root cause: the "+" tool creates new Lexical nodes with no `originMap` entries — the serializer has no DITA identity to stamp on them and falls back to HTML serialization. The resulting XML fails DITA validation and causes Heretto's REST API to return HTTP 500 on subsequent PUT requests. Related to P1-16 (same `originMap` gap, different trigger path). Fix: new blocks created by the "+" tool must either (a) have `originMap` entries stamped with the correct DITA `inlineTag`/`blockTag` at creation time, or (b) be inserted as pre-formed DITA XML via the same `parseBlockFragment` path that `insert-section` uses. **Sonnet.** |
 
-> P1-8 through P1-15 have all shipped (v0.6.0–v0.9.6.1). See Completed section for details.
+> P1-8 through P1-16 have all shipped (v0.6.0–v0.9.7). See Completed section for details.
 
 ---
 
@@ -53,8 +53,7 @@ No open P0 items.
 | P2-39 | macOS File menu | Native | Add a standard macOS **File** menu to `AppDelegate.swift` with: New Task `⌘N`, New Concept `⇧⌘N`, New Reference `⌥⌘N`, Open Local File `⌘O`, Close Tab `⌘W`, Save to Heretto `⌘S`, Replace in Heretto, Export as PDF, Connect to Heretto, Open from Heretto. Each item calls an action via `JSBridge` → `window.__ditaApi`. New `window.__ditaApi` methods must be exposed in `dita-architect.tsx` for any action not already in the HTTP API surface (`newTopic(type)`, `openLocalFile()`, `closeActiveTab()`, `saveActiveTab()`, `openReplaceModal()`, `openExportModal()`, `openHerettoConnectModal()`, `openHerettoBrowserModal()`). See [FR-039](feature-requests.md#fr-039-macos-native-app--menu-bar-structure-and-item-placement-policy) for full menu layout, shortcut assignments, and Swift code pattern. **Multi-agent workflow** — spans `macos/Sources/DITAArchitect/AppDelegate.swift` (Swift, menu + action selectors) and `dita-architect.tsx` + `lib/` (TypeScript, new `__ditaApi` surface). Use `agents/run.ts`. |
 | P2-40 | macOS View menu | Native | Add a standard macOS **View** menu to `AppDelegate.swift` after the Edit menu: Toggle XML Pane `⌘\`, Toggle Split View, separator, Theme submenu (lists all 6 app themes), XML Syntax Theme submenu (lists all 7 syntax themes). Each item calls a JS bridge action. Theme submenus must reflect the current active theme via a checked menu item — bridge needs a `getActiveTheme()` call and a `setTheme(name)` / `setXmlTheme(name)` call. **Depends on P2-39** (JS bridge `__ditaApi` surface established). Sonnet-sized. |
 | P2-41 | macOS DITA Architect menu expansion | Native | Expand the DITA Architect app menu in `AppDelegate.swift` to add: About DITA Architect (version + build info alert), What's New... (calls `window.__ditaApi.openReleaseNotes()`), Keyboard Shortcuts... (calls `window.__ditaApi.openKeyboardShortcuts()`). These are single JS bridge calls — simpler than P2-39. **Depends on P2-39** (bridge pattern established, `__ditaApi` surface). Sonnet-sized. |
-| P2-42 | `POST /api/load-content` — associate tab with Heretto file via `herettoUuid` | Feature | When content is loaded via the API, the tab has `herettoFile: null` — the Save to Heretto button never appears and external tools must push edits to Heretto themselves, bypassing the editor's diff preview and conflict detection. Add an optional `herettoUuid` field to the request body; when present, set `tab.herettoFile = { uuid, name: fileName }` so the tab behaves identically to one opened from the Heretto browser. See [FR-041](feature-requests.md#fr-041-post-apiload-content-should-accept-an-optional-heretto-uuid). Sonnet-sized. |
-| P2-43 | `insert-section` — support block-level injection into flat `<conbody>` topics | Feature | `POST /api/tabs/:id/insert-section` only accepts `<section>` fragments; flat concept topics with bare `<p>`, `<ul>`, `<note>` in `<conbody>` cannot receive tracked-change injections at all. Extend the endpoint (or add `insert-block`) to accept any block-level DITA element, with an optional `replaceId` for targeted replacements shown as red/green tracked changes. See [FR-043](feature-requests.md#fr-043-insert-section-should-support-injecting-block-level-elements-into-flat-conbody-topics). Sonnet-sized. **Blocked by P1-16** — block injection is low value until accepted changes serialize to valid DITA. |
+| P2-44 | Pencil button does not exit edit mode — clicking while in edit mode re-enters instead of toggling off | Bug | `onEnterEditMode` at `dita-architect.tsx:990` only increments `editModeEnterTrigger` regardless of current `editMode` state. The P3-52 tooltip fix now reads "Exit Edit Mode" while in edit mode, so clicking promises an exit the handler never delivers. Fix: check `editMode` — if already in edit mode, show a dialog with **Accept all / Reject all / Cancel** before exiting so authors can resolve pending tracked changes; if not in edit mode, enter normally. Dialog should reuse the existing modal pattern. Sonnet-sized. |
 
 > P2-1 through P2-5, P2-6 through P2-22 have all shipped (v0.6.0–v0.9.0). P2-23 and P2-24 shipped (v0.9.0–v0.9.1.1). P2-26 Phase 1, P2-32, P2-33, P2-34 shipped in v0.9.1.1. P2-30 and P2-31 shipped in v0.9.3. P2-35 shipped in v0.9.5. See Completed section for details.
 
@@ -75,7 +74,6 @@ No open P0 items.
 | P3-18 | API authentication for production | Tech debt | **Deferred — no localhost deployment.** Pipeline wrapup (Rafael Santos, P2-20): endpoints expose full XML content with no auth. Fine for localhost dev, but needs an auth gate if the editor is ever exposed beyond the local machine. Re-evaluate if/when network deployment becomes a goal. |
 | P3-43 | [Map discovery — surface ditamaps referencing the current topic](feature-requests.md#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic) | Feature | **Parked — unblock after P2-27 ships and writers report not knowing which map to connect.** When using "Connect a Map" (P2-27), writers must know which ditamap to point the tool at. A discovery tool would query Heretto for all accessible ditamaps, check which ones include the current topic as a `<topicref>`, and surface them in a picker. Heretto has no "find maps referencing this topic" API so it requires fetching and parsing all maps (potentially slow without caching). |
 | P3-42 | Conditional text support (audience, platform, product attributes) | Feature | **Parked — no current user demand for multi-variant authoring.** DITA's multi-variant content model — `@audience`, `@platform`, `@product` filtering — is not supported. Two-phase approach if ever prioritized: (1) **Phase 1 — Visual indicator:** badge or border on conditionalized elements; (2) **Phase 2 — Filtering:** preview topic rendered for a specific audience. Worth tracking if DA scales to larger teams. Filed 2026-04-13. |
-| P3-52 | Pencil icon tooltip stuck on "Enter Edit Mode" when already in edit mode | Bug/Polish | When the editor is in edit mode (EDIT MODE badge visible), hovering the pencil icon still shows "Enter Edit Mode". The tooltip should be hidden or changed to a contextual label like "Already in Edit Mode". Sonnet-sized — find the tooltip string in the toolbar component and conditionally render based on `editMode` state. Filed 2026-05-27. |
 | P3-45 | Element insertion mode (Before/After/Wrap) for the `+` menu | Feature | Add an insertion mode selector to the block `+` menu (shipped in v0.9.5). Inspired by Heretto's insertion mode panel. **Before** inserts the new element before the block at the cursor; **After** inserts after (current default); **Wrap** wraps the selected block(s) in a structural parent (e.g. `<section>`, `<info>`) using Lexical `$wrapNodes`. Mode displayed as a small toggle above the search field or surfaced in the `+` button tooltip; persists to localStorage. **Depends on P2-28** (inline `+` menu shell — the same element picker should handle both block and inline contexts before the mode selector is unified). Filed from [FR-040](feature-requests.md#fr-040-element-insertion-mode-beforeafterwrap-for-the--menu). Sonnet-sized. |
 | P3-30 | ~~Polish body element hover frame interaction~~ | ~~Polish~~ | **Superseded by P3-35.** The hover frame approach is being replaced entirely with an always-visible border box. The three issues this item targeted (layout shift, missing transition, label offset) are resolved as a side effect of the P3-35 redesign. Do not implement separately. |
 | P3-31 | [Extend body element indicators to non-task topic types](feature-requests.md#fr-032-extend-body-element-indicators-to-non-task-topic-types) | Feature | **Scoped and broken out — promoted to P2.** Design session (2026-04-07) split this into four discrete items: P2-32 (shortdesc divider, shipped v0.9.1.1), P2-33 (note type labels, shipped v0.9.1.1), P2-34 (section left bar, shipped v0.9.1.1), P2-35 (always-visible border box, active). Original broad item retired for traceability. |
@@ -84,11 +82,9 @@ No open P0 items.
 
 ## Recommended Execution Order
 
-**Session N (next):** P2-24 (search separator normalization). One-line fix in `useHerettoCms.ts:250` — high impact on daily file discovery with near-zero risk. Good candidate to batch with P2-23 if the image debugging session is short.
+**Session N (next):** P2-44 (pencil toggle exits edit mode). Sonnet-sized. The tooltip fix (P3-52) now promises exit behavior the handler doesn't deliver — fix `onEnterEditMode` to check current `editMode` state and run an exit sequence when already in edit mode. UX decision needed first: see P3-52 UX discussion thread.
 
-**Session N+1:** P2-23 (Heretto image resolution root cause). Infrastructure is in place — needs runtime debugging to identify why `resolvedUrl` stays empty. See investigation leads in `bugreports/BUG-heretto-image-resolution-fails.md`.
-
-**Session N+2:** P2-25 (Troubleshooting topic support). Three-surface feature: parser body selector fix (`troubleshootingbody`), `cause`/`remedy`/`condition` traversal, and New Topic modal fourth option with XML template. Start with the parser fix first — it unblocks Heretto import immediately.
+**Session N+1:** P2-25 (Troubleshooting topic support). Three-surface feature: parser body selector fix (`troubleshootingbody`), `cause`/`remedy`/`condition` traversal, and New Topic modal fourth option with XML template. Start with the parser fix first — it unblocks Heretto import immediately.
 
 **Session N+3:** P2-26 Phase 1 (`<info>` affordance chips). Render collapsed inline chips in step list items for `<info>` block content that can't yet be fully rendered — e.g. `[codeblock]` or `[info: 2 elements]` after the `<cmd>` text. Closes the "is my content there?" feedback gap without the architectural rework. Sonnet-sized.
 
@@ -114,7 +110,20 @@ No open P0 items.
 
 ## Completed
 
-### Shipped in v0.9.6.1 (2026-05-25)
+### Shipped in v0.8.1 (2026-05-28)
+
+Insert-section accept-path fix, `load-content` Heretto association, block-level injection, and pencil tooltip fix.
+
+| Former ID | Item | Type | Resolution |
+|-----------|------|------|------------|
+| P1-16 | `insert-section` accepted tracked changes serialize to XHTML instead of DITA XML | Bug | Root cause: `parseSectionFragment` created Lexical TextNodes for DITA inline elements (`<uicontrol>`, `<wintitle>`, `<codeph>`, `<ph conkeyref>`) without `originMap` entries, so `serializeLexicalToXml` fell back to generic bold/italic serialization emitting `<b>`, `<i>`, and the XHTML namespace on the wrapping section. Fix: `traverseXmlElement` in `sync/parseXmlToLexical.ts` now stamps `{ inlineTag, inlineAttrs }` into `originMap` for every DITA inline element at parse time; the serializer's existing `inlineTag` branch handles output correctly. Added 4 tests in `tests/sync/round-trip.test.ts` covering `<uicontrol>`, `<wintitle>`, `<ph conkeyref>`, and XHTML-namespace absence. |
+| P2-42 | `POST /api/load-content` — associate tab with Heretto file via `herettoTargetUuid` | Feature | `hooks/useExternalLoad.ts` and `lib/native-api-bridge.ts` now populate `tab.herettoFile = { uuid, name: fileName, path: fileName }`, `tab.herettoLastSaved`, and `tab.herettoJustLoaded` when `herettoTargetUuid` is present — matching the field set from the "open from Heretto" flow. The Save to Heretto button now appears immediately after the tab opens. |
+| P2-43 | `insert-section` — block-level injection and `replaceId` for flat `<conbody>` topics | Feature | `parseSectionFragment` generalized to `parseBlockFragment` accepting any block-level DITA element (`<p>`, `<ul>`, `<ol>`, `<note>`, `<codeblock>`, `<table>`, `<simpletable>`, `<fig>`, `<image>`, `<dl>`, `<example>`, `<prereq>`, `<context>`, `<result>`, `<postreq>`, `<steps>`). `<section>` children are unwrapped for backward compatibility. Optional `replaceId` targets a DITA element by `id` attribute and shows the replacement as tracked changes (old red, new green). `HttpServer.swift` forwards `replaceId` from the JSON body to the JS bridge. `findLexicalKeyByXmlId` helper walks `originMap` to resolve the target node. `API.md` updated with the full block-element allowlist and `replaceId` parameter docs. Added 7 tests. |
+| P3-52 | Pencil icon tooltip stuck on "Enter Edit Mode" when in edit mode | Bug/Polish | `Toolbar.tsx:271` static string replaced with ternary on `editMode` prop: `"Exit Edit Mode"` when in edit mode, `"Enter Edit Mode"` otherwise. Same ternary on `aria-label`. Verification confirmed that clicking the pencil while in edit mode does not actually exit — logged as P2-44. |
+
+---
+
+### Shipped in v0.8.0 (2026-05-25)
 
 Placeholder Lexical format inheritance fix.
 
@@ -124,7 +133,7 @@ Placeholder Lexical format inheritance fix.
 
 ---
 
-### Shipped in v0.9.6 (2026-05-25)
+### Shipped in v0.7.3 (2026-05-25)
 
 Discoverability sweep — keyboard shortcut cheat sheet, What's New version browser, first-run coach mark, action-oriented placeholder copy, theme description refresh, tooltip font bump.
 
@@ -137,7 +146,7 @@ Discoverability sweep — keyboard shortcut cheat sheet, What's New version brow
 
 ---
 
-### Shipped in v0.9.5 (2026-05-21)
+### Shipped in v0.7.2 (2026-05-21)
 
 Page-canvas layout, redesigned body element indicators, shortdesc placeholder, block insertion `+` button, and theme contrast fixes.
 
@@ -152,7 +161,7 @@ Page-canvas layout, redesigned body element indicators, shortdesc placeholder, b
 
 ---
 
-### Shipped in v0.9.4 (2026-05-20)
+### Shipped in v0.7.1 (2026-05-20)
 
 Resizable split pane, word wrap toggle, smarter sync hint, Heretto folder loading feedback, readability score tooltip.
 
@@ -168,7 +177,7 @@ Resizable split pane, word wrap toggle, smarter sync hint, Heretto folder loadin
 
 ---
 
-### Shipped in v0.9.3.1 (2026-05-12)
+### Shipped in v0.7.0 (2026-05-12)
 
 Print / Export PDF and z-index fix for dropdowns behind collapsed XML pane.
 
@@ -179,7 +188,7 @@ Print / Export PDF and z-index fix for dropdowns behind collapsed XML pane.
 
 ---
 
-### Shipped in v0.9.3 (2026-04-14)
+### Shipped in v0.6.2 (2026-04-14)
 
 Sonnet sweep: xref base styling, placeholder visual treatment, and Heretto reliability fixes.
 
@@ -191,7 +200,7 @@ Sonnet sweep: xref base styling, placeholder visual treatment, and Heretto relia
 
 ---
 
-### Shipped in v0.9.1.1 (2026-04-14)
+### Shipped in v0.6.0 (2026-04-14)
 
 Copy/polish batch: visual editor semantics, writer-friendly terminology, API polish, modal UX, and table feedback.
 
@@ -215,7 +224,7 @@ Copy/polish batch: visual editor semantics, writer-friendly terminology, API pol
 
 ---
 
-### Shipped in v0.9.1 (2026-04-07)
+### Shipped in v0.5.1 (2026-04-07)
 
 xref serialization fix and Replace verification fixes.
 
@@ -226,7 +235,7 @@ xref serialization fix and Replace verification fixes.
 
 ---
 
-### Shipped in v0.9.0 (2026-03-27)
+### Shipped in v0.5.0 (2026-03-27)
 
 Inline validation hints and Heretto image infrastructure (partial).
 
@@ -237,7 +246,7 @@ Inline validation hints and Heretto image infrastructure (partial).
 
 ---
 
-### Shipped in v0.8.0 (2026-03-17)
+### Shipped in v0.4.0 (2026-03-17)
 
 Insert Table, write API, keyboard navigation, parser fix, and tooltip fix.
 
@@ -253,7 +262,7 @@ Insert Table, write API, keyboard navigation, parser fix, and tooltip fix.
 
 ---
 
-### Shipped in v0.7.3–v0.7.4 (2026-03-17)
+### Shipped in v0.3.3 (2026-03-17)
 
 Table context menu and read-only API endpoints.
 
@@ -265,7 +274,7 @@ Table context menu and read-only API endpoints.
 
 ---
 
-### Shipped in v0.7.2 (2026-03-16)
+### Shipped in v0.3.2 (2026-03-16)
 
 P1 bug fixes: word count, sync during conflict, format button placement. Tooltips and aria-labels on XML toolbar. Save feedback loop fix.
 
@@ -282,7 +291,7 @@ P1 bug fixes: word count, sync during conflict, format button placement. Tooltip
 
 ---
 
-### Shipped in v0.7.1 (2026-03-13)
+### Shipped in v0.3.1 (2026-03-13)
 
 Replace in Heretto workflow + accessibility + toast copy.
 
@@ -294,7 +303,7 @@ Replace in Heretto workflow + accessibility + toast copy.
 
 ---
 
-### Shipped in v0.7.0 (2026-03-13)
+### Shipped in v0.3.0 (2026-03-13)
 
 External content loading API — replaces cli-chrome Monaco injection.
 
@@ -304,7 +313,7 @@ External content loading API — replaces cli-chrome Monaco injection.
 
 ---
 
-### Shipped in v0.6.2 (2026-03-13)
+### Shipped in v0.2.2 (2026-03-13)
 
 Accessibility and empty states batch.
 
@@ -316,7 +325,7 @@ Accessibility and empty states batch.
 
 ---
 
-### Shipped in v0.6.1 (2026-03-13)
+### Shipped in v0.2.1 (2026-03-13)
 
 Small polish batch: beautify button + UX copy fixes.
 
@@ -328,7 +337,7 @@ Small polish batch: beautify button + UX copy fixes.
 
 ---
 
-### Shipped in v0.6.0 (2026-03-13)
+### Shipped in v0.2.0 (2026-03-13)
 
 Visual polish batch: tooltip fix + body element indicators + light theme warmth.
 
@@ -341,7 +350,7 @@ Visual polish batch: tooltip fix + body element indicators + light theme warmth.
 
 ---
 
-### Shipped in v0.5.1 (2026-03-12)
+### Shipped in v0.1.1 (2026-03-12)
 
 All P0 and P1 items from the original backlog were resolved in a single session and shipped as v0.5.1.
 
@@ -359,7 +368,7 @@ All P0 and P1 items from the original backlog were resolved in a single session 
 
 ---
 
-### Pre-backlog (v0.5.0 and earlier)
+### Pre-backlog (v0.1.0 and earlier)
 
 Features shipped before the backlog was formalized. Added retroactively for traceability.
 

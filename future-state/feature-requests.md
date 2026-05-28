@@ -1475,7 +1475,7 @@ Heretto CMS (screenshot, 2026-05-25): mode selector positioned as a dropdown at 
 
 **Requested:** 2026-05-27
 **Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Open
+**Status:** Shipped (v0.9.6.1, 2026-05-28)
 **Priority:** P2
 **Impact:** High — without this, content loaded via the API has no path back to Heretto from the editor UI
 
@@ -1509,7 +1509,7 @@ A Claude Code skill that loads a topic for review or editing should be able to h
 
 **Requested:** 2026-05-27
 **Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Open
+**Status:** Shipped (v0.9.6.1, 2026-05-28)
 **Priority:** P1
 **Impact:** Critical — accepted tracked changes currently produce malformed output that cannot be pushed to Heretto
 
@@ -1551,7 +1551,7 @@ This was discovered during a real authoring workflow: a Claude Code skill inject
 
 **Requested:** 2026-05-27
 **Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Open
+**Status:** Shipped (v0.9.6.1, 2026-05-28)
 **Priority:** P2
 **Impact:** Medium — concept topics without `<section>` structure cannot use tracked-change injection at all
 

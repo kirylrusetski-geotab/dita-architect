@@ -45,7 +45,7 @@ curl -s http://localhost:3000/api/status | jq
 **Response:**
 ```json
 {
-  "version": "0.9.6",
+  "version": "0.8.1",
   "herettoConnected": true,
   "tabCount": 2,
   "activeTabId": "tab-1710612345678",
@@ -218,6 +218,47 @@ curl -s -X POST http://localhost:3000/api/tabs/tab-1710612345678/save
 | 500 | Save operation failed — `details` field contains the error |
 
 **When to use this:** After writing updated XML via `PUT /api/tabs/:id/content`, call this to persist the changes to Heretto.
+
+---
+
+### POST /api/tabs/:id/insert-section
+
+**Native app only (port 3001).** Inserts a block-level XML fragment into an open tab. The tab automatically enters Edit Mode and the new content appears highlighted in green as a tracked addition; the author clicks Accept to keep the change or Reject to discard it. Designed for AI tools and skills that want to propose content without rewriting the whole document.
+
+**Accepted fragment shapes** (one or more, in any order):
+
+- Block-level body elements: `<p>`, `<ul>`, `<ol>`, `<note>`, `<codeblock>`, `<table>`, `<simpletable>`, `<fig>`, `<image>`, `<dl>`, `<example>`, `<prereq>`, `<context>`, `<result>`, `<postreq>`, `<steps>`
+- `<section>` — its children are unwrapped into a flat sequence of body-level nodes
+
+**Request:**
+```bash
+curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/insert-section \
+  -H "Content-Type: application/json" \
+  -d '{ "xml": "<p>A new paragraph to append.</p>" }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `xml` | string | Yes | One or more block-level XML elements |
+| `replaceId` | string | No | If set, the matching DITA element (by `id` attribute) is replaced by the fragment rather than appended. The replacement is also tracked — old content appears as a deletion, new content as an addition. |
+
+**Response (200):**
+```json
+{ "success": true, "status": "inserting" }
+```
+
+When `replaceId` is provided, the status is `"replacing"`. If `replaceId` does not match any element in the open tab, the fragment is appended (the operation does not fail) and a warning is logged to the JS console.
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | `xml` missing or fails DITA validation |
+| 404 | Tab ID not found |
+
+**When to use this:** When an external tool wants to suggest a new paragraph, list, note, or section in an open tab and have the author review it before it lands.
 
 ---
 

@@ -4,16 +4,24 @@ import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
 import { toast } from 'sonner';
 
-let sectionInsertExecutor: ((tabId: string, xml: string) => void) | null = null;
+export interface SectionInsertOptions {
+  replaceId?: string;
+}
 
-export function registerSectionInsertExecutor(fn: (tabId: string, xml: string) => void): void {
+let sectionInsertExecutor:
+  | ((tabId: string, xml: string, options?: SectionInsertOptions) => void)
+  | null = null;
+
+export function registerSectionInsertExecutor(
+  fn: (tabId: string, xml: string, options?: SectionInsertOptions) => void,
+): void {
   sectionInsertExecutor = fn;
 }
 
-function scheduleSectionInsert(tabId: string, sectionXml: string): void {
+function scheduleSectionInsert(tabId: string, sectionXml: string, options?: SectionInsertOptions): void {
   setTimeout(() => {
     if (sectionInsertExecutor) {
-      sectionInsertExecutor(tabId, sectionXml);
+      sectionInsertExecutor(tabId, sectionXml, options);
     }
   }, 50);
 }
@@ -118,12 +126,13 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       }
     },
 
-    insertSection: (tabId: string, sectionXml: string): string => {
+    insertSection: (tabId: string, sectionXml: string, replaceId?: string): string => {
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === tabId);
       if (!tab) return JSON.stringify({ success: false, error: `Tab "${tabId}" not found` });
 
-      // Validate the incoming XML fragment
+      // Validate the incoming XML fragment. We wrap in <conbody> so the probe
+      // accepts any sequence of block-level body children (p, ul, note, section, ...).
       const probe = `<?xml version="1.0"?><concept id="x"><title>x</title><conbody>${sectionXml}</conbody></concept>`;
       const validation = validateDitaXml(probe);
       if (!validation.valid) {
@@ -138,9 +147,9 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       ));
 
       // After the React render cycle (snapshot captured), insert nodes into the live Lexical tree
-      scheduleSectionInsert(tabId, sectionXml);
+      scheduleSectionInsert(tabId, sectionXml, replaceId ? { replaceId } : undefined);
 
-      return JSON.stringify({ success: true, status: 'inserting' });
+      return JSON.stringify({ success: true, status: replaceId ? 'replacing' : 'inserting' });
     },
 
     loadContent: (xml: string, fileName: string, herettoTargetUuid?: string): string => {
@@ -153,7 +162,12 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         const formattedXml = formatXml(xml);
         const newTab = createTab(formattedXml);
         newTab.localFileName = fileName;
-        if (herettoTargetUuid) newTab.herettoReplaceTarget = { uuid: herettoTargetUuid };
+        if (herettoTargetUuid) {
+          newTab.herettoReplaceTarget = { uuid: herettoTargetUuid };
+          newTab.herettoFile = { uuid: herettoTargetUuid, name: fileName, path: fileName };
+          newTab.herettoLastSaved = new Date();
+          newTab.herettoJustLoaded = true;
+        }
 
         setTabs(prev => [...prev, newTab]);
         setActiveTabId(newTab.id);

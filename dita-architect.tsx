@@ -51,6 +51,7 @@ import { APP_VERSION } from './constants/version';
 import { ImportVerificationModal } from './components/ImportVerificationModal';
 import { HerettoReplaceModal } from './components/HerettoReplaceModal';
 import { HerettoReplaceBar } from './components/HerettoReplaceBar';
+import { ExitEditModeModal } from './components/ExitEditModeModal';
 import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
 import { formatRelativeTime, formatXml, validateDitaXml } from './lib/xml-utils';
@@ -190,6 +191,7 @@ export default function ProfessionalDitaEditor() {
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [exitEditModeConfirmTabId, setExitEditModeConfirmTabId] = useState<string | null>(null);
   const [isHerettoReplaceModalOpen, setIsHerettoReplaceModalOpen] = useState(false);
 
   const [wordWrapEnabled, setWordWrapEnabled] = useState<boolean>(() =>
@@ -538,6 +540,20 @@ export default function ProfessionalDitaEditor() {
           message={confirmModal.message}
           onConfirm={confirmModal.onConfirm}
           onClose={() => setConfirmModal(null)}
+        />
+      )}
+
+      {exitEditModeConfirmTabId && (
+        <ExitEditModeModal
+          onAccept={() => {
+            setTabs(prev => prev.map(t => t.id === exitEditModeConfirmTabId ? { ...t, editModeAcceptTrigger: t.editModeAcceptTrigger + 1 } : t));
+            setExitEditModeConfirmTabId(null);
+          }}
+          onReject={() => {
+            setTabs(prev => prev.map(t => t.id === exitEditModeConfirmTabId ? { ...t, editModeRejectTrigger: t.editModeRejectTrigger + 1 } : t));
+            setExitEditModeConfirmTabId(null);
+          }}
+          onCancel={() => setExitEditModeConfirmTabId(null)}
         />
       )}
 
@@ -987,7 +1003,13 @@ export default function ProfessionalDitaEditor() {
                   currentTheme={appTheme}
                   onThemeChange={handleThemeChange}
                   editMode={tab.editMode}
-                  onEnterEditMode={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeEnterTrigger: t.editModeEnterTrigger + 1 } : t))}
+                  onEnterEditMode={() => {
+                    if (tab.editMode) {
+                      setExitEditModeConfirmTabId(tab.id);
+                    } else {
+                      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeEnterTrigger: t.editModeEnterTrigger + 1 } : t));
+                    }
+                  }}
                   onAcceptEdits={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeAcceptTrigger: t.editModeAcceptTrigger + 1 } : t))}
                   onRejectEdits={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeRejectTrigger: t.editModeRejectTrigger + 1 } : t))}
                 />
