@@ -1468,3 +1468,103 @@ Without an explicit mode, "insert paragraph" is ambiguous — does it go before 
 ### Reference
 
 Heretto CMS (screenshot, 2026-05-25): mode selector positioned as a dropdown at the top of the element insertion panel, above the search field. Options: Intelligently, Before, After, Wrap. Wrap is checkmarked when selected.
+
+---
+
+## FR-041: `POST /api/load-content` should accept an optional Heretto UUID
+
+**Requested:** 2026-05-27
+**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
+**Status:** Open
+**Priority:** P2
+**Impact:** High — without this, content loaded via the API has no path back to Heretto from the editor UI
+
+### Description
+
+When a topic is loaded into DITA Architect via `POST /api/load-content`, the resulting tab has `herettoFile: null` regardless of whether the content originated from Heretto. The Heretto status bar and push button are absent because the editor has no knowledge of the file's CMS origin.
+
+This forces external tools (Claude Code skills, scripts) to push edits back to Heretto themselves via the REST API, bypassing the editor's built-in save flow entirely — including the diff preview, conflict detection, and version history that the editor provides.
+
+### Proposed Change
+
+Add an optional `herettoUuid` field to the `POST /api/load-content` request body:
+
+```json
+{
+  "xml": "<?xml version=\"1.0\" ...>...",
+  "fileName": "my-topic.dita",
+  "herettoUuid": "eaf9b2ce-a916-46ed-b693-2a68dc43ad2b"
+}
+```
+
+When `herettoUuid` is present, set `tab.herettoFile` to `{ uuid: herettoUuid, name: fileName }` on the new tab. The tab then behaves identically to one opened from the Heretto file browser — the push button appears, conflict detection is active, and the author can save normally.
+
+### Value Proposition
+
+A Claude Code skill that loads a topic for review or editing should be able to hand off the save action to the author in the editor. Today it cannot — the editor has no "Save to Heretto" button for externally loaded content, so the skill must push programmatically or ask the author to copy-paste. Adding `herettoUuid` to the load payload closes the hand-off loop: the skill loads the content, the author reviews and edits, and the editor's normal save flow handles the rest.
+
+---
+
+## FR-042: `insert-section` tracked changes must serialize back to DITA XML on accept
+
+**Requested:** 2026-05-27
+**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
+**Status:** Open
+**Priority:** P1
+**Impact:** Critical — accepted tracked changes currently produce malformed output that cannot be pushed to Heretto
+
+### Description
+
+When a section is injected via `POST /api/tabs/:id/insert-section` and the author accepts the tracked change in Edit Mode, the accepted content is serialized back into the tab XML in the XHTML namespace (`xmlns="http://www.w3.org/1999/xhtml"`) rather than as DITA markup. All DITA-specific elements and attributes in the injected section are lost or downgraded:
+
+- `<keyword conkeyref="..."/>` → empty (conkeyref stripped)
+- `<ph conkeyref="..."/>` → empty (conkeyref stripped)
+- `<uicontrol conkeyref="..."/>` → empty (conkeyref stripped)
+- `<uicontrol>text</uicontrol>` → `<b>text</b>` (element downgraded)
+- `class="..."` attributes removed
+- Namespace of the entire section set to `http://www.w3.org/1999/xhtml`
+
+The result is structurally invalid DITA that cannot be pushed to Heretto and does not round-trip correctly through `GET /api/tabs/:id/content`.
+
+### Root Cause (suspected)
+
+The `TrackedChangesPlugin` stores injected sections as Lexical nodes during Edit Mode. When the author accepts, the plugin likely serializes via the Lexical XHTML path (used for clipboard and export) rather than through the DITA-aware `serializeLexicalToXml` path. DITA-specific node types (`DitaPhRefNode`, `DitaImageNode`, conkeyref nodes) may not survive the round-trip through Lexical's internal representation.
+
+### Expected Behavior
+
+After the author accepts a tracked insertion:
+- The accepted section should appear in the tab XML in the DITA namespace, with all conkeyrefs, element types, and `class` attributes intact.
+- `GET /api/tabs/:id/content` should return valid, publishable DITA.
+- The accepted content should be indistinguishable from content typed directly into the XML source pane.
+
+### Workaround (current)
+
+Build the final XML by hand (combining original unchanged sections with new content) and push directly to Heretto via REST API, bypassing the editor entirely. This defeats the purpose of Edit Mode as a review workflow.
+
+### Notes
+
+This was discovered during a real authoring workflow: a Claude Code skill injected three new sections into a topic using `insert-section`, the author accepted all three, and `GET /api/tabs/:id/content` returned a mix of original DITA sections and XHTML-namespaced accepted sections with stripped conkeyrefs. The content could not be pushed to Heretto without manual reconstruction.
+
+---
+
+## FR-043: `insert-section` should support injecting block-level elements into flat `<conbody>` topics
+
+**Requested:** 2026-05-27
+**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
+**Status:** Open
+**Priority:** P2
+**Impact:** Medium — concept topics without `<section>` structure cannot use tracked-change injection at all
+
+### Description
+
+`POST /api/tabs/:id/insert-section` only accepts `<section>` fragments. Concept topics that use a flat `<conbody>` structure — `<p>`, `<ul>`, `<note>` elements directly in the body, with no `<section>` wrappers — cannot receive any tracked-change injections via the API, even for targeted edits like inserting or replacing a single paragraph.
+
+### Proposed Change
+
+Extend `insert-section` (or add a companion endpoint, e.g. `insert-block`) to accept any block-level DITA element as the injection fragment: `<p>`, `<ul>`, `<ol>`, `<note>`, `<table>`, in addition to `<section>`. The injected block appears highlighted green in Edit Mode exactly as sections do today.
+
+Optionally, support a `replaceId` parameter that targets an existing element by its `id` attribute, so the tracked change is shown as a replacement (old content struck through in red, new content green) rather than a pure insertion.
+
+### Value Proposition
+
+Many Geotab topics — particularly older concept topics — use flat `<conbody>` structure without sections. A skill that can only inject `<section>` elements cannot offer Edit Mode review for any change in these topics, even a one-word edit. This forces the skill to either bypass the editor entirely (direct REST push, no author review) or ask the author to make the edit manually. Supporting block-level injection would make Edit Mode usable for the full range of DITA topic structures.
