@@ -199,7 +199,29 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
 
         const noteType = (xmlNode.getAttribute('type') || 'note').toUpperCase();
         const quote = $createQuoteNode();
-        parseTextNodes(xmlNode, originMap).forEach(n => quote.append(n));
+        // When <note> contains block children (e.g. <note><p>…<xref/>…</p></note>),
+        // flatten each block child's inline content into the quote so xrefs become
+        // LinkNodes. Direct parseTextNodes() on the note element would treat <p> as an
+        // unknown inline and flatten it to textContent, destroying any xref inside it.
+        const noteBlockTags = new Set(['p', 'ul', 'ol', 'codeblock', 'table', 'simpletable', 'fig', 'image', 'section']);
+        const noteHasBlockChildren = Array.from(xmlNode.children).some(
+          child => noteBlockTags.has(child.tagName.toLowerCase())
+        );
+        if (noteHasBlockChildren) {
+          Array.from(xmlNode.childNodes).forEach(child => {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+              const el = child as Element;
+              if (noteBlockTags.has(el.tagName.toLowerCase())) {
+                parseTextNodes(el, originMap).forEach(n => quote.append(n));
+              }
+            } else if (child.nodeType === Node.TEXT_NODE) {
+              const text = child.textContent?.replace(/[ \t]*\n[ \t\n]*/g, ' ');
+              if (text?.trim()) quote.append($createTextNode(text));
+            }
+          });
+        } else {
+          parseTextNodes(xmlNode, originMap).forEach(n => quote.append(n));
+        }
         originMap.set(quote.getKey(), { tag: 'note', bodyIndex: bodyIndex ?? -1, noteType });
         stampId(quote);
         return quote;

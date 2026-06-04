@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with Heretto CMS (geotab.heretto.com) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.8.1 (2026-05-28)
+**Current version:** 0.8.2 (2026-06-04)
 
 ---
 
@@ -153,20 +153,25 @@ Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexic
 
 ## Current Backlog Summary
 
-Full detail in `future-state/BACKLOG.md`. No open P0 or P1 items as of v0.9.7.
+Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backlog is split into **Bugs** and **Features**; priority tiers (P0–P3) are retired — old `P#-NN` IDs persist only as stable labels. Schedule by the two-lane rule: **Fix Now** (blocks use / corrupts data) vs **Batch** (bug sweeps + deliberate feature sessions).
 
-### Recommended next items (P2)
+### Bugs
 
-| ID | Item | Size |
-|---|---|---|
-| **P2-44** | Pencil button does not exit edit mode — `onEnterEditMode` at `dita-architect.tsx:990` increments trigger regardless of current `editMode`; fix to check state and run Accept all / Reject all / Cancel dialog | Sonnet |
-| **P2-25** | Troubleshooting topic support — `troubleshootingbody` missing from parser body selector at `parseXmlToLexical.ts:537`; add `cause`/`remedy`/`condition` traversal; New Topic modal fourth option | Sonnet/Opus |
-| **P2-26 Ph2** | Full `<info>` rendering in steps — Phase 1 (affordance chips) shipped; Phase 2 requires `DitaStepNode` or sibling-node approach for block children in `<step>` | Opus |
-| **P2-36** | DITA 1.3 content model map — `parentElement → validChildren[]` lookup table; no UI; prerequisite for P2-37 | Opus |
-| **P2-28+29** | Inline element insertion `+` menu — shell + full DITA inline element catalog; depends on P3-12 (shipped v0.9.5) | Opus |
-| **P2-39** | macOS File menu in `AppDelegate.swift` — New Task/Concept/Reference, Open, Close, Save, Replace, Export, Connect; multi-agent workflow via `agents/run.ts` | Multi-agent |
-| **P2-40** | macOS View menu — Toggle XML Pane, Theme submenu (depends on P2-39) | Sonnet |
-| **P2-41** | macOS DITA Architect menu expansion — About, What's New, Keyboard Shortcuts (depends on P2-39) | Sonnet |
+| Lane | Items |
+|---|---|
+| 🔴 **Blocking now** (corrupts data — fix immediately) | *None* — P1-17 and P1-18 shipped in v0.8.2 |
+| 🟡 **Sweep-ready** (batch into next sweep) | *No items* — P2-44, P2-45, P2-46, P2-47 all shipped in v0.8.2 (2026-06-04). |
+| 🔵 **Larger** (own session) | **BUG-01** definition lists (`<dl>`) not rendered in the visual editor (Opus — see `bugreports/BUG-definition-list-not-rendered.md`); **P2-26 Ph2** full `<info>` rendering in steps (Opus) |
+
+### Features (sequenced by dependency)
+
+| Chain / group | Items |
+|---|---|
+| **Inline element insertion** (biggest authoring gap) | P2-36 content model map → P2-28 + P2-29 (`+` menu shell + catalog) → P2-37 context-aware filtering → P2-38 recently used / P3-45 insertion modes — Opus except the last two (Sonnet) |
+| **macOS native menu bar** | P2-39 File menu (Multi-agent, establishes the `__ditaApi` surface) → P2-41 app menu → P2-40 View menu (Sonnet) |
+| **Standalone** | P2-25 troubleshooting topic support (Sonnet/Opus); P2-27 "Connect a Map" (Opus); P3-46 Altitude theme (Sonnet) |
+
+Parked/blocked items (AI extractions, conditional text, map discovery, API auth) sit at the bottom of the backlog with explicit unblock conditions.
 
 ---
 
@@ -239,9 +244,19 @@ DITA Architect uses **Semantic Versioning**: `MAJOR.MINOR.PATCH`
 
 ## Filing Bugs and Feature Requests
 
+`future-state/BACKLOG.md` is split into two lists — **Bugs** and **Features** — because they're handled differently. There are no priority tiers; schedule with the two-lane rule documented at the top of the backlog (**Fix Now** vs **Batch**). Numbering: new bugs are `BUG-NN`; new features keep their `FR-NNN` from `feature-requests.md`. Old `P#-NN` IDs are retained as stable labels only.
+
 ### Bugs
 
-Every bug gets a row in `future-state/BACKLOG.md` at the appropriate priority tier (P0–P2). The backlog row is the prioritization signal — one to a few sentences covering what's broken, the file and rough line where it lives, and the fix direction.
+Triage every new bug in ~30 seconds and drop it into one subsection of the backlog's **Bugs** list — the subsection *is* the schedule signal:
+
+| Subsection | Use when | What happens |
+|---|---|---|
+| 🔴 **Blocking now** | Blocks you from using the tool, or **corrupts data** (emits invalid XML Heretto rejects/mangles) | Fix immediately, on its own, ship a patch |
+| 🟡 **Sweep-ready** | Small, contained (Haiku/Sonnet) | Batch — clear with the next bug sweep when ~4–6 pile up |
+| 🔵 **Larger** | Architectural, spans layers, or root cause not fully known (Opus / Multi-agent) | Gets its own dedicated session |
+
+The backlog row is the record — one to a few sentences covering what's broken, the file and rough line where it lives, the fix direction, and a **model weight** (table below). Do not fix a bug the moment it's filed unless it's Blocking now — batching is the point.
 
 A `bugreports/` file is **only warranted when**:
 
@@ -250,11 +265,7 @@ A `bugreports/` file is **only warranted when**:
 - Someone other than the coder contributed analysis (UX review, external input) that should be preserved as a named artifact
 - The root cause involves a subtle invariant or mechanism (e.g. Lexical format inheritance) that a future reader would not deduce from the fix alone
 
-If none of those apply — backlog row only. Do not create a bugreport file for bugs that haven't been investigated yet; the file should document what was *found*, not speculate about what might be there.
-
-Name the file `BUG-short-kebab-description.md`. Link to it from the backlog row.
-
-Every backlog bug row must include a **model weight** estimate — the expected execution complexity for the fix:
+If none of those apply — backlog row only. Do not create a bugreport file for bugs that haven't been investigated yet; the file should document what was *found*, not speculate about what might be there. Name it `BUG-short-kebab-description.md` and link it from the backlog row.
 
 | Weight | When to use |
 |--------|-------------|
@@ -263,11 +274,11 @@ Every backlog bug row must include a **model weight** estimate — the expected 
 | **Opus** | Fixes requiring architectural understanding across multiple files, or where the root cause is not yet fully known |
 | **Multi-agent** | Fixes that span Swift + TypeScript simultaneously, or require parallel investigation of independent subsystems; use `agents/run.ts` |
 
-Use the same weights already applied to backlog feature items. When in doubt, pick the weight that matches the complexity of the *investigation*, not just the eventual one-line fix — a subtle invariant that takes an hour to find is Opus even if the patch is small.
+When in doubt, pick the weight that matches the complexity of the *investigation*, not just the eventual one-line fix — a subtle invariant that takes an hour to find is Opus even if the patch is small.
 
 ### Feature Requests
 
-Feature requests go in `future-state/feature-requests.md` with a `**Status:** Open` field. Substantial features that graduate to active work also get a backlog row in `future-state/BACKLOG.md` — the FR file holds the full design rationale and user story; the backlog row holds the prioritization and execution criteria.
+Feature requests go in `future-state/feature-requests.md` with a `**Status:** Open` field. Substantial features that graduate to active work also get a row in the **Features** list of `future-state/BACKLOG.md`, placed in the right dependency chain or under Standalone — the FR file holds the full design rationale and user story; the backlog row holds the dependency order, model weight, and execution criteria. Features are chosen deliberately, one at a time, top-down within a chain — pick one when you want new capability.
 
 Update the FR `**Status:**` field to `Shipped (vX.Y.Z, YYYY-MM-DD)` at version bump time.
 

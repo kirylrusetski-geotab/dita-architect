@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createEditor, $getRoot, $createTextNode } from 'lexical';
+import { createEditor, $getRoot, $createTextNode, $createParagraphNode } from 'lexical';
 import { $createLinkNode } from '@lexical/link';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { HeadingNode, QuoteNode, $createQuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
 import { DitaOpaqueNode } from '../../components/DitaOpaqueNode';
-import { DitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
+import { DitaCodeBlockNode, $createDitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
 import { DitaImageNode } from '../../components/DitaImageNode';
 import { DitaPhRefNode } from '../../components/DitaPhRefNode';
 import { parseXmlToLexical, parseSectionFragment, parseBlockFragment, findLexicalKeyByXmlId } from '../../sync/parseXmlToLexical';
@@ -336,6 +336,36 @@ describe('round-trip: tables', () => {
     expect(output).toContain('A');
     expect(output).toContain('B');
     expect(output).toContain('</table>');
+  });
+
+  // P2-47: parser must trust entry count, not cols attribute
+  it('table with cols="1" but 2 entries per row round-trips as 2-column table', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="cols-mismatch-test">
+  <title>Cols Mismatch</title>
+  <conbody>
+    <table>
+      <tgroup cols="1">
+        <colspec colname="c1"/>
+        <colspec colname="c2"/>
+        <tbody>
+          <row>
+            <entry>Alpha</entry>
+            <entry>Beta</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    // Both cells must survive the round-trip — parser uses entry count, not cols attr
+    expect(output).toContain('Alpha');
+    expect(output).toContain('Beta');
+    // Serializer must regenerate colspec from actual column count (2), not the original cols="1"
+    expect(output).toMatch(/cols="2"/);
   });
 
   it('simple table', () => {
@@ -1031,5 +1061,179 @@ describe('P2-43: findLexicalKeyByXmlId locates nodes for replaceId', () => {
     const key = findLexicalKeyByXmlId(originMap, 'body');
     expect(key).not.toBeNull();
     expect(findLexicalKeyByXmlId(originMap, 'nonexistent')).toBeNull();
+  });
+});
+
+// ─── describe: P1-17 + P1-18: no XHTML namespace leak ────────────────────────
+
+describe('P1-17 + P1-18: no XHTML namespace leak on block insert or API round-trip', () => {
+  const baseConceptXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="c1"><title>T</title><conbody><p>existing</p></conbody></concept>`;
+
+  const cache = createXmlMetaCache();
+
+  function buildAndSerialize(
+    buildFn: (editor: ReturnType<typeof createTestEditor>, originMap: ReturnType<typeof createNodeOriginMap>) => void
+  ): string {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    parseXmlToLexical(baseConceptXml, editor, originMap, true);
+    editor.update(() => { buildFn(editor, originMap); }, { discrete: true });
+    return serializeLexicalToXml(editor.getEditorState(), baseConceptXml, originMap, cache);
+  }
+
+  // P1-17: paragraph inserted by the + tool
+  it('paragraph stamped with originMap serializes as <p>, no XHTML xmlns', () => {
+    const out = buildAndSerialize((_editor, originMap) => {
+      const p = $createParagraphNode();
+      $getRoot().append(p);
+      originMap.set(p.getKey(), { tag: 'p', bodyIndex: -1 });
+    });
+    expect(out).toContain('<p>');
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  // P1-17: note inserted by the + tool
+  it('note stamped with originMap serializes as <note>, no XHTML xmlns, no <b>', () => {
+    const out = buildAndSerialize((_editor, originMap) => {
+      const quote = $createQuoteNode();
+      const inner = $createParagraphNode();
+      quote.append(inner);
+      $getRoot().append(quote);
+      originMap.set(quote.getKey(), { tag: 'note', bodyIndex: -1, noteType: 'NOTE' });
+    });
+    expect(out).toContain('<note');
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+    expect(out).not.toMatch(/<b[ >]/);
+  });
+
+  // P1-17: unordered list (created by node type, no originMap needed)
+  it('list node without originMap serializes as <ul>/<li>, no XHTML xmlns', () => {
+    const out = buildAndSerialize((_editor, originMap) => {
+      const list = new ListNode('bullet', 1);
+      const item = new ListItemNode();
+      item.append($createTextNode('item text'));
+      list.append(item);
+      $getRoot().append(list);
+      // Intentionally no originMap stamp — node-type routing should handle this
+      void originMap;
+    });
+    expect(out).toMatch(/<ul>|<li>/);
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  // P1-17: codeblock inserted by the + tool
+  it('codeblock stamped with originMap serializes as <codeblock>, no XHTML xmlns', () => {
+    const out = buildAndSerialize((_editor, originMap) => {
+      const cb = $createDitaCodeBlockNode('echo hello', 'bash');
+      $getRoot().append(cb);
+      originMap.set(cb.getKey(), { tag: 'codeblock', bodyIndex: -1 });
+    });
+    expect(out).toContain('<codeblock');
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  // P2-46: xref inside <note><p> must parse as a LinkNode, not flattened to text
+  it('xref inside <note><p> round-trips as <xref> and is parsed as a LinkNode', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="note-xref-test">
+  <title>Note with Xref</title>
+  <conbody>
+    <note type="note"><p>See <xref href="topic.dita">the topic</xref> for more details.</p></note>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    // The QuoteNode (note) must contain a LinkNode — not a plain text node with flattened xref text
+    let foundLinkNode = false;
+    editor.getEditorState().read(() => {
+      const root = $getRoot();
+      for (const child of root.getChildren()) {
+        if (child.getType() === 'quote') {
+          for (const inline of (child as any).getChildren()) {
+            if (inline instanceof LinkNode) {
+              foundLinkNode = true;
+            }
+          }
+        }
+      }
+    });
+    expect(foundLinkNode).toBe(true);
+
+    // Serialization must also preserve the <xref> element
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('<xref');
+    expect(output).toContain('href="topic.dita"');
+    expect(output).toContain('the topic');
+  });
+
+  // P2-45: PUT replace — serialize after parse-B must not contain content from master-A
+  // Simulates the stale-masterXmlRef scenario: parse new XML B into Lexical, but then
+  // serialize against old masterXmlRef (XML A). The output must only contain B content.
+  it('serializing after PUT parse against stale master produces only new content, not old+new', () => {
+    const xmlA = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="c1"><title>T</title><conbody>
+  <p>paragraph-one</p>
+  <p>paragraph-two</p>
+  <p>paragraph-three</p>
+</conbody></concept>`;
+
+    const xmlB = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="c1"><title>T</title><conbody>
+  <note type="note">Only this note.</note>
+</conbody></concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+
+    // Step 1: initial parse against A (simulates app startup)
+    parseXmlToLexical(xmlA, editor, originMap, true);
+
+    // Step 2: PUT arrives — parse B into Lexical (but deliberately leave masterXmlRef = A)
+    // This is the stale-master scenario the bug describes.
+    parseXmlToLexical(xmlB, editor, originMap, true);
+
+    // Step 3: serialize against stale master (xmlA). The serializer walk matches
+    // Lexical nodes (QuoteNode=note) against DOM children of xmlA (<p>×3).
+    // The serializer must NOT produce both old paragraphs AND the new note.
+    const out = serializeLexicalToXml(editor.getEditorState(), xmlA, originMap, cache);
+    const body = getBodyContent(out);
+
+    // New content must be present
+    expect(body).toContain('<note');
+    expect(body).toContain('Only this note.');
+    // Old content must NOT appear alongside it — no duplication
+    expect(body).not.toContain('paragraph-one');
+    expect(body).not.toContain('paragraph-two');
+    expect(body).not.toContain('paragraph-three');
+  });
+
+  // P1-18: API PUT round-trip — new note type not previously in the topic
+  it('parseXmlToLexical + serialize on an API-pushed note produces no XHTML xmlns', () => {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+
+    const updatedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="c1"><title>T</title><conbody>
+  <p>existing</p>
+  <note type="tip" class="- topic/note "><p>Heads up</p></note>
+</conbody></concept>`;
+
+    parseXmlToLexical(updatedXml, editor, originMap, true);
+    const out = serializeLexicalToXml(editor.getEditorState(), updatedXml, originMap, cache);
+
+    expect(out).toContain('<note');
+    expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
   });
 });

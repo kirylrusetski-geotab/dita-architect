@@ -1568,3 +1568,185 @@ Optionally, support a `replaceId` parameter that targets an existing element by 
 ### Value Proposition
 
 Many Geotab topics — particularly older concept topics — use flat `<conbody>` structure without sections. A skill that can only inject `<section>` elements cannot offer Edit Mode review for any change in these topics, even a one-word edit. This forces the skill to either bypass the editor entirely (direct REST push, no author review) or ask the author to make the edit manually. Supporting block-level injection would make Edit Mode usable for the full range of DITA topic structures.
+
+---
+
+## FR-044: Altitude by Geotab theme
+
+**Requested:** 2026-06-02
+**Source:** Kiryl Rusetski
+**Status:** Open
+**Priority:** P3
+**Impact:** Medium — visual coherence for writers working primarily on Altitude content
+
+### Description
+
+Add an "Altitude" theme to DITA Architect that applies the Altitude by Geotab brand palette. Writers who spend most of their day authoring Altitude documentation would benefit from a working environment that matches the product's visual identity — the same colors they see in Altitude docs, deliverables, and the Help Center.
+
+The theme is light-based: white content surface, light gray chrome, dark gray text. The Altitude red functions as the accent — toolbar active states, link color, and body element bar highlights.
+
+### Brand Color Reference (from `workflow-altitude-docs`)
+
+| Role | Color | Hex |
+|------|-------|-----|
+| Primary accent | Red | `#FF0000` |
+| Digital accent (text) | Dark Red | `#DB0000` |
+| Body text | Dark Gray | `#3C3C41` |
+| Border / dividers | Medium Gray | `#ACAFB2` |
+| Surface / canvas | Light Gray | `#F2F2F2` |
+| Content background | White | `#FFFFFF` |
+| Contrast (reversed) | Black | `#000000` |
+
+### Suggested CSS Variable Mapping (`index.css`, new `[data-theme="altitude"]` block)
+
+| Variable | Value | Notes |
+|---|---|---|
+| `--app-bg` | `#F2F2F2` | Light Gray — chrome / canvas background |
+| `--app-surface-raised` | `#F2F2F2` | Match chrome |
+| `--app-border` | `#ACAFB2` | Medium Gray |
+| `--app-border-subtle` | `#ACAFB2` | Same at this scale |
+| `--app-hover` | `#e8e8e8` | Slightly darker than Light Gray |
+| `--app-text` | `#3C3C41` | Dark Gray |
+| `--app-text-muted` | `#ACAFB2` | Medium Gray |
+| `--app-btn-bg` | `#F2F2F2` | Matches chrome |
+| `--app-btn-hover` | `#e8e8e8` | Slightly darker |
+| `--app-btn-border` | `#ACAFB2` | Medium Gray |
+| `--editor-bg` | `#FFFFFF` | White content surface |
+| `--editor-page-bg` | `#FFFFFF` | White page |
+| `--editor-canvas-bg` | `#F2F2F2` | Light Gray canvas behind page |
+| `--editor-toolbar-bg` | `#fafafa` | Near-white toolbar |
+| `--editor-toolbar-border` | `#ACAFB2` | Medium Gray divider |
+| `--editor-code-bg` | `#F2F2F2` | Light Gray code backgrounds |
+| `--color-dita-500` | `#DB0000` | Dark Red — xref link color |
+| `--editor-quote-border` | `#FF0000` | Red — note element left border |
+| `--editor-context-bar` | `#DB0000` | Dark Red — context element bar |
+| `--editor-result-bar` | `#FF0000` | Red — result element bar |
+| `--editor-prereq-bar` | `#ACAFB2` | Medium Gray — prereq bar |
+| `--editor-postreq-bar` | `#ACAFB2` | Medium Gray — postreq bar |
+
+Page elevation follows the light theme pattern: `box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)` on the page wrapper.
+
+### Typography Note
+
+Altitude uses Roboto as its brand font. The editor already uses system fonts — Roboto is not bundled. No font change is required for the initial implementation. If Roboto is added later (e.g., via a Google Fonts import), the Altitude theme would be the natural first target.
+
+### Suggested Approach
+
+Follow the same pattern as the existing Geotab theme (P1-7, shipped v0.5.1): add a `[data-theme="altitude"]` block in `index.css` and add `"altitude"` to the theme selector in the toolbar. No behavioral changes. No new dependencies.
+
+The implementation is pure CSS — one new theme block (~30 variables), a label added to the theme dropdown, and a theme-name constant.
+
+### Value Proposition (Maya Chen, UX Advisor)
+
+Context switching has a visual cost. A writer who spends the morning reviewing Altitude brand guidelines, then opens DITA Architect and sees a dark or neutral editor, experiences a subtle discontinuity — the tool doesn't feel like it belongs to the same world as the content. An Altitude theme closes that gap. The red accent, Light Gray chrome, and dark gray text are the same signals the writer encounters in Altitude decks, the Help Center, and the product UI. The editor becomes part of the Altitude environment rather than a generic tool sitting beside it.
+
+This is also a low-risk, high-signal feature. It costs nothing functionally — it is the same CSS variable pattern used for the Geotab theme — but it signals that DITA Architect is Altitude-aware. For a team whose primary output is Altitude documentation, that matters.
+
+---
+
+## FR-045: Monaco-diff review surface for API insertions
+
+**Requested:** 2026-06-04
+**Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
+**Status:** Open
+**Priority:** P1
+**Impact:** High — makes Claude-workflow / API insertions reliable, which is the primary way Edit Mode is used today
+**Model weight:** Opus / Multi-agent (Swift + TypeScript)
+
+### Problem
+
+Today an API insertion (`insertSection` / `POST /api/.../insert-section`) flips the tab into the Lexical "Edit Mode," which reconstructs the change by diffing a frozen plain-text snapshot against the live tree on every keystroke. This is unreliable for the reasons documented in BUG-02: a 50 ms race that can absorb the insertion into the baseline (so it shows no highlight), and an Accept path that re-serializes and patches against a possibly-stale `masterXml` through an origin-map-dependent serializer (so Accept can duplicate content — P2-45 — or emit XHTML-namespaced DITA — FR-042 / P1-17).
+
+### Core idea
+
+An API insertion is, at its core, a **document-level XML transformation**: `currentXml` → `proposedXml` with a block inserted or a target element replaced. That is a pure text/XML diff — exactly what Monaco's native diff editor (`monaco.editor.createDiffEditor`, the same engine VS Code uses for git diffs) does excellently, and exactly what the Lexical snapshot-diff does badly. Review the change in Monaco; never route it through the diff-and-paint machinery.
+
+### Proposed flow
+
+1. **Receive** the fragment via the existing endpoint (or a renamed `propose-change`): `{ xml, replaceId? }`.
+2. **Compute `proposedXml` deterministically at the XML level** — parse `currentTabXml`, find the insertion point (end of body, or the `replaceId` target), splice in the fragment, re-serialize. **No Lexical round-trip**, so no XHTML corruption, no origin-map dependency, no 50 ms race. This needs a small, well-tested XML-insertion utility (e.g. `lib/xml-insert.ts`, or extend `lib/xml-utils.ts`).
+3. **Enter a "pending review" tab state** holding both `currentXml` and `proposedXml` (new `tab.pendingReview` field).
+4. **Swap the XML pane into Monaco diff mode** — original = `currentXml`, modified = `proposedXml`, read-only, red/green.
+5. **Show a review bar** with Accept / Reject:
+   - **Accept** → `proposedXml` becomes the tab content via the normal `lastUpdatedBy: 'api'` path (which re-parses into Lexical). Clear `pendingReview`. The accepted output is **byte-for-byte the proposedXml that was reviewed** — no serialization surprise.
+   - **Reject** → discard `proposedXml`, restore the normal editor.
+6. **Optional (after FR-046):** also render the pending insertion as green in Lexical using the same tracked-insert mark, so the visual reviewer sees it too. The XML diff remains the source of truth.
+
+### Why this is robust
+
+- **Deterministic.** No timing race; the proposed XML is computed synchronously before review.
+- **What you review is what you get.** Accept commits the exact reviewed text — the serializer is never re-run on accept, so it cannot reintroduce namespace corruption or duplication.
+- **Uses a proven engine.** Monaco diff is mature, structure-agnostic, and free.
+
+### Known limitation
+
+Bare Monaco renders the diff but does **not** provide per-hunk "accept this one" buttons (VS Code adds those on top). For a single injected block, Accept/Reject *as a whole* is the correct granularity, so this does not bite the primary use case. Per-hunk acceptance can be a later enhancement.
+
+### Scope / files (indicative)
+
+- New XML-insertion utility (`lib/xml-insert.ts` or `lib/xml-utils.ts`) with `replaceId` support and tests.
+- `types/tab.ts` — `pendingReview?: { proposedXml: string; sourceLabel?: string }`.
+- XML pane (`MonacoDitaEditor` / `dita-architect.tsx`) — diff-editor mode driven by `pendingReview`.
+- New review-bar component (Accept / Reject).
+- `lib/native-api-bridge.ts` + `macos/Sources/DITAArchitect/HttpServer.swift` — endpoint computes `proposedXml` and sets `pendingReview` instead of triggering edit mode + `scheduleSectionInsert`.
+- Retire the API path's use of `editMode` / `editModeEnterTrigger` / the 50 ms `scheduleSectionInsert` race.
+
+### Value proposition
+
+This directly targets the way Edit Mode is actually used — Claude workflows injecting content for author review — and replaces the least reliable path in the app with a deterministic, proven one. It can ship independently of FR-046.
+
+---
+
+## FR-046: Marks-as-data tracked changes in Lexical (suggesting mode)
+
+**Requested:** 2026-06-04
+**Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
+**Status:** Open
+**Priority:** P2
+**Impact:** High — replaces the fundamentally broken human-authoring tracked-changes feature with a durable, per-change model
+**Model weight:** Opus / Multi-agent — own session(s)
+
+### Problem
+
+Human tracked changes (typing edits in the visual editor) are reconstructed by diff-and-paint and stored as recomputed pixels, not data — see BUG-02 for the full analysis. The result: attribute-only edits show no markup, structural edits misclassify, deletion markers flicker, and Accept can corrupt or duplicate output.
+
+### Core idea — apply the SuperDoc pattern to Lexical
+
+Record each change as **durable, identity-bearing data in the document model at the moment it happens**, and make accept/reject explicit model mutations. Decorations become only a *view* of that data, never the source of truth. Lexical supplies everything needed: custom node subclasses, per-node attributes / NodeState, decorations, and command interception.
+
+### Design
+
+1. **Three modes, not a boolean.** Replace `tab.editMode` with `documentMode: 'viewing' | 'suggesting' | 'editing'`. `suggesting` = tracking on. (This also resolves the old single-boolean awkwardness behind P2-44.)
+2. **Representation.**
+   - **Insertions:** text carrying a tracked-insert attribute — a custom `TrackedTextNode` subclass (or NodeState on standard text nodes) holding `{ changeId, kind: 'insert', author, date }`. Block-level inserts mark the block node.
+   - **Deletions:** the text is **kept** in the tree, marked tracked-delete, rendered struck-through and non-editable. It is **not removed** — that is how Reject can restore it. (Replaces `TrackedDeletionNode` overlays.)
+3. **Record, don't diff.** In `suggesting` mode, intercept edits as they happen: stamp newly inserted text with a tracked-insert attribute, and intercept Delete/Backspace so deletions become tracked-delete marks instead of true removals. (Lexical has no transaction-rewrite layer like ProseMirror, so this is done via command interception + `registerNodeTransform` + the input/update path. This is the hard part of the rebuild.)
+4. **Identity + change list.** Each change gets `changeId` + author + date. Derive the list of changes by **scanning nodes for tracked attributes** — rebuildable, not snapshot-dependent, never keyed to transient Lexical node IDs. Surface it as a change-list / sidebar.
+5. **Accept / reject — per change and all.** Explicit, atomic model mutations:
+   - Accept insert → strip the attribute (text stays).
+   - Reject insert → remove the text.
+   - Accept delete → remove the struck text.
+   - Reject delete → strip the attribute (text becomes live again).
+   - Accept/Reject All → apply across every change in one transaction.
+6. **DITA round-trip (so changes survive save/reload).** DITA has no native ins/del. Candidate carriers, to be confirmed against how Heretto handles review markup: the Heretto review processing instructions (`<?ezd-review-start?>` / `<?ezd-review-end?>`, which the app **already round-trips**), `<draft-comment>`, or a status attribute + `outputclass`. Until a carrier is chosen, tracked changes are session-only and must be accepted/rejected before save — an acceptable interim, and already better than today (today they are also session-only, but unreliable).
+
+### What it retires
+
+`components/EditModePlugin.tsx`, `components/TrackedChangesPlugin.tsx`, and `components/TrackedDeletionNode.tsx` — the snapshot, the per-keystroke LCS diff, the CSS-highlight painting, and the overlay nodes are all replaced by the marks model. `SyncManager`'s "suspend all sync in edit mode" can be reconsidered: with tracked state expressible in XML, the panes can share one source of truth instead of being frozen apart.
+
+### Scope / files (indicative)
+
+- `nodes/TrackedTextNode.ts` (+ block-level marking or NodeState helpers).
+- `plugins/SuggestionPlugin.tsx` — edit interception in suggesting mode.
+- `lib/tracked-changes/` — change-model scan, per-change accept/reject mutations.
+- Parser/serializer updates for the chosen DITA round-trip carrier.
+- UI — mode selector (replacing the pencil toggle), change-list/sidebar, per-change accept/reject controls.
+- Retire `EditModePlugin`, `TrackedChangesPlugin`, `TrackedDeletionNode`.
+
+### Relationship to FR-045
+
+FR-045 (Monaco-diff API review) ships first and stands alone. Once FR-046 lands, an API insertion can *additionally* be shown as green tracked-insert marks in Lexical using the same model — unifying the two surfaces — while the Monaco XML diff remains available as the precise view.
+
+### Value proposition
+
+This is the durable fix for the whole class of Edit Mode failures. It turns tracked changes from disposable pixels into real, attributed, reviewable document data — enabling per-change decisions, a change list, and (with a round-trip carrier) changes that survive save and reload. It is the difference between an editor that *looks* like it supports review and one that actually does.

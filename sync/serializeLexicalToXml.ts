@@ -891,7 +891,9 @@ const patchSectionFromHeading = (sectionEl: Element, headingNode: any, doc: Docu
  * Strip xmlns="" attributes that XMLSerializer adds spuriously.
  */
 const stripSpuriousXmlns = (xml: string): string => {
-  return xml.replace(/ xmlns=""/g, '');
+  return xml
+    .replace(/ xmlns=""/g, '')
+    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
 };
 
 export const serializeLexicalToXml = (editorState: any, originalXml: string, originMap: NodeOriginMapType, cache: XmlMetaCache): string => {
@@ -980,6 +982,9 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
         // Unrecognized children: left untouched
       });
 
+      // Track which recognized DOM children were consumed by the walk
+      const consumedDomChildren = new Set<Element>();
+
       // Process in document order: walk all DOM children
       for (const child of domChildren) {
         if (lexGroupIdx >= groupedNodes.length) break;
@@ -993,6 +998,7 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
 
         if (tag === 'section' && group.type === 'section') {
           patchSection(child, group.nodes, clonedDoc, rootTag, originMap);
+          consumedDomChildren.add(child);
           lexGroupIdx++;
         } else if (tag !== 'section' && group.type === 'single') {
           const lexNode = group.nodes[0];
@@ -1001,6 +1007,7 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
 
           if (areTypesCompatible(tag, lexType, lexOrigin, rootTag)) {
             patchRecognizedElement(child, lexNode, clonedDoc, rootTag, originMap);
+            consumedDomChildren.add(child);
             lexGroupIdx++;
           } else {
             // Type mismatch — insert new element, remove old
@@ -1009,6 +1016,7 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
               bodyEl.insertBefore(newEl, child);
             }
             bodyEl.removeChild(child);
+            // child was removed, so it does not need to go into consumedDomChildren
             lexGroupIdx++;
           }
         } else if (tag === 'section' && group.type === 'single') {
@@ -1027,6 +1035,17 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
           bodyEl.insertBefore(sectionEl, child);
           bodyEl.removeChild(child);
           lexGroupIdx++;
+        }
+      }
+
+      // Remove any recognized DOM children not consumed by the walk above.
+      // This handles the case where Lexical has fewer nodes than the master XML —
+      // e.g. after a PUT that replaces 3 paragraphs with 1 note: without this, the
+      // 2 unmatched <p> elements would remain in the output alongside the new note.
+      for (const child of domChildren) {
+        if (!RECOGNIZED_BODY_TAGS.has(child.tagName.toLowerCase())) continue;
+        if (!consumedDomChildren.has(child) && child.parentNode === bodyEl) {
+          bodyEl.removeChild(child);
         }
       }
 

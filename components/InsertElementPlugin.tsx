@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { InsertElementMenu } from './InsertElementMenu';
 import { InsertableElement } from '../constants/insertable-elements';
+import { useSyncContext } from '../sync';
 
 type ButtonState = {
   blockKey: string;
@@ -17,6 +18,7 @@ type MenuState = {
 
 export const InsertElementPlugin = () => {
   const [editor] = useLexicalComposerContext();
+  const { nodeOriginMap } = useSyncContext();
   const [hover, setHover] = useState<ButtonState>(null);
   const [menu, setMenu] = useState<MenuState>(null);
   const hoverRef = useRef<ButtonState>(null);
@@ -167,7 +169,7 @@ export const InsertElementPlugin = () => {
 
   const handleInsert = (element: InsertableElement) => {
     if (!menu) return;
-    element.insert(editor, menu.blockKey);
+    element.insert(editor, menu.blockKey, nodeOriginMap);
     setMenu(null);
     setHover(null);
   };

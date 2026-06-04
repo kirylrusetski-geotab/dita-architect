@@ -21,6 +21,28 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.2',
+    date: '2026-06-04',
+    title: 'Inserting blocks with the + tool and pushing content through the API no longer corrupt your topic with a stray XHTML namespace.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'When you inserted a paragraph, note, code block, or image using the + hover button, accepted the tracked change, and then saved to Heretto, the topic sometimes came back with a stray XHTML namespace (`xmlns="http://www.w3.org/1999/xhtml"`) attached to the inserted elements. Heretto rejected those saves with an HTTP 500. The same corruption could happen when you pushed updated XML through the `PUT /api/tabs/:id/content` endpoint and a freshly introduced element — such as a note that wasn\'t in the topic before — went through a Lexical round-trip before being serialized. Both are fixed: the serializer now strips the XHTML namespace unconditionally (it should never appear in DITA output), and the + tool now stamps each inserted block with its correct DITA identity so the serializer produces clean output from the start.',
+          'When you opened a Heretto topic that had an `<xref>` inside a `<note><p>` — the common authoring pattern — the link silently disappeared. The visual editor showed the note\'s text with the link text flattened in, but with no underline and no href. The parser was treating the `<p>` inside a note as an unrecognised inline element and collapsing its content to plain text. The xref is now preserved as a proper clickable link.',
+          'When you pushed replacement XML through `PUT /api/tabs/:id/content` where the new content had fewer body elements than the original — for example, replacing three paragraphs with a single note — the extra paragraphs from the old version remained in the output alongside the new note. The serializer\'s DOM walk was exiting early once all the new Lexical nodes were matched and leaving the leftover elements in place. Unmatched recognized body elements are now removed after the walk, so the PUT result contains only the new content.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Five new round-trip tests covering paragraph, note, list, and codeblock block insertion (P1-17) and the API push round-trip (P1-18).',
+          'Three new round-trip tests from the bug sweep: xref-in-note parse and serialize fidelity (P2-46); PUT replace producing only new content when master has more elements (P2-45); table with `cols="1"` but two entries per row round-tripping as a 2-column table (P2-47 regression guard).',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.1',
     date: '2026-05-28',
     title: 'Sections inserted by AI tools now come back as clean, valid DITA, and you can target a specific element to replace instead of always appending.',

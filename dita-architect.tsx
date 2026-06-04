@@ -1159,8 +1159,6 @@ export default function ProfessionalDitaEditor() {
                   <ClearEditorPlugin />
                   <EmptyToH1Plugin />
                   <XrefValidationPlugin />
-                  <InsertElementPlugin />
-
                   <SyncManager
                     xmlContent={tab.xmlContent}
                     onLexicalChange={(xml: string) => updateTab(tab.id, { xmlContent: xml, lastUpdatedBy: 'editor' })}
@@ -1170,6 +1168,7 @@ export default function ProfessionalDitaEditor() {
                     onValidationTrigger={() => updateTab(tab.id, { validationTrigger: tab.validationTrigger + 1 })}
                   >
                     <ShortdescPlugin />
+                    <InsertElementPlugin />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}
                       syncTrigger={tab.syncTrigger}
