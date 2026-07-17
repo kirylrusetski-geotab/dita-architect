@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="dl-multi-p-dd-fixture">
+  <title>DL with multi-paragraph dd</title>
+  <shortdesc>Each dd has two paragraphs — exercises the paragraph-in-dl path.</shortdesc>
+  <conbody>
+    <dl>
+      <dlentry>
+        <dt>Term A</dt>
+        <dd>
+          <p>First paragraph in A.</p>
+          <p>Second paragraph in A.</p>
+        </dd>
+      </dlentry>
+      <dlentry>
+        <dt>Term B</dt>
+        <dd>
+          <p>Only paragraph in B.</p>
+        </dd>
+      </dlentry>
+    </dl>
+  </conbody>
+</concept>

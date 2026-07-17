@@ -66,9 +66,16 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
     expectByteStable('section-dl.dita');
   });
 
+  // Fixed in Session 4B (M4): multi-paragraph <dd> round-trips without
+  // duplicating paragraphs.
+  it('dl-multi-paragraph-dd.dita — <dd> with two <p> elements [BUG-04/M4]', () => {
+    expectByteStable('dl-multi-paragraph-dd.dita');
+  });
+
   it('corpus completeness — every fixture on disk has a test above', () => {
     const onDisk = readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.dita')).sort();
     const tested = [
+      'dl-multi-paragraph-dd.dita',
       'inline-elements.dita',
       'journey-definition.dita',
       'ref-note.dita',
