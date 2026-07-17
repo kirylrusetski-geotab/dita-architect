@@ -21,6 +21,35 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.8',
+    date: '2026-07-17',
+    title: 'API insertions are now reviewed as a precise Monaco XML diff — reliable, validated, byte-exact.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'When an AI tool or skill proposes content via the insert-section API, the XML pane now shows a read-only red/green Monaco diff with an Accept/Reject bar — what you review is byte-for-byte what gets committed. No more green-highlight edit mode for API insertions.',
+          'The Heretto Replace preview diff now strips Heretto-injected class attributes, so the comparison against the live remote topic shows your actual content changes instead of attribute noise.',
+        ],
+      },
+      {
+        heading: 'Fixes',
+        items: [
+          'API insertions are now reliable with any number of tabs open — the previous implementation silently did nothing when targeting any tab except the most recently opened one.',
+          'The API returns success only after the fragment and the resulting document pass validation. Previously it reported success 50 ms before validation ran.',
+          'Inserted figures, images, and examples survive accept and save. Previously they could vanish because the accept path re-serialized through the visual editor.',
+          'Targeting a replaceId that does not exist is now an explicit error instead of silently appending the content at the end.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'New lib/xml-insert.ts computes the proposed document by string splicing — untouched content stays byte-identical, so the review diff shows only the actual change (ADR-004 track 1; FR-045). SectionInsertPlugin, the module-level executor slot, and the 50 ms timing race are retired. 19 new tests.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.7',
     date: '2026-07-17',
     title: 'Serializer fixes: formatting-only edits, table row add/delete, inline element stamping.',
