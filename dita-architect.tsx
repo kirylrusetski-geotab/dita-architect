@@ -24,6 +24,7 @@ import { SyncManager } from './components/SyncManager';
 import { TableColumnSizer } from './components/TableColumnSizer';
 import { TableActionMenuPlugin } from './components/TableActionMenuPlugin';
 import { SuggestionPlugin } from './components/SuggestionPlugin';
+import { ChangeListPanel } from './components/ChangeListPanel';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { InsertElementPlugin } from './components/InsertElementPlugin';
@@ -1199,6 +1200,7 @@ export default function ProfessionalDitaEditor() {
                   <TableColumnSizer />
                   <TableActionMenuPlugin />
                 </div>
+                <ChangeListPanel documentMode={tab.documentMode} />
                 <BottomToolbar />
               </div>
             </LexicalComposer>

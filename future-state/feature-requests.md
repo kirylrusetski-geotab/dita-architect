@@ -1941,7 +1941,7 @@ This directly targets the way Edit Mode is actually used — Claude workflows in
 
 **Requested:** 2026-06-04
 **Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
-**Status:** Open
+**Status:** Shipped (v0.9.0, 2026-07-17) — closes BUG-02; ADR-004 promoted to Accepted. Shipped as designed: `documentMode` three-state, `TrackedTextNode` marks `{changeId, kind: insert|delete|split, author, date}`, interception-time recording (CRITICAL-priority commands + capture-phase beforeinput closing Lexical's typing fast path), change-list side panel with per-change accept/reject, atomic changeId-scan mutations, reject-all byte-stable (pinned by test). Session-only marks per the documented interim; v1 exclusions (format marks, block merge, DITA carrier, IME) filed as FR-051.
 **Priority:** P2
 **Impact:** High — replaces the fundamentally broken human-authoring tracked-changes feature with a durable, per-change model
 **Model weight:** Fable — own session(s); re-tagged from Opus/Multi-agent 2026-07-17 (suggesting-mode edit interception without a transaction layer is subtle single-context Lexical work)
@@ -2131,3 +2131,25 @@ Keeps unchanged: `generatePrintHtml` + `PRINT_CSS` as the input (the `ditaPrint`
 ### Sequencing
 
 Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one-line TS toast change (Sonnet, not Multi-agent). Slice 2 is pure TS (Sonnet). Note for the anti-entropy log: `lib/dita-print.ts` being a second divergent DITA renderer is accepted-for-now debt — full unification with the editor pipeline is out of scope here.
+
+---
+
+## FR-051: Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier
+
+**Requested:** 2026-07-17
+**Source:** FR-046 v1 scope decisions (Kiryl) — the deliberate exclusions, filed at ship time
+**Status:** Open
+**Priority:** P3
+**Impact:** Medium — completes suggesting mode; until then the excluded gestures are blocked with honest toasts, and marks are session-only
+**Model weight:** Fable (the carrier touches the round-trip contract — Gate 1)
+
+**Problem:** FR-046 v1 blocks formatting toggles, line breaks, block merges, drag-and-drop, decorator deletion, and IME composition in suggesting mode, and marks do not survive save/reload.
+**Smallest slice:** Any one of the three independently: (1) format marks, (2) block-merge tracking, (3) the persistence carrier.
+**Serves:** WYSIWYG/DITA parity
+
+### Scope
+
+1. **Tracked formatting** — a third mark kind `format` storing the previous format flags on the affected range, with its own accept/reject semantics (accept = keep new format, strip mark; reject = restore stored flags).
+2. **Block-merge tracking** — backspace at a boundary between two original blocks records a merge marker (the inverse of FR-046's split marker); reject re-splits at the recorded position.
+3. **DITA round-trip carrier** — serialize marks into the already-round-tripped Heretto review PIs (`<?ezd-review-start?>` / `<?ezd-review-end?>`) so tracked changes survive save/reload; the `TrackedMark` payload (changeId/author/date) is already shaped for it. This is the piece that makes suggesting mode multi-session and unlocks reviewing in Heretto itself.
+4. **Smaller residuals:** IME composition tracking (currently toast-only), rich multi-block paste (currently flattened inline), bounded `resolvedUrlCache` in the image resolver (BUG-18 residual).

@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with Heretto CMS (geotab.heretto.com) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.8.4 (2026-06-11)
+**Current version:** 0.9.0 (2026-07-17)
 
 ---
 
@@ -63,7 +63,8 @@ Use port **3001** when running the native app, **3000** for dev server.
 
 - **Parser:** `sync/parseXmlToLexical.ts` — DITA XML → Lexical node tree; stamps `originMap` with DITA element identity for every node
 - **Serializer:** `sync/serializeLexicalToXml.ts` — Lexical node tree → DITA XML; uses `originMap` to reconstruct inline DITA elements correctly
-- **Sync bridge:** `components/SyncManager.tsx` — coordinates bidirectional sync between Lexical and Monaco; update sources: `'visual'`, `'xml'`, `'api'`
+- **Sync bridge:** `components/SyncManager.tsx` — coordinates bidirectional sync between Lexical and Monaco; update sources: `'visual'`, `'xml'`, `'api'`; sync suspends while a tab is in suggesting mode (`suspendSync`), buffering XML-side changes until marks are resolved
+- **Tracked changes (FR-046, marks-as-data):** `components/TrackedTextNode.ts` — TextNode subclass carrying `{changeId, kind: insert|delete|split, author, date}`; `components/SuggestionPlugin.tsx` — suggesting-mode command interception + accept/reject-all lifecycle; `components/ChangeListPanel.tsx` — per-change review sidebar; `lib/tracked-changes/` — model/scan/mutations/edits. `tab.documentMode: 'viewing'|'suggesting'|'editing'` replaces the old editMode boolean. Marks are session-only (carrier = FR-051). See ADR-004.
 - **Heretto integration:** `hooks/useHerettoCms.ts` — all CMS operations (browse, open, save, replace, connection check)
 - **External load:** `hooks/useExternalLoad.ts` — polls `/api/pending-loads` in Vite mode; native mode uses JS bridge directly
 - **Native API bridge:** `lib/native-api-bridge.ts` — registers `window.__ditaApi` on `dita:` protocol; Swift calls these via `callAsyncJavaScript`. This is the **only** transport for the tab API (ADR-007); the dev server has no browser→middleware channel, so port 3000 serves only the external-load queue.
@@ -198,9 +199,9 @@ Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backl
 
 | Lane | Items |
 |---|---|
-| 🔴 **Blocking now** (corrupts data — fix immediately) | **BUG-03** native API server binds all interfaces, no auth, wildcard CORS + `dita://` path traversal + plaintext credentials GET (Sonnet — ship as v0.8.5) |
-| 🟡 **Sweep-ready** (batch into next sweep) | **BUG-06–BUG-18** — 13 items from the 2026-07-17 codebase review; threshold exceeded, **sweep warranted** (BUG-17 save-success lie first) |
-| 🔵 **Larger** (own session) | **BUG-02** Edit Mode architecturally broken (Fable via FR-045/FR-046 — see `bugreports/BUG-edit-mode-architecture.md`); **BUG-04** serializer content-loss cluster — Session 4A shipped 2026-07-17 (ADR-006, S1/S3/S4/M9 fixed); Session 4B remains: S2 (Fable) + S6/mediums (Sonnet); **BUG-05** port-3000 tab API structurally dead — ADR-007 decision (Opus analysis) |
+| 🔴 **Blocking now** (corrupts data — fix immediately) | — (cleared; BUG-03 shipped v0.8.5) |
+| 🟡 **Sweep-ready** (batch into next sweep) | **BUG-10** (Swift status-envelope remainder), **BUG-11** (shared Modal / focus traps), **BUG-16** (Heretto verification gaps) — below threshold; rest of the 2026-07-17 review swept in v0.8.9 |
+| 🔵 **Larger** (own session) | — (cleared 2026-07-17: **BUG-02** closed by FR-045 v0.8.8 + FR-046 v0.9.0, ADR-004 Accepted; **BUG-04** closed by Sessions 4A/4B, ADR-006; **BUG-05** closed by ADR-007) |
 
 ### Features (sequenced by dependency)
 
@@ -249,9 +250,9 @@ DITA Architect uses **Semantic Versioning**: `MAJOR.MINOR.PATCH`
 - PATCH: bug fixes, UX copy, accessibility, theme tweaks, polish, extending an existing capability
 
 **Roadmap:**
-- `0.8.x` — remaining insert-section work, pencil toggle fix
-- `0.9.0` — inline element insertion (`+` menu, P2-28/29) — the single biggest authoring gap
-- `0.9.x` — Connect a Map, macOS menu bar, troubleshooting topic support
+- `0.9.0` — **shipped 2026-07-17**: FR-046 marks-as-data tracked changes (suggesting mode)
+- `0.10.0` — inline element insertion (`+` menu, P2-28/29) — the single biggest authoring gap (reassigned from 0.9.0)
+- `0.9.x/0.10.x` — Connect a Map, macOS menu bar, troubleshooting topic support, FR-051 tracked-changes v2
 - `1.0.0` — the shipped game: polished, full authoring workflow
 
 **Version history mapping** (old → new, for reference):

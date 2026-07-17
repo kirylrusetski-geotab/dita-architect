@@ -21,6 +21,34 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.0',
+    date: '2026-07-17',
+    title: 'Suggesting mode: tracked changes are now real data — insertions, deletions, and splits you can accept or reject one by one.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'The pencil button is now a three-way mode control: **Viewing** (read-only), **Suggesting** (edits become tracked changes), and **Editing** (direct edits). In Suggesting mode, typed text shows green underlined, deleted text stays visible with red strikethrough, and pressing Enter marks the paragraph split with a small pilcrow.',
+          'A tracked-changes panel docks to the right edge of the editor whenever suggestions exist: every change listed with its text, kind, and time — click a row to jump to it, or accept/reject each change individually. Accept All / Reject All live in the toolbar with a live change counter.',
+          'Every change is durable data in the document model (`TrackedTextNode` carrying a change ID, author, and timestamp) — not pixels recomputed from a diff. Deleting your own suggestion simply retracts it. Backspacing right after your own paragraph split undoes that split.',
+        ],
+      },
+      {
+        heading: 'Fixed by the rebuild (BUG-02)',
+        items: [
+          'Edits that never showed as edits, accepted edits that failed to persist, flickering deletion markers, and the multi-tab highlight collision are all gone by construction: the diff-and-paint machinery (`EditModePlugin`, `TrackedChangesPlugin`, `TrackedDeletionNode`, the per-keystroke LCS diff, CSS Custom Highlights, and raw DOM overlays) has been deleted. Rejecting all suggestions restores the document byte-for-byte; accepting them produces exactly what typing the same edits directly would.',
+        ],
+      },
+      {
+        heading: 'Known limits (v1)',
+        items: [
+          'Tracked changes are session-only — resolve them before saving to Heretto (a DITA round-trip carrier is a planned follow-up).',
+          'In Suggesting mode these are blocked with a toast rather than silently untracked: formatting toggles (Bold/Italic), line breaks, paragraph merges, drag-and-drop, structural inserts, deleting embedded elements (images, ref chips), and IME composition.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.9',
     date: '2026-07-17',
     title: 'Polish sweep: native-safe clear dialog, serializer performance, and multi-tab edit mode fixes.',

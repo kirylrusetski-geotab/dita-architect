@@ -88,7 +88,7 @@ per-gate "Pipeline owner" notes).
 
 ## ADR-004 — Edit Mode rebuild: marks-as-data, not diff-and-paint
 
-**Date:** 2026-06-18 (back-filled) · **Status:** Proposed (tracked: BUG-02 → FR-045 → FR-046)
+**Date:** 2026-06-18 (back-filled) · **Status:** Accepted (both tracks implemented; promoted 2026-07-17 with v0.9.0)
 
 **Context** — Edit Mode reconstructs tracked changes by diffing a frozen plain-text snapshot against
 the live tree on every keystroke (diff-and-paint). This is the single root cause behind every
@@ -107,8 +107,15 @@ band-aids on the diff-and-paint path (a Gate 7 / smallest-slice violation to add
 **Progress** — Track 1 (FR-045) implemented 2026-07-17 (v0.8.8): API insertions are now a
 deterministic XML-level transform (`lib/xml-insert.ts`) reviewed in a Monaco diff with
 whole-change Accept/Reject; the executor slot, the 50 ms race, and `SectionInsertPlugin` are
-retired. The human edit-mode path (Track 2, FR-046) still runs on diff-and-paint — promote this
-ADR to Accepted when FR-046 lands.
+retired. Track 2 (FR-046) implemented 2026-07-17 (v0.9.0): human tracked changes are
+marks-as-data on a `TrackedTextNode` (TextNode subclass carrying `{changeId, kind, author,
+date}`); `documentMode: 'viewing'|'suggesting'|'editing'` replaces the editMode boolean
+(also resolving P2-44); suggesting-mode gestures are recorded at interception time
+(commands at CRITICAL priority + a capture-phase beforeinput closing Lexical's typing fast
+path) — never derived by diffing; per-change and all accept/reject are atomic mutations
+located by changeId scan; `EditModePlugin`, `TrackedChangesPlugin`, and
+`TrackedDeletionNode` are deleted (BUG-13 absorbed). Marks are session-only in v1 — the
+DITA round-trip carrier (ezd-review PIs) is a follow-up FR.
 
 **Alternatives considered** — Continued incremental patching (rejected: the unreliability persists
 regardless; see the bug report).
