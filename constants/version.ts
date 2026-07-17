@@ -21,6 +21,32 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.7',
+    date: '2026-07-17',
+    title: 'Serializer fixes: formatting-only edits, table row add/delete, inline element stamping.',
+    sections: [
+      {
+        heading: 'Fixes',
+        items: [
+          'Formatting-only edits (bold/italic/codeph toggles) now serialize correctly instead of being silently discarded.',
+          'Table row add/delete in the visual editor now reaches the XML (append/remove phases added to CALS and simpletable walkers).',
+          'All inline elements (filepath, term, codeph, uicontrol, etc.) now survive round-trip rewrites instead of flattening to plain text.',
+          'Note type attribute (warning, caution, tip) now preserved on recreate.',
+          'Xref attributes (scope, type, format) now preserved via originMap instead of being rewritten.',
+          'Spurious xmlns attributes no longer corrupt codeblocks containing the literal XHTML namespace string.',
+          'Readability score no longer becomes NaN on words like "constructor".',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Session 4B.3 + 4B.4: five serializer mediums (noteType, inlineAttrs, stripSpuriousXmlns, dl-split, generic inlineTag stamping) plus prototype-chain fix. Byte-stability corpus 9/9, suite green.',
+          'Technical debt D2 (flushInline consolidation) and D3 (PI-whitespace triplication) identified and filed for future cleanup.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.6',
     date: '2026-07-17',
     title: 'Save API now correctly reports failure when a Heretto save fails.',
