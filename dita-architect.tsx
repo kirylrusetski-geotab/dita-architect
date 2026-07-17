@@ -65,6 +65,7 @@ import { createTab } from './types/tab';
 import { useLocalFile } from './hooks/useLocalFile';
 import { useHerettoCms } from './hooks/useHerettoCms';
 import { useExternalLoad } from './hooks/useExternalLoad';
+import { EDITOR_NODES } from './constants/editor-nodes';
 
 // --- LEXICAL CONFIGURATION ---
 
@@ -100,26 +101,7 @@ const editorConfig = {
   onError(error: Error) {
     console.error(error);
   },
-  nodes: [
-    HeadingNode,
-    QuoteNode,
-    ListNode,
-    ListItemNode,
-    ParagraphNode,
-    TextNode,
-    LinkNode,
-    AutoLinkNode,
-    TableNode,
-    TableRowNode,
-    TableCellNode,
-    DitaOpaqueNode,
-    DitaCodeBlockNode,
-    DitaImageNode,
-    DitaPhRefNode,
-    DitaInfoPreviewNode,
-    TrackedDeletionNode,
-    ValidationDecoratorNode,
-  ],
+  nodes: EDITOR_NODES,
 };
 
 // Custom table insertion command

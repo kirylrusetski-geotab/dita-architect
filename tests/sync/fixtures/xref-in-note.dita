@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="xref-in-note-fixture">
+  <title>Note containing a paragraph-wrapped cross-reference</title>
+  <shortdesc>The xref sits inside a p inside the note, with a DITA-scope format.</shortdesc>
+  <conbody>
+    <p>General guidance appears below.</p>
+    <note type="note"><p>See <xref href="trip-chaining.dita" format="dita" scope="local">Trip chaining</xref> for details.</p></note>
+    <p>The note above must survive byte-for-byte.</p>
+  </conbody>
+</concept>

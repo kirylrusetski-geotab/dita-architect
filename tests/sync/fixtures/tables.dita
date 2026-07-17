@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="tables-fixture">
+  <title>Parameter reference tables</title>
+  <shortdesc>One CALS table with mixed cell content and one simpletable.</shortdesc>
+  <refbody>
+    <section>
+      <title>CALS table</title>
+      <table>
+        <tgroup cols="2">
+          <colspec colname="c1" colnum="1"/>
+          <colspec colname="c2" colnum="2"/>
+          <thead>
+            <row>
+              <entry>Parameter</entry>
+              <entry>Notes</entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry>Threshold</entry>
+              <entry><p>Minimum stop duration.</p><ul><li>Minutes</li><li>Whole numbers only</li></ul></entry>
+            </row>
+            <row>
+              <entry>Mode</entry>
+              <entry>Set with <uicontrol>Chaining</uicontrol>.</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+    </section>
+    <section>
+      <title>Simple table</title>
+      <simpletable>
+        <sthead>
+          <stentry>Key</stentry>
+          <stentry>Value</stentry>
+        </sthead>
+        <strow>
+          <stentry>timeout</stentry>
+          <stentry>30</stentry>
+        </strow>
+      </simpletable>
+    </section>
+  </refbody>
+</reference>

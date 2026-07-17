@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="inline-elements-fixture">
+  <title>Inline element preservation</title>
+  <shortdesc>Every inline element here must survive an unedited round-trip.</shortdesc>
+  <conbody>
+    <p>Edit <filepath>/etc/hosts</filepath> and run <codeph>npm install</codeph> before opening <uicontrol>Preferences</uicontrol>.</p>
+    <p>Navigate to <menucascade><uicontrol>File</uicontrol><uicontrol>Export</uicontrol></menucascade> in the <wintitle>Export dialog</wintitle>.</p>
+    <p>The <term>trip chaining factor</term> is described in <cite>the analytics guide</cite>, with variables <ph conkeyref="varsAltitude/ProdNameShort"/> and <ph conkeyref="varsAltitude/Company"/>.</p>
+    <p>Nested formatting: <b>bold with <i>italic inside</i> it</b> and a <xref href="other.dita" format="dita" scope="local">typed reference</xref>.</p>
+  </conbody>
+</concept>

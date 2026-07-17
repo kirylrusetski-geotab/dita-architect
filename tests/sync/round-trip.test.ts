@@ -16,26 +16,9 @@ import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeL
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
 
 // ─── Editor factory ───────────────────────────────────────────────────────────
-
-function createTestEditor() {
-  return createEditor({
-    nodes: [
-      HeadingNode,
-      QuoteNode,
-      ListNode,
-      ListItemNode,
-      LinkNode,
-      TableNode,
-      TableRowNode,
-      TableCellNode,
-      DitaOpaqueNode,
-      DitaCodeBlockNode,
-      DitaImageNode,
-      DitaPhRefNode,
-      DitaInfoPreviewNode,
-    ],
-  });
-}
+// Shared factory (FR-047) — registers the full PRODUCTION node list, so this
+// suite can now represent TrackedDeletionNode/ValidationDecoratorNode content.
+import { createTestEditor } from '../helpers/createTestEditor';
 
 // ─── XML comparison helpers ───────────────────────────────────────────────────
 

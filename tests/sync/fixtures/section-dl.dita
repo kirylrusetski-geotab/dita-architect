@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="section-dl-fixture">
+  <title>Definition list nested inside a section</title>
+  <shortdesc>The dl lives under a section, exercising the patchBodyChildren walk.</shortdesc>
+  <conbody>
+    <p>Introductory paragraph at body level.</p>
+    <section>
+      <title>Journey parameters</title>
+      <dl>
+        <dlentry>
+          <dt>Single trip</dt>
+          <dd><p>One movement from ignition on to ignition off.</p></dd>
+        </dlentry>
+        <dlentry>
+          <dt>Chained trips</dt>
+          <dd><p>Consecutive trips joined across short stops.</p></dd>
+        </dlentry>
+      </dl>
+      <p>Trailing paragraph inside the same section.</p>
+    </section>
+  </conbody>
+</concept>

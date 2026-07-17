@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="task-info-fixture">
+  <title>Configure the export schedule</title>
+  <shortdesc>Set up a recurring export with the scheduler.</shortdesc>
+  <taskbody>
+    <prereq>You need the <uicontrol>Administrator</uicontrol> role.</prereq>
+    <context>Exports run in the account time zone.</context>
+    <steps>
+      <step><cmd>Open <uicontrol>Settings</uicontrol> and select <uicontrol>Exports</uicontrol>.</cmd></step>
+      <step>
+        <cmd>Enter the schedule expression.</cmd>
+        <info>
+          <codeblock>0 6 * * MON</codeblock>
+          <note type="tip">Use the account time zone, not UTC.</note>
+        </info>
+      </step>
+      <step><cmd>Select <uicontrol>Save</uicontrol>.</cmd></step>
+    </steps>
+    <result>The export appears in the <uicontrol>Scheduled</uicontrol> list.</result>
+    <postreq>Verify the first delivery arrives on Monday.</postreq>
+  </taskbody>
+</task>

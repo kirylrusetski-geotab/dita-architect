@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="ref-note-fixture">
+  <title>Reusable warning note</title>
+  <shortdesc>A body-level note carried entirely by conkeyref.</shortdesc>
+  <conbody>
+    <p>Before you begin, review the shared warning below.</p>
+    <note conkeyref="varsAltitudeNotes/sharedWarning"/>
+    <p>Continue with the standard configuration afterwards.</p>
+  </conbody>
+</concept>
