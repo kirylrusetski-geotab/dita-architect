@@ -17,6 +17,7 @@ import { $createDitaOpaqueNode } from '../components/DitaOpaqueNode';
 import { $createDitaCodeBlockNode } from '../components/DitaCodeBlockNode';
 import { $createDitaImageNode } from '../components/DitaImageNode';
 import { $createDitaPhRefNode } from '../components/DitaPhRefNode';
+import { $createDitaInfoPreviewNode, buildInfoModel } from '../components/DitaInfoPreviewNode';
 
 // ---------------------------------------------------------------------------
 // Shared parsing helpers — module-level so parseSectionFragment can reuse them
@@ -86,52 +87,7 @@ const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] => 
         }
       }
     } else if (child.nodeType === Node.ELEMENT_NODE) {
-      const el = child as Element;
-
-      const elTag = el.tagName.toLowerCase();
-
-      if (elTag === 'xref') {
-        const href = el.getAttribute('href') || '';
-        const linkNode = $createLinkNode(href);
-        const linkChildren = parseTextNodes(el, originMap);
-        linkChildren.forEach(n => linkNode.append(n));
-        nodes.push(linkNode);
-      } else if (elTag === 'ph' || elTag === 'term') {
-        const ref = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref');
-        if (ref) {
-          const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
-          nodes.push($createDitaPhRefNode(refType, ref, el.textContent || ''));
-        } else {
-          // No ref — transparent pass-through
-          parseTextNodes(el, originMap).forEach(n => nodes.push(n));
-        }
-      } else if (elTag === 'image') {
-        const href = el.getAttribute('href') || '';
-        const alt = el.querySelector('alt')?.textContent || el.getAttribute('alt') || '';
-        nodes.push($createDitaPhRefNode('image', href, alt));
-      } else if (elTag === 'codeph') {
-        const textNode = $createTextNode(el.textContent || '');
-        textNode.toggleFormat('code');
-        nodes.push(textNode);
-      } else if (elTag === 'uicontrol') {
-        const textNode = $createTextNode(el.textContent || '');
-        textNode.toggleFormat('bold');
-        originMap?.set(textNode.getKey(), { tag: 'uicontrol', bodyIndex: -1, inlineTag: 'uicontrol' });
-        nodes.push(textNode);
-      } else if (elTag === 'wintitle') {
-        const textNode = $createTextNode(el.textContent || '');
-        textNode.toggleFormat('italic');
-        originMap?.set(textNode.getKey(), { tag: 'wintitle', bodyIndex: -1, inlineTag: 'wintitle' });
-        nodes.push(textNode);
-      } else {
-        const textNode = $createTextNode(el.textContent || '');
-        if (elTag === 'b' || elTag === 'strong') {
-          textNode.toggleFormat('bold');
-        } else if (elTag === 'i' || elTag === 'em') {
-          textNode.toggleFormat('italic');
-        }
-        nodes.push(textNode);
-      }
+      parseInlineElement(child as Element, originMap).forEach(n => nodes.push(n));
     }
   });
   // Trim leading formatting whitespace from first text node
@@ -147,6 +103,60 @@ const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] => 
     const trimmed = t.replace(/\s+$/, '');
     if (!trimmed) nodes.pop();
     else if (trimmed !== t) nodes[nodes.length - 1] = $createTextNode(trimmed);
+  }
+  return nodes;
+};
+
+// Convert a single inline DITA element into Lexical nodes. Used both by
+// parseTextNodes (iterating a parent's children) and by the block-split paths in
+// traverseXmlElement / case 'dl', which encounter inline elements one at a time.
+// Calling parseTextNodes(el) there was wrong — it descends into el's *children*,
+// so an empty inline like <ph conkeyref="…"/> (no children) yielded nothing and
+// <uicontrol>x</uicontrol> lost its tag. Parsing the element itself fixes that.
+const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] => {
+  const nodes: any[] = [];
+  const elTag = el.tagName.toLowerCase();
+
+  if (elTag === 'xref') {
+    const href = el.getAttribute('href') || '';
+    const linkNode = $createLinkNode(href);
+    parseTextNodes(el, originMap).forEach(n => linkNode.append(n));
+    nodes.push(linkNode);
+  } else if (elTag === 'ph' || elTag === 'term') {
+    const ref = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref');
+    if (ref) {
+      const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
+      nodes.push($createDitaPhRefNode(refType, ref, el.textContent || ''));
+    } else {
+      // No ref — transparent pass-through
+      parseTextNodes(el, originMap).forEach(n => nodes.push(n));
+    }
+  } else if (elTag === 'image') {
+    const href = el.getAttribute('href') || '';
+    const alt = el.querySelector('alt')?.textContent || el.getAttribute('alt') || '';
+    nodes.push($createDitaPhRefNode('image', href, alt));
+  } else if (elTag === 'codeph') {
+    const textNode = $createTextNode(el.textContent || '');
+    textNode.toggleFormat('code');
+    nodes.push(textNode);
+  } else if (elTag === 'uicontrol') {
+    const textNode = $createTextNode(el.textContent || '');
+    textNode.toggleFormat('bold');
+    originMap?.set(textNode.getKey(), { tag: 'uicontrol', bodyIndex: -1, inlineTag: 'uicontrol' });
+    nodes.push(textNode);
+  } else if (elTag === 'wintitle') {
+    const textNode = $createTextNode(el.textContent || '');
+    textNode.toggleFormat('italic');
+    originMap?.set(textNode.getKey(), { tag: 'wintitle', bodyIndex: -1, inlineTag: 'wintitle' });
+    nodes.push(textNode);
+  } else {
+    const textNode = $createTextNode(el.textContent || '');
+    if (elTag === 'b' || elTag === 'strong') {
+      textNode.toggleFormat('bold');
+    } else if (elTag === 'i' || elTag === 'em') {
+      textNode.toggleFormat('italic');
+    }
+    nodes.push(textNode);
   }
   return nodes;
 };
@@ -227,8 +237,13 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         return quote;
       }
 
-      // Check if this element contains block-level children that need recursive traversal
-      const blockTags = new Set(['codeblock', 'note', 'ul', 'ol', 'table', 'simpletable', 'fig', 'image', 'p', 'section']);
+      // Check if this element contains block-level children that need recursive traversal.
+      // 'dl' is included so a non-standard <p><dl>…</dl></p> wrapper (as authored in
+      // Heretto) is treated as a block child and routed to case 'dl' instead of being
+      // flattened to text by parseTextNodes. 'image' is intentionally NOT here: an
+      // <image> inside a <p> is inline per DITA and is handled inline (DitaPhRefNode)
+      // so it round-trips in place instead of being split into a separate block node.
+      const blockTags = new Set(['codeblock', 'note', 'ul', 'ol', 'table', 'simpletable', 'fig', 'p', 'section', 'dl']);
       const hasBlockChildren = Array.from(xmlNode.children).some(
         child => blockTags.has(child.tagName.toLowerCase())
       );
@@ -272,7 +287,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element — parse as text nodes
-              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
+              parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
@@ -303,19 +318,12 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
           const contentNode = child.querySelector('cmd') || child;
           parseTextNodes(contentNode, originMap).forEach(n => li.append(n));
 
-          // Add affordance chips for <info> block children (invisible to serializer)
+          // Render <info> block children as a read-only nested preview under the
+          // step (P2-26 Phase 2). The preview serializes to nothing, so the
+          // serializer keeps the original <info> byte-stable.
           if (child.tagName === 'step') {
             Array.from(child.querySelectorAll(':scope > info')).forEach(info => {
-              const blockChildren = Array.from(info.children);
-              let chipLabel: string;
-              if (blockChildren.length === 0) {
-                chipLabel = '[info]';
-              } else if (blockChildren.length === 1) {
-                chipLabel = `[${blockChildren[0].tagName.toLowerCase()}]`;
-              } else {
-                chipLabel = `[info: ${blockChildren.length} elements]`;
-              }
-              li.append($createDitaPhRefNode('info-chip', chipLabel, ''));
+              li.append($createDitaInfoPreviewNode(buildInfoModel(info)));
             });
           }
 
@@ -378,7 +386,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element: parse as text nodes
-              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
+              parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
@@ -484,7 +492,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             } else {
               // Inline element: parse as text nodes
-              parseTextNodes(el, originMap).forEach(n => inlineNodes.push(n));
+              parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
             }
           }
         });
@@ -575,6 +583,98 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       const href = xmlNode.getAttribute('href') || '';
       const alt = xmlNode.querySelector('alt')?.textContent || xmlNode.getAttribute('alt') || '';
       return $createDitaImageNode(href, alt, '', false);
+    }
+
+    case 'dl': {
+      // Definition list. Lexical has no native definition-list node, so we flatten
+      // the <dl> to a sequence of ordinary nodes — each <dt> becomes a styled
+      // paragraph (tag 'dt') and each <dd>'s content becomes its block children
+      // (inline runs as 'dd' paragraphs; nested block elements via their own cases).
+      // Every produced node is tagged with dlEntryIndex so the serializer can
+      // re-group the run and patch the preserved <dl>/<dlentry>/<dt>/<dd> skeleton.
+      const results: any[] = [];
+      // 'image' is intentionally NOT a dd block tag — inline <image> is handled by
+      // parseInlineElement so it round-trips in place (see the case 'p' note above).
+      const ddBlockTags = new Set(['p', 'ul', 'ol', 'codeblock', 'note', 'table', 'simpletable', 'fig', 'section']);
+      const dlEntries = Array.from(xmlNode.children).filter(
+        c => c.tagName.toLowerCase() === 'dlentry'
+      );
+
+      dlEntries.forEach((entry, entryIndex) => {
+        // <dt> → emphasized term paragraph
+        const dt = entry.querySelector(':scope > dt');
+        if (dt) {
+          const dtPara = $createParagraphNode();
+          parseTextNodes(dt, originMap).forEach(n => dtPara.append(n));
+          originMap.set(dtPara.getKey(), { tag: 'dt', bodyIndex: bodyIndex ?? -1, dlEntryIndex: entryIndex });
+          results.push(dtPara);
+        }
+
+        // <dd> → block/inline split (mirrors the <p>/<note> block handler and
+        // parseCellContent), so nested <p>/<table>/<note> render via their cases.
+        const dd = entry.querySelector(':scope > dd');
+        if (dd) {
+          const ddNodes: any[] = [];
+          let inlineNodes: any[] = [];
+
+          const flushInline = () => {
+            if (inlineNodes.length > 0) {
+              const p = $createParagraphNode();
+              inlineNodes.forEach(n => p.append(n));
+              originMap.set(p.getKey(), { tag: 'dd', bodyIndex: bodyIndex ?? -1, dlEntryIndex: entryIndex });
+              ddNodes.push(p);
+              inlineNodes = [];
+            }
+          };
+
+          Array.from(dd.childNodes).forEach(child => {
+            if (child.nodeType === Node.TEXT_NODE) {
+              let text = child.textContent;
+              if (!text) return;
+              text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
+              if (text.trim()) inlineNodes.push($createTextNode(text));
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+              const el = child as Element;
+              const elTag = el.tagName.toLowerCase();
+              if (ddBlockTags.has(elTag)) {
+                flushInline();
+                const blockResult = traverseXmlElement(el, originMap);
+                const arr = Array.isArray(blockResult) ? blockResult : blockResult ? [blockResult] : [];
+                arr.forEach(n => {
+                  // Preserve the nested element's own identity (tag, noteType, …)
+                  // and merge in dl membership so the grouper can claim it.
+                  const existing = originMap.get(n.getKey());
+                  originMap.set(n.getKey(), {
+                    ...(existing ?? { tag: 'dd', bodyIndex: bodyIndex ?? -1 }),
+                    dlEntryIndex: entryIndex,
+                  });
+                  ddNodes.push(n);
+                });
+              } else {
+                parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
+              }
+            }
+          });
+          flushInline();
+
+          // Guarantee at least one node so an empty <dd> still round-trips.
+          if (ddNodes.length === 0) {
+            const p = $createParagraphNode();
+            originMap.set(p.getKey(), { tag: 'dd', bodyIndex: bodyIndex ?? -1, dlEntryIndex: entryIndex });
+            ddNodes.push(p);
+          }
+
+          // Mark the first node of the <dd> so CSS/serializer can find entry starts.
+          const first = ddNodes[0];
+          const firstOrigin = originMap.get(first.getKey());
+          if (firstOrigin) originMap.set(first.getKey(), { ...firstOrigin, ddFirst: true });
+
+          results.push(...ddNodes);
+        }
+      });
+
+      if (results.length > 0) stampId(results[0]);
+      return results.length > 0 ? results : null;
     }
 
     default: {

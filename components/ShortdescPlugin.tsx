@@ -33,6 +33,8 @@ const BODY_TAG_CLASSES: Record<string, string> = {
   context: 'dita-editor-context',
   result: 'dita-editor-result',
   postreq: 'dita-editor-postreq',
+  dt: 'dita-editor-dt',
+  dd: 'dita-editor-dd',
 };
 const ALL_BODY_CLASSES = Object.values(BODY_TAG_CLASSES);
 

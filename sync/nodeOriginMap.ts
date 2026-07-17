@@ -12,6 +12,14 @@ export interface NodeOrigin {
   // XML id attribute of the source element. Used by the API replaceId flow
   // to locate a Lexical node from a DITA element id.
   xmlId?: string;
+  // Definition-list membership. A <dl> flattens to a run of body-level nodes
+  // (one <dt> paragraph + the <dd>'s block children, repeated per <dlentry>).
+  // dlEntryIndex marks which <dlentry> a node belongs to so the serializer can
+  // re-group the run and patch the preserved <dl>/<dlentry> skeleton in place.
+  // It is merged onto a node's existing origin, so nested blocks inside a <dd>
+  // (e.g. a <note> or <table>) keep their own tag/noteType identity.
+  dlEntryIndex?: number;  // index of the <dlentry> within the <dl>
+  ddFirst?: boolean;      // marks the first node produced from a <dd>
 }
 
 // Factory to create a per-editor-instance map.

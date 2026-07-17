@@ -21,6 +21,46 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.4',
+    date: '2026-06-11',
+    title: 'Step info content now renders nested under each step instead of as a placeholder chip.',
+    sections: [
+      {
+        heading: 'Improvements',
+        items: [
+          'When a procedure step carries supplementary `<info>` content — a code sample, a note, an extra explanation — the visual editor previously showed only a small placeholder chip like `[codeblock]` or `[info: 2 elements]`. That content now renders as a read-only preview nested beneath the step, so you can see the code, note, or paragraph in context without switching to the XML pane. Editing the info content still happens in the XML pane; the preview is display-only and never alters your saved file.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'The info preview serializes to nothing — the original `<info>` element is left byte-for-byte untouched on save. Two new round-trip tests confirm a step with `<info>` (codeblock + note) is byte-stable and that editing a step command leaves the sibling `<info>` undisturbed (P2-26 Phase 2).',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.8.3',
+    date: '2026-06-11',
+    title: 'Definition lists now render in the visual editor instead of collapsing into a wall of text.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Definition lists (`<dl>`) were invisible in the visual editor. When you opened a topic that used a definition list — a list of terms each paired with a definition — the terms and definitions collapsed into one undifferentiated run of prose, and anything nested inside a definition (a table, a note, extra paragraphs) was dragged into that same flattened text. The XML pane showed the structure correctly, but the visual side was unreadable. Definition lists now render with each term emphasized and its definition indented beneath it, and block content inside a definition (tables, notes, paragraphs) renders normally. The non-standard `<p><dl>…</dl></p>` wrapper that Heretto authors is handled transparently.',
+          'While fixing the above, two related content-loss bugs surfaced and were also fixed. An inline element such as `<ph conkeyref>` or `<uicontrol>` was silently dropped when it sat in the same paragraph as a block element — on save, the conkeyref simply vanished. And an `<image>` placed inside a paragraph could knock the following paragraph out of the saved output entirely. Inline images are now treated as inline content (so they round-trip in place), and inline references and controls are preserved regardless of what else shares their paragraph.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Five new round-trip tests covering definition lists: bare `<dl>`, the `<p>`-wrapped form, a definition containing a nested table and note, editing a term in place, and a definition paragraph mixing a conkeyref, a uicontrol, and an inline image followed by sibling content (BUG-01).',
+          'Verified end-to-end against the real Journey Definition topic from Heretto — the `<dl>` structure, conkeyrefs, uicontrols, the six-row table, the note, and the inline image all round-trip without data loss or a stray XHTML namespace.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.2',
     date: '2026-06-04',
     title: 'Inserting blocks with the + tool and pushing content through the API no longer corrupt your topic with a stray XHTML namespace.',

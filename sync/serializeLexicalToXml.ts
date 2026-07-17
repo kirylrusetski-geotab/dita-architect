@@ -19,7 +19,7 @@ export interface XmlMetaCache {
 export const createXmlMetaCache = (): XmlMetaCache => ({ source: '', meta: null });
 
 const RECOGNIZED_BODY_TAGS = new Set([
-  'p', 'note', 'section', 'steps', 'ol', 'ul', 'prereq', 'context', 'result', 'postreq', 'table', 'simpletable', 'codeblock',
+  'p', 'note', 'section', 'steps', 'ol', 'ul', 'prereq', 'context', 'result', 'postreq', 'table', 'simpletable', 'codeblock', 'dl',
 ]);
 
 const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
@@ -77,6 +77,9 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
 
   lexicalNode.getChildren().forEach((child: any) => {
     if (child.getType() === 'tracked-deletion') return;
+    // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
+    // The original <info> DOM is left byte-stable by the patch path.
+    if (child.getType() === 'dita-info-preview') return;
     if (child.getType() === 'text') {
       const text = child.getTextContent();
       const isBold = child.hasFormat('bold');
@@ -552,6 +555,57 @@ const patchListElement = (domEl: Element, lexicalNode: any, doc: Document, origi
 };
 
 /**
+ * Patch a <dl> element in the DOM against the run of Lexical nodes that the
+ * definition list flattened to. Preserves the <dl>/<dlentry>/<dt>/<dd> skeleton
+ * (and any unrecognized children) byte-for-byte, patching only the <dt> term
+ * paragraph and the <dd> block content — mirroring how patchListElement leaves a
+ * <step>'s <info> untouched and patches only <cmd>.
+ */
+const patchDlElement = (
+  domDl: Element,
+  lexicalNodes: any[],
+  doc: Document,
+  rootTag: string,
+  originMap: NodeOriginMapType,
+) => {
+  const domEntries = Array.from(domDl.children).filter(
+    c => c.tagName.toLowerCase() === 'dlentry'
+  );
+
+  // Partition the flattened nodes into per-<dlentry> buckets by dlEntryIndex.
+  const buckets = new Map<number, any[]>();
+  for (const node of lexicalNodes) {
+    const origin = originMap.get(node.getKey());
+    const idx = origin?.dlEntryIndex;
+    if (idx === undefined) continue;
+    if (!buckets.has(idx)) buckets.set(idx, []);
+    buckets.get(idx)!.push(node);
+  }
+
+  for (let i = 0; i < domEntries.length; i++) {
+    const bucket = buckets.get(i);
+    if (!bucket || bucket.length === 0) continue;
+
+    const entry = domEntries[i];
+    const domDt = entry.querySelector(':scope > dt');
+    const domDd = entry.querySelector(':scope > dd');
+
+    // The <dt> is the bucket node tagged 'dt'; the rest are <dd> content.
+    const dtNode = bucket.find(n => originMap.get(n.getKey())?.tag === 'dt');
+    const ddNodes = bucket.filter(n => n !== dtNode);
+
+    if (domDt && dtNode) {
+      patchElementContent(domDt, dtNode, doc, originMap);
+    }
+    if (domDd) {
+      // Patch the <dd>'s recognized block children in parallel; unrecognized
+      // children are left untouched (same contract as the body walk).
+      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap);
+    }
+  }
+};
+
+/**
  * Patch a <table> element in the DOM with Lexical table data.
  * Walks rows and entries in parallel, updating only entry text content.
  */
@@ -962,8 +1016,9 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
     // 3. Patch body element
     const bodyEl = rootEl.querySelector(bodyTag);
     if (bodyEl && bodyNodes.length > 0) {
-      // Group body nodes: sections are an h2 followed by nodes until next h2
-      const groupedNodes = groupBodyNodesForSections(bodyNodes);
+      // Group body nodes: sections are an h2 followed by nodes until next h2;
+      // definition lists are a run of dt/dd nodes carrying dlEntryIndex.
+      const groupedNodes = groupBodyNodesForSections(bodyNodes, originMap);
 
       const domChildren = Array.from(bodyEl.children);
 
@@ -996,7 +1051,28 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
 
         const group = groupedNodes[lexGroupIdx];
 
-        if (tag === 'section' && group.type === 'section') {
+        if (group.type === 'dl') {
+          // A definition list. The source may author it bare (<dl>) or, as in
+          // Heretto, wrapped in a non-standard <p><dl>…</dl></p>. In the wrapped
+          // case patch the inner <dl> and leave the <p> wrapper byte-for-byte.
+          const innerDl =
+            tag === 'dl'
+              ? child
+              : tag === 'p'
+                ? child.querySelector(':scope > dl')
+                : null;
+          if (innerDl) {
+            patchDlElement(innerDl, group.nodes, clonedDoc, rootTag, originMap);
+            consumedDomChildren.add(child); // preserve the wrapper (or the dl itself)
+            lexGroupIdx++;
+          } else {
+            // Mismatch — DOM child is some other element but Lexical expects a dl.
+            const newEl = createDlFromLexical(group.nodes, clonedDoc, rootTag, originMap);
+            bodyEl.insertBefore(newEl, child);
+            bodyEl.removeChild(child);
+            lexGroupIdx++;
+          }
+        } else if (tag === 'section' && group.type === 'section') {
           patchSection(child, group.nodes, clonedDoc, rootTag, originMap);
           consumedDomChildren.add(child);
           lexGroupIdx++;
@@ -1057,6 +1133,9 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
         if (group.type === 'section') {
           const sectionEl = createSectionFromLexical(group.nodes, clonedDoc, rootTag, originMap);
           bodyEl.appendChild(sectionEl);
+        } else if (group.type === 'dl') {
+          const dlEl = createDlFromLexical(group.nodes, clonedDoc, rootTag, originMap);
+          bodyEl.appendChild(dlEl);
         } else {
           const newEl = createElementFromLexical(group.nodes[0], clonedDoc, rootTag, originMap);
           if (newEl) bodyEl.appendChild(newEl);
@@ -1093,17 +1172,34 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
  * includes all following nodes until the next h2 or end.
  */
 interface NodeGroup {
-  type: 'single' | 'section';
+  type: 'single' | 'section' | 'dl';
   nodes: any[];
 }
 
-const groupBodyNodesForSections = (bodyNodes: any[]): NodeGroup[] => {
+const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapType): NodeGroup[] => {
   const groups: NodeGroup[] = [];
   let i = 0;
 
   while (i < bodyNodes.length) {
     const node = bodyNodes[i];
-    if (node.getType() === 'heading' && node.getTag() === 'h2') {
+    const origin = originMap?.get(node.getKey());
+
+    // Definition-list group: a run of nodes carrying dlEntryIndex (one <dt>
+    // paragraph + the <dd>'s block children, repeated per <dlentry>). A fresh
+    // entry-0 <dt> signals the start of the *next* <dl>, so it bounds the run.
+    if (origin?.dlEntryIndex !== undefined) {
+      const dlNodes: any[] = [node];
+      i++;
+      while (i < bodyNodes.length) {
+        const next = bodyNodes[i];
+        const nextOrigin = originMap?.get(next.getKey());
+        if (nextOrigin?.dlEntryIndex === undefined) break;
+        if (nextOrigin.tag === 'dt' && nextOrigin.dlEntryIndex === 0) break; // next <dl> begins
+        dlNodes.push(next);
+        i++;
+      }
+      groups.push({ type: 'dl', nodes: dlNodes });
+    } else if (node.getType() === 'heading' && node.getTag() === 'h2') {
       // Start a section group
       const sectionNodes: any[] = [node];
       i++;
@@ -1143,4 +1239,44 @@ const createSectionFromLexical = (nodes: any[], doc: Document, rootTag: string, 
   });
 
   return section;
+};
+
+/**
+ * Create a <dl> DOM element from a definition-list group created from scratch
+ * (e.g. via insert-fragment). Not exercised on a no-edit round-trip — the source
+ * <dl> is preserved and patched in place — but needed when no original <dl> exists.
+ */
+const createDlFromLexical = (nodes: any[], doc: Document, rootTag: string, originMap: NodeOriginMapType): Element => {
+  const dl = doc.createElement('dl');
+
+  // Partition into per-entry buckets by dlEntryIndex (preserving order).
+  const order: number[] = [];
+  const buckets = new Map<number, any[]>();
+  for (const node of nodes) {
+    const idx = originMap.get(node.getKey())?.dlEntryIndex ?? 0;
+    if (!buckets.has(idx)) { buckets.set(idx, []); order.push(idx); }
+    buckets.get(idx)!.push(node);
+  }
+
+  for (const idx of order) {
+    const bucket = buckets.get(idx)!;
+    const dtNode = bucket.find(n => originMap.get(n.getKey())?.tag === 'dt');
+    const ddNodes = bucket.filter(n => n !== dtNode);
+
+    const dlentry = doc.createElement('dlentry');
+    const dt = doc.createElement('dt');
+    if (dtNode) serializeInlineContent(dtNode, doc, originMap).forEach(n => dt.appendChild(n));
+    dlentry.appendChild(dt);
+
+    const dd = doc.createElement('dd');
+    ddNodes.forEach(node => {
+      const el = createElementFromLexical(node, doc, rootTag, originMap);
+      if (el) dd.appendChild(el);
+    });
+    dlentry.appendChild(dd);
+
+    dl.appendChild(dlentry);
+  }
+
+  return dl;
 };

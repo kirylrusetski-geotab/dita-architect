@@ -35,6 +35,7 @@ import { DitaOpaqueNode } from './components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from './components/DitaCodeBlockNode';
 import { DitaImageNode } from './components/DitaImageNode';
 import { DitaPhRefNode } from './components/DitaPhRefNode';
+import { DitaInfoPreviewNode } from './components/DitaInfoPreviewNode';
 import { TrackedDeletionNode } from './components/TrackedDeletionNode';
 import { ValidationDecoratorNode } from './components/ValidationDecoratorNode';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
@@ -115,6 +116,7 @@ const editorConfig = {
     DitaCodeBlockNode,
     DitaImageNode,
     DitaPhRefNode,
+    DitaInfoPreviewNode,
     TrackedDeletionNode,
     ValidationDecoratorNode,
   ],
@@ -454,18 +456,45 @@ export default function ProfessionalDitaEditor() {
     );
     const html = generatePrintHtml(activeTab.xmlContent, title);
 
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) {
-      toast.error('Print blocked — allow pop-ups for this site');
+    // In the native macOS app, delegate to the Swift PrintBridge, which writes
+    // the HTML to a temp file and opens it in the system browser. The user then
+    // presses ⌘P in the browser to get the print dialog and save as PDF.
+    // (window.print() and WKWebView.printOperation both produce blank output.)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nativeBridge = (window as any).webkit?.messageHandlers?.ditaPrint;
+    if (nativeBridge) {
+      nativeBridge.postMessage(html);
+      toast.success('Opened in browser — press ⌘P to save as PDF');
       return;
     }
 
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+    // Browser fallback: hidden iframe avoids the popup-blocker that triggers when
+    // using window.open().
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;';
+    document.body.appendChild(iframe);
 
-    win.addEventListener('afterprint', () => win.close());
-    win.setTimeout(() => win.print(), 250);
+    const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      toast.error('Print failed — could not create print frame');
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
+
+    const cleanup = () => {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    };
+
+    iframe.contentWindow?.addEventListener('afterprint', cleanup);
+
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(cleanup, 1000);
+    }, 250);
 
     toast.success('Print dialog opened');
   };

@@ -765,6 +765,68 @@ body {
   padding-left: 0.75rem;
 }
 
+/* Definition lists (<dl>/<dt>/<dd>): the <dl> flattens to a run of styled
+   paragraphs. The <dt> term is emphasized; the <dd> definition is indented with
+   a subtle left bar so each entry reads as a grouped term/definition pair. */
+.dita-editor-dt {
+  font-weight: 600;
+  color: var(--editor-text);
+  margin-top: 0.75rem;
+  margin-bottom: 0.1rem;
+}
+
+.dita-editor-dd {
+  margin-left: 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--app-border-subtle);
+  color: var(--editor-text);
+}
+
+/* Read-only <info> preview nested under a step (P2-26 Phase 2). Indented with a
+   subtle left bar and muted surface so it reads as supplementary, non-editable
+   content. Editing <info> stays in the XML pane. */
+.dita-editor-info-preview {
+  margin: 0.4rem 0 0.4rem 1.25rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 2px solid var(--app-border-subtle);
+  background-color: var(--app-surface-raised);
+  border-radius: 0.25rem;
+  color: var(--editor-text);
+  font-size: 0.9em;
+  cursor: default;
+  user-select: none;
+}
+
+.dita-editor-info-preview > :first-child {
+  margin-top: 0;
+}
+
+.dita-editor-info-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.dita-info-preview-codeblock {
+  background-color: var(--editor-code-bg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.25rem;
+  color: var(--editor-code-text);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.dita-info-preview-note {
+  border-left: 3px solid var(--editor-section-bar);
+  padding-left: 0.6rem;
+  margin: 0.3rem 0;
+}
+
+.dita-info-preview-note-label {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
 .dita-editor-code {
   background-color: var(--editor-code-bg);
   font-family: 'JetBrains Mono', monospace;

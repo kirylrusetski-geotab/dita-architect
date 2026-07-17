@@ -10,6 +10,7 @@ import { DitaOpaqueNode } from '../../components/DitaOpaqueNode';
 import { DitaCodeBlockNode, $createDitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
 import { DitaImageNode } from '../../components/DitaImageNode';
 import { DitaPhRefNode } from '../../components/DitaPhRefNode';
+import { DitaInfoPreviewNode } from '../../components/DitaInfoPreviewNode';
 import { parseXmlToLexical, parseSectionFragment, parseBlockFragment, findLexicalKeyByXmlId } from '../../sync/parseXmlToLexical';
 import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeLexicalToXml';
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
@@ -31,6 +32,7 @@ function createTestEditor() {
       DitaCodeBlockNode,
       DitaImageNode,
       DitaPhRefNode,
+      DitaInfoPreviewNode,
     ],
   });
 }
@@ -1235,5 +1237,285 @@ describe('P1-17 + P1-18: no XHTML namespace leak on block insert or API round-tr
 
     expect(out).toContain('<note');
     expect(out).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+});
+
+// ─── describe: BUG-01: definition lists (<dl>/<dlentry>/<dt>/<dd>) ─────────────
+
+describe('BUG-01: definition list round-trip', () => {
+  it('bare <dl> preserves dt/dd structure and inline elements', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="journey-def">
+  <title>Journey Definition</title>
+  <conbody>
+    <dl>
+      <dlentry>
+        <dt>Single trip</dt>
+        <dd><p>Select <uicontrol>A single trip (default)</uicontrol> to define a journey.</p></dd>
+      </dlentry>
+      <dlentry>
+        <dt>Multiple consecutive trips</dt>
+        <dd><p>Select <uicontrol>Chained consecutive trips</uicontrol> to chain trips.</p></dd>
+      </dlentry>
+    </dl>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    const body = getBodyContent(output);
+
+    // Skeleton preserved
+    expect(body).toContain('<dl>');
+    expect(body).toContain('</dl>');
+    expect((body.match(/<dlentry>/g) || []).length).toBe(2);
+    expect(body).toContain('<dt>Single trip</dt>');
+    expect(body).toContain('<dt>Multiple consecutive trips</dt>');
+    // Inline <uicontrol> re-emitted (not flattened to <b> or plain text)
+    expect(body).toContain('<uicontrol>A single trip (default)</uicontrol>');
+    expect(body).toContain('<uicontrol>Chained consecutive trips</uicontrol>');
+    // No XHTML namespace leak
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it('non-standard <p>-wrapped <dl> preserves the wrapper and the inner dl (no duplication)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="wrapped-dl">
+  <title>Wrapped</title>
+  <conbody>
+    <p><dl>
+      <dlentry>
+        <dt>Term A</dt>
+        <dd><p>Definition A.</p></dd>
+      </dlentry>
+    </dl></p>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    const body = getBodyContent(output);
+
+    // Wrapper <p> preserved, inner <dl> intact, exactly one of each — no duplication
+    expect((body.match(/<dl>/g) || []).length).toBe(1);
+    expect((body.match(/<dlentry>/g) || []).length).toBe(1);
+    expect(body).toContain('<dt>Term A</dt>');
+    expect(body).toContain('Definition A.');
+    // The dl is still wrapped in the <p> (wrapper not unwrapped)
+    expect(body).toMatch(/<p>\s*<dl>/);
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it('<dd> with nested table and note keeps them (structural, not byte-identical)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="dd-blocks">
+  <title>DD Blocks</title>
+  <conbody>
+    <dl>
+      <dlentry>
+        <dt>Complex</dt>
+        <dd>
+          <p>Intro paragraph.</p>
+          <table>
+            <tgroup cols="2">
+              <colspec colname="col1"/>
+              <colspec colname="col2"/>
+              <tbody>
+                <row><entry>A</entry><entry>B</entry></row>
+              </tbody>
+            </tgroup>
+          </table>
+          <note type="tip">A tip inside the definition.</note>
+        </dd>
+      </dlentry>
+    </dl>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('<dt>Complex</dt>');
+    expect(body).toContain('Intro paragraph.');
+    // Nested block elements survive inside the dd
+    expect(body).toContain('<table>');
+    expect(body).toContain('<entry>A</entry>');
+    expect(body).toContain('<entry>B</entry>');
+    expect(body).toContain('<note');
+    expect(body).toContain('A tip inside the definition.');
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it('editing a <dt> term patches only the dt, leaving the dd untouched', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="edit-dt">
+  <title>Edit</title>
+  <conbody>
+    <dl>
+      <dlentry>
+        <dt>Old term</dt>
+        <dd><p>Unchanged definition.</p></dd>
+      </dlentry>
+    </dl>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    // Replace the dt term text in the visual editor
+    editor.update(
+      () => {
+        const root = $getRoot();
+        for (const child of root.getChildren()) {
+          if (child.getTextContent() === 'Old term') {
+            (child as any).clear();
+            (child as any).append($createTextNode('New term'));
+            break;
+          }
+        }
+      },
+      { discrete: true }
+    );
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('<dt>New term</dt>');
+    expect(body).not.toContain('Old term');
+    expect(body).toContain('Unchanged definition.');
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it('dd paragraph with conkeyref, uicontrol, inline image + sibling p/table all survive', () => {
+    // Mirrors the real Journey Definition topic: a <dd> whose first <p> mixes
+    // inline <ph conkeyref>, <uicontrol>, and an inline <image>, followed by
+    // another <p> and a <table>. Regression for two bugs BUG-01 exposed:
+    // (1) inline elements lost when a block-split runs; (2) an inline image
+    // misaligning the dd's child walk and dropping a sibling <p>.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="dd-inline-mix">
+  <title>Mix</title>
+  <conbody>
+    <p><dl>
+      <dlentry>
+        <dt>Chaining</dt>
+        <dd>
+          <p>Unique to <ph conkeyref="varsAltitude/ProdNameShort"/>, set <uicontrol>Chain trips</uicontrol> here.<image href="../img/x.png"><alt>diagram</alt></image></p>
+          <p>To configure, follow the table:</p>
+          <table>
+            <tgroup cols="2">
+              <colspec colname="c1"/>
+              <colspec colname="c2"/>
+              <tbody>
+                <row><entry>Param</entry><entry>Desc</entry></row>
+              </tbody>
+            </tgroup>
+          </table>
+        </dd>
+      </dlentry>
+    </dl></p>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    const body = getBodyContent(output);
+
+    // Inline ref + control preserved (not flattened to plain text)
+    expect(body).toContain('conkeyref="varsAltitude/ProdNameShort"');
+    expect(body).toContain('<uicontrol>Chain trips</uicontrol>');
+    // Inline image preserved with its alt
+    expect(body).toContain('href="../img/x.png"');
+    expect(body).toContain('diagram');
+    // Sibling paragraph NOT dropped
+    expect(body).toContain('To configure, follow the table:');
+    // Table survives
+    expect(body).toContain('<entry>Param</entry>');
+    expect(body).toContain('<entry>Desc</entry>');
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+});
+
+// ─── describe: P2-26 Phase 2: read-only <info> preview under steps ─────────────
+
+describe('P2-26 Phase 2: info preview round-trip', () => {
+  it('step <info> with codeblock + note is byte-stable (preview serializes to nothing)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="info-task">
+  <title>Task with Info</title>
+  <taskbody>
+    <steps>
+      <step>
+        <cmd>Run the command.</cmd>
+        <info>
+          <codeblock>npm run build</codeblock>
+          <note type="warning">This may take a while.</note>
+        </info>
+      </step>
+    </steps>
+  </taskbody>
+</task>`;
+
+    const output = roundTrip(xml);
+
+    // <cmd> preserved
+    expect(output).toContain('<cmd>Run the command.</cmd>');
+    // <info> and its block children survive byte-stable
+    expect(output).toContain('<info>');
+    expect(output).toContain('<codeblock>npm run build</codeblock>');
+    expect(output).toContain('<note type="warning">This may take a while.</note>');
+    expect(output).toContain('</info>');
+    // The preview must not leak its content into <cmd>
+    expect(output).not.toContain('<cmd>Run the command.npm run build');
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
+  });
+
+  it('editing a <cmd> does not disturb the sibling <info>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="info-edit-task">
+  <title>Edit Cmd</title>
+  <taskbody>
+    <steps>
+      <step>
+        <cmd>Original command.</cmd>
+        <info>
+          <p>Helpful context.</p>
+          <codeblock>do-thing --flag</codeblock>
+        </info>
+      </step>
+    </steps>
+  </taskbody>
+</task>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    // Edit the first list item's command text.
+    editor.update(() => {
+      const root = $getRoot();
+      const list = root.getChildren().find(n => n.getType() === 'list') as any;
+      const li = list.getChildren()[0];
+      const firstChild = li.getChildren().find((c: any) => c.getType() === 'text');
+      firstChild.setTextContent('Edited command.');
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+
+    expect(output).toContain('<cmd>Edited command.</cmd>');
+    expect(output).not.toContain('Original command.');
+    // <info> untouched
+    expect(output).toContain('<p>Helpful context.</p>');
+    expect(output).toContain('<codeblock>do-thing --flag</codeblock>');
+    expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
   });
 });
