@@ -1877,7 +1877,7 @@ This is also a low-risk, high-signal feature. It costs nothing functionally — 
 
 **Requested:** 2026-06-04
 **Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
-**Status:** Open
+**Status:** Shipped (v0.8.8, 2026-07-17)
 **Priority:** P1
 **Impact:** High — makes Claude-workflow / API insertions reliable, which is the primary way Edit Mode is used today
 **Model weight:** Fable single-session — re-tagged from Opus/Multi-agent 2026-07-17 (Swift + TypeScript breadth fits one Fable context; keep the pipeline's build/review/test gates as checkpoints)

@@ -223,7 +223,7 @@ curl -s -X POST http://localhost:3000/api/tabs/tab-1710612345678/save
 
 ### POST /api/tabs/:id/insert-section
 
-**Native app only (port 3001).** Inserts a block-level XML fragment into an open tab. The tab automatically enters Edit Mode and the new content appears highlighted in green as a tracked addition; the author clicks Accept to keep the change or Reject to discard it. Designed for AI tools and skills that want to propose content without rewriting the whole document.
+**Native app only (port 3001).** Stages a block-level XML fragment as a **pending review** on an open tab. The proposed document is computed deterministically at the XML level (`currentXml → proposedXml`) and the XML pane swaps to a read-only Monaco diff (red/green) with an Accept/Reject bar. Accept commits the reviewed text byte-for-byte; Reject discards it. No content changes until the author accepts. Designed for AI tools and skills that want to propose content without rewriting the whole document.
 
 **Accepted fragment shapes** (one or more, in any order):
 
@@ -242,23 +242,23 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/insert-section 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `xml` | string | Yes | One or more block-level XML elements |
-| `replaceId` | string | No | If set, the matching DITA element (by `id` attribute) is replaced by the fragment rather than appended. The replacement is also tracked — old content appears as a deletion, new content as an addition. |
+| `replaceId` | string | No | If set, the matching DITA element (by `id` attribute) is replaced by the fragment in the proposed document rather than appended. If no element with that id exists, the request **fails** (it does not fall back to appending). |
 
 **Response (200):**
 ```json
-{ "success": true, "status": "inserting" }
+{ "success": true, "status": "pending-review" }
 ```
 
-When `replaceId` is provided, the status is `"replacing"`. If `replaceId` does not match any element in the open tab, the fragment is appended (the operation does not fail) and a warning is logged to the JS console.
+Success is returned only after the fragment is validated and the proposed document passes DITA validation — there is no deferred failure. If the author edits the document while a review is pending, Accept is refused (the proposal was computed against a base that no longer exists) and the review is cleared.
 
 **Error responses:**
 
 | Status | Condition |
 |--------|-----------|
-| 400 | `xml` missing or fails DITA validation |
+| 400 | `xml` missing, fragment fails validation, `replaceId` not found, tab is in edit mode, or tab already has a pending review |
 | 404 | Tab ID not found |
 
-**When to use this:** When an external tool wants to suggest a new paragraph, list, note, or section in an open tab and have the author review it before it lands.
+**When to use this:** When an external tool wants to suggest a new paragraph, list, note, or section in an open tab and have the author review it as a precise XML diff before it lands.
 
 ---
 

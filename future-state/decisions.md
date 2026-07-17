@@ -104,6 +104,12 @@ insertions — do first) then **FR-046** (marks-as-data tracked changes in Lexic
 band-aids on the diff-and-paint path (a Gate 7 / smallest-slice violation to add one). This ADR is
 **Proposed** until the rebuild lands; promote to Accepted with the implementing version.
 
+**Progress** — Track 1 (FR-045) implemented 2026-07-17 (v0.8.8): API insertions are now a
+deterministic XML-level transform (`lib/xml-insert.ts`) reviewed in a Monaco diff with
+whole-change Accept/Reject; the executor slot, the 50 ms race, and `SectionInsertPlugin` are
+retired. The human edit-mode path (Track 2, FR-046) still runs on diff-and-paint — promote this
+ADR to Accepted when FR-046 lands.
+
 **Alternatives considered** — Continued incremental patching (rejected: the unreliability persists
 regardless; see the bug report).
 

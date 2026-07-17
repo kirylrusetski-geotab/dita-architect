@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { DiffViewer } from './DiffViewer';
+import { stripHerettoClassAttrs } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
 const HerettoLogo = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -224,9 +225,12 @@ export const HerettoReplaceModal = ({
         {/* Step 2: Preview Changes */}
         {step === 'preview' && (
           <div className="flex-1 flex flex-col">
+            {/* Display-only class-strip: Heretto injects specialization class
+                attrs on every element, drowning the diff. The Replace itself
+                still sends the unmodified editor content. */}
             <DiffViewer
-              originalContent={currentContent}
-              modifiedContent={editorContent}
+              originalContent={stripHerettoClassAttrs(currentContent)}
+              modifiedContent={stripHerettoClassAttrs(editorContent)}
               originalLabel="Current in Heretto"
               modifiedLabel="Your editor"
               grow

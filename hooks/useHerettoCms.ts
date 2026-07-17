@@ -4,7 +4,7 @@ import { createTab } from '../types/tab';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus, ImportVerificationState } from '../types/heretto';
 import { HERETTO_ROOT_UUID, herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
-import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml } from '../lib/xml-utils';
+import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml, stripHerettoClassAttrs } from '../lib/xml-utils';
 import { formatXml } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
@@ -722,13 +722,9 @@ export function useHerettoCms({
       }
       const remote = await verifyRes.text();
 
-      // Step 3: Compare with compareXml to confirm integrity
-      // Strip Heretto-injected DITA class attributes before comparison — Heretto adds
-      // specialization class attributes (e.g. class="- topic/topic concept/concept ") to
-      // every element on ingest, causing a false 'different' result even when the content
-      // is correct. Strip from both sides so the comparison reflects actual content.
-      const stripClassAttr = (xml: string) => xml.replace(/\s+class="[^"]*"/g, '');
-      const comparison = compareXml(stripClassAttr(content), stripClassAttr(remote));
+      // Step 3: Compare with compareXml to confirm integrity, stripping
+      // Heretto-injected class attributes from both sides (see stripHerettoClassAttrs).
+      const comparison = compareXml(stripHerettoClassAttrs(content), stripHerettoClassAttrs(remote));
       if (comparison === 'different') {
         return { success: false, error: 'Upload succeeded, but Heretto reformatted the content. Check the topic in Heretto to confirm your changes are there.' };
       }

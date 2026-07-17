@@ -25,6 +25,12 @@ export interface Tab {
   herettoJustLoaded: boolean;
   inlineValidationErrors: Map<string, { type: 'broken-xref' | 'unresolved-keyref', message: string }>;
   validationTrigger: number;
+  /**
+   * FR-045: an API insertion awaiting review in the Monaco diff surface.
+   * `baseXml` is the document the proposal was computed against — Accept must
+   * fail if the tab has drifted from it (never commit against a moved base).
+   */
+  pendingReview: { proposedXml: string; baseXml: string; sourceLabel?: string } | null;
 }
 
 let tabIdCounter = 0;
@@ -55,4 +61,5 @@ export const createTab = (xml: string): Tab => ({
   herettoJustLoaded: false,
   inlineValidationErrors: new Map(),
   validationTrigger: 0,
+  pendingReview: null,
 });

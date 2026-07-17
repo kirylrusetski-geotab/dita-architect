@@ -244,6 +244,14 @@ export const findUnrecognizedElements = (xmlString: string): string[] => {
 };
 
 /**
+ * Strip Heretto-injected DITA specialization class attributes (e.g.
+ * class="- topic/topic concept/concept ") — Heretto adds them to every element
+ * on ingest, causing false 'different' comparisons and unreadable diffs even
+ * when the content matches. Strip from both sides before comparing/diffing.
+ */
+export const stripHerettoClassAttrs = (xml: string): string => xml.replace(/\s+class="[^"]*"/g, '');
+
+/**
  * Compare two XML strings semantically, ignoring whitespace and attribute order.
  * Returns 'identical' if strings match, 'formatting' if only formatting differs,
  * or 'different' if the content is structurally different.

@@ -159,7 +159,7 @@ All endpoints return JSON. No authentication required.
 | `/api/tabs/:id/content` | GET | Full DITA XML + validation errors for a tab |
 | `/api/tabs/:id/content` | PUT | Replace tab XML (validates structure before applying; 400 on malformed XML) |
 | `/api/tabs/:id/save` | POST | Save tab to Heretto CMS (tab must have `herettoFile`) |
-| `/api/tabs/:id/insert-section` | POST | Inject block-level fragment as green tracked addition; author Accepts or Rejects. Body: `{ xml, replaceId? }`. Native app only (port 3001). |
+| `/api/tabs/:id/insert-section` | POST | Stage a block-level fragment as a pending review — the XML pane shows a read-only Monaco diff with Accept/Reject (FR-045); Accept commits the reviewed text byte-for-byte. Body: `{ xml, replaceId? }`. `replaceId` not found is an error. Native app only (port 3001). |
 | `/api/load-content` | POST | Open DITA XML as a new tab. Body: `{ xml, fileName, herettoTargetUuid? }`. Native: immediate; Dev: queued. |
 | `/api/pending-loads` | GET | Returns queued loads and clears queue atomically. Always empty on port 3001. |
 
@@ -185,7 +185,7 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/insert-section.test.ts` (block injection), `tests/api/` (endpoint contracts).
+Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus), `tests/xml-insert.test.ts` (FR-045 API insertion transform).
 
 ---
 
@@ -332,4 +332,5 @@ When bumping the version in `constants/version.ts` and writing release notes:
 2. Move shipped backlog items to the Completed section in `future-state/BACKLOG.md`
 3. **Delete resolved bug reports** — scan `bugreports/` and remove any files for bugs that shipped in this release
 4. **Update feature request statuses** — scan `future-state/feature-requests.md` and update the `**Status:**` field to `Shipped (vX.Y.Z, YYYY-MM-DD)` for any FRs that shipped in this release
-5. Run `npm run build:app` to rebuild `dist/` and copy into `DITA Architect.app/Contents/Resources/dist/`
+5. **Sync `macos/Sources/DITAArchitect/Info.plist`** — update `CFBundleShortVersionString` to the new version
+6. Run `npm run build:app` to rebuild `dist/` and copy into `DITA Architect.app/Contents/Resources/dist/`

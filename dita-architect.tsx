@@ -24,7 +24,6 @@ import { SyncManager } from './components/SyncManager';
 import { TableColumnSizer } from './components/TableColumnSizer';
 import { TableActionMenuPlugin } from './components/TableActionMenuPlugin';
 import { EditModePlugin } from './components/EditModePlugin';
-import { SectionInsertPlugin } from './components/SectionInsertPlugin';
 import { TrackedChangesPlugin } from './components/TrackedChangesPlugin';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
@@ -52,6 +51,8 @@ import { APP_VERSION } from './constants/version';
 import { ImportVerificationModal } from './components/ImportVerificationModal';
 import { HerettoReplaceModal } from './components/HerettoReplaceModal';
 import { HerettoReplaceBar } from './components/HerettoReplaceBar';
+import { ReviewBar } from './components/ReviewBar';
+import { DiffViewer } from './components/DiffViewer';
 import { ExitEditModeModal } from './components/ExitEditModeModal';
 import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
@@ -341,6 +342,30 @@ export default function ProfessionalDitaEditor() {
   useEffect(() => {
     updateTabsState(tabs, activeTabId);
   }, [tabs, activeTabId]);
+
+  // FR-045: accept/reject a pendingReview staged by the API insert path.
+  const handleReviewAccept = useCallback((tabId: string) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab?.pendingReview) return;
+    if (tab.xmlContent !== tab.pendingReview.baseXml) {
+      toast.error('Document changed since this proposal was created — review cancelled. Re-send the request.');
+      updateTab(tabId, { pendingReview: null });
+      return;
+    }
+    updateTab(tabId, {
+      xmlContent: tab.pendingReview.proposedXml,
+      lastUpdatedBy: 'api',
+      syncTrigger: tab.syncTrigger + 1,
+      pendingReview: null,
+      herettoDirty: tab.herettoFile ? true : tab.herettoDirty,
+    });
+    toast.success('Proposed change applied');
+  }, [tabs, updateTab]);
+
+  const handleReviewReject = useCallback((tabId: string) => {
+    updateTab(tabId, { pendingReview: null });
+    toast.info('Proposed change rejected');
+  }, [updateTab]);
 
   // Register callbacks for API-triggered operations
   useEffect(() => {
@@ -1196,7 +1221,6 @@ export default function ProfessionalDitaEditor() {
                       onAcceptEdits={(tabId, xml) => updateTab(tabId, { editMode: false, xmlContent: xml, lastUpdatedBy: 'editor' })}
                       onRejectEdits={(tabId) => updateTab(tabId, { editMode: false })}
                     />
-                    <SectionInsertPlugin tabId={tab.id} />
                   </SyncManager>
                   <InlineValidationPlugin
                     xmlContent={tab.xmlContent}
@@ -1403,26 +1427,44 @@ export default function ProfessionalDitaEditor() {
             </div>
           </div>
 
-          {/* Monaco editors — one per tab, show/hide */}
+          {/* Monaco editors — one per tab, show/hide. A pendingReview (FR-045)
+              swaps the editor for a read-only Monaco diff + Accept/Reject bar. */}
           {tabs.map(tab => (
             <div
               key={tab.id}
               className="flex-1 overflow-hidden pt-2"
               style={{ display: tab.id === activeTabId ? 'flex' : 'none', flexDirection: 'column' }}
             >
-              <MonacoDitaEditor
-                value={tab.xmlContent}
-                onChange={(newXml: string) => updateTab(tab.id, { xmlContent: newXml, lastUpdatedBy: 'code' })}
-                onValidation={(hasErrors: boolean, errors?: XmlError[]) => {
-                  updateTab(tab.id, { hasXmlErrors: hasErrors, xmlErrors: errors || [] });
-                  if (!hasErrors) setShowErrorPanel(false);
-                }}
-                editorTheme={appTheme}
-                syntaxTheme={syntaxTheme}
-                wordWrapEnabled={wordWrapEnabled}
-                onEditorReady={(api) => { tab.monacoApiRef.current = api; }}
-                onFormat={handleFormatClick}
-              />
+              {tab.pendingReview ? (
+                <>
+                  <ReviewBar
+                    sourceLabel={tab.pendingReview.sourceLabel}
+                    onAccept={() => handleReviewAccept(tab.id)}
+                    onReject={() => handleReviewReject(tab.id)}
+                  />
+                  <DiffViewer
+                    originalContent={tab.pendingReview.baseXml}
+                    modifiedContent={tab.pendingReview.proposedXml}
+                    originalLabel="Current"
+                    modifiedLabel={tab.pendingReview.sourceLabel ?? 'Proposed'}
+                    grow
+                  />
+                </>
+              ) : (
+                <MonacoDitaEditor
+                  value={tab.xmlContent}
+                  onChange={(newXml: string) => updateTab(tab.id, { xmlContent: newXml, lastUpdatedBy: 'code' })}
+                  onValidation={(hasErrors: boolean, errors?: XmlError[]) => {
+                    updateTab(tab.id, { hasXmlErrors: hasErrors, xmlErrors: errors || [] });
+                    if (!hasErrors) setShowErrorPanel(false);
+                  }}
+                  editorTheme={appTheme}
+                  syntaxTheme={syntaxTheme}
+                  wordWrapEnabled={wordWrapEnabled}
+                  onEditorReady={(api) => { tab.monacoApiRef.current = api; }}
+                  onFormat={handleFormatClick}
+                />
+              )}
             </div>
           ))}
 

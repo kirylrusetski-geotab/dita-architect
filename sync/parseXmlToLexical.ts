@@ -779,8 +779,8 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
 };
 
 // Block-level tags the API accepts at the top level of an insert fragment.
-// Kept in sync with the validation probe in lib/native-api-bridge.ts.
-const ALLOWED_FRAGMENT_BLOCK_TAGS = new Set([
+// Single source of truth — also consumed by lib/xml-insert.ts (FR-045).
+export const ALLOWED_FRAGMENT_BLOCK_TAGS = new Set([
   'section', 'p', 'ul', 'ol', 'note', 'codeblock',
   'table', 'simpletable', 'fig', 'image', 'dl', 'example',
   'prereq', 'context', 'result', 'postreq', 'steps',
@@ -788,8 +788,8 @@ const ALLOWED_FRAGMENT_BLOCK_TAGS = new Set([
 
 /**
  * Parse a block-level XML fragment into an array of Lexical nodes, without
- * replacing the entire editor root. Used by SectionInsertPlugin to inject new
- * content into the live tree so TrackedChangesPlugin can highlight the additions.
+ * replacing the entire editor root. (The API insert path now goes through
+ * lib/xml-insert.ts — FR-045; this remains for fragment-level tests and tools.)
  *
  * Accepts one or more block-level children: <section>, <p>, <ul>, <ol>, <note>,
  * <codeblock>, <table>, <simpletable>, <fig>, <image>, etc. When the root element

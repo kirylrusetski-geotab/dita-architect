@@ -1,30 +1,9 @@
 import type { Tab } from '../types/tab';
 import { validateDitaXml, formatXml } from './xml-utils';
+import { computeProposedXml } from './xml-insert';
 import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
 import { toast } from 'sonner';
-
-export interface SectionInsertOptions {
-  replaceId?: string;
-}
-
-let sectionInsertExecutor:
-  | ((tabId: string, xml: string, options?: SectionInsertOptions) => void)
-  | null = null;
-
-export function registerSectionInsertExecutor(
-  fn: (tabId: string, xml: string, options?: SectionInsertOptions) => void,
-): void {
-  sectionInsertExecutor = fn;
-}
-
-function scheduleSectionInsert(tabId: string, sectionXml: string, options?: SectionInsertOptions): void {
-  setTimeout(() => {
-    if (sectionInsertExecutor) {
-      sectionInsertExecutor(tabId, sectionXml, options);
-    }
-  }, 50);
-}
 
 export interface NativeApiBridgeHandlers {
   getTabs: () => Tab[];
@@ -130,26 +109,38 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === tabId);
       if (!tab) return JSON.stringify({ success: false, error: `Tab "${tabId}" not found` });
-
-      // Validate the incoming XML fragment. We wrap in <conbody> so the probe
-      // accepts any sequence of block-level body children (p, ul, note, section, ...).
-      const probe = `<?xml version="1.0"?><concept id="x"><title>x</title><conbody>${sectionXml}</conbody></concept>`;
-      const validation = validateDitaXml(probe);
-      if (!validation.valid) {
-        return JSON.stringify({ success: false, error: `Invalid XML: ${validation.error ?? 'parse error'}` });
+      if (tab.editMode) {
+        return JSON.stringify({ success: false, error: 'Tab is in edit mode — exit edit mode before inserting via the API' });
+      }
+      if (tab.pendingReview) {
+        return JSON.stringify({ success: false, error: 'Tab already has a pending review — accept or reject it first' });
       }
 
-      // Enter edit mode — increment enterTrigger so EditModePlugin captures a baseline snapshot
+      // FR-045: compute the proposed document deterministically at the XML
+      // level and stage it for review in the Monaco diff surface. Validation
+      // runs before success is reported; no Lexical round-trip, no timing race.
+      const baseXml = tab.xmlContent;
+      const result = computeProposedXml(baseXml, sectionXml, replaceId);
+      if ('error' in result) {
+        return JSON.stringify({ success: false, error: result.error });
+      }
+
+      // baseXml is the exact string the proposal was computed against — the
+      // Accept-time drift guard compares the live tab content to it.
       setTabs(prev => prev.map(t =>
         t.id === tabId
-          ? { ...t, editMode: true, editModeEnterTrigger: (t.editModeEnterTrigger ?? 0) + 1 }
+          ? {
+              ...t,
+              pendingReview: {
+                proposedXml: result.proposedXml,
+                baseXml,
+                sourceLabel: replaceId ? 'API replace' : 'API insert',
+              },
+            }
           : t
       ));
 
-      // After the React render cycle (snapshot captured), insert nodes into the live Lexical tree
-      scheduleSectionInsert(tabId, sectionXml, replaceId ? { replaceId } : undefined);
-
-      return JSON.stringify({ success: true, status: replaceId ? 'replacing' : 'inserting' });
+      return JSON.stringify({ success: true, status: 'pending-review' });
     },
 
     loadContent: (xml: string, fileName: string, herettoTargetUuid?: string): string => {
