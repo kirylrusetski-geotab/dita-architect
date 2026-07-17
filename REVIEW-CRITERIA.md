@@ -94,8 +94,8 @@ Gates 1–6 ask "is this built correctly?" Gate 7 asks "should it be built this 
 review-time half of the governance model in [GOVERNANCE.md](./GOVERNANCE.md).
 
 - **Reuse over reinvention:** uses an existing pattern/hook/utility rather than a parallel one —
-  `originMap`, `useHerettoCms`, `editor-state-bridge` / `native-api-bridge`, the `@lexical/table`
-  commands, the `InlineValidationPlugin` `applyValidationStyles` pattern, `compareXml`.
+  `originMap`, `useHerettoCms`, `native-api-bridge` (the sole tab-API transport — ADR-007), the
+  `@lexical/table` commands, the `InlineValidationPlugin` `applyValidationStyles` pattern, `compareXml`.
 - **Smallest slice:** the minimum cut that relieves the FR's **Problem** — not a speculative
   framework. (Counter-example to avoid: band-aiding Edit Mode again instead of the marks-as-data
   rebuild — BUG-02.)

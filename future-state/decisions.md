@@ -170,3 +170,55 @@ text-diff patch (S2) is *not* addressed here — that is 4B/FR-046 scope.
 (rejected: exactly the point-fix pattern that produced this bug class); rebuilding serialization
 from scratch without the patch-against-master design (rejected: destroys the Heretto-attribute
 preservation that patching exists to provide).
+
+---
+
+## ADR-007 — The tab API is native-only; the dev-server (port 3000) tab API is deleted
+
+**Date:** 2026-07-17 · **Status:** Accepted (BUG-05; code implemented 2026-07-17, ships with next release)
+
+**Context** — The read/write tab API (`GET /api/status` tab fields, `GET /api/tabs`,
+`GET /api/tabs/:id/content`, `PUT /api/tabs/:id/content`, `POST /api/tabs/:id/save`) was implemented
+twice: once natively (port 3001, via `HttpServer.swift` → `JSBridge` → `callAsyncJavaScript`, which
+reaches the live browser realm directly) and once for the Vite dev server (port 3000, via
+`lib/editor-state-bridge.ts` shared module state). The 2026-07-17 codebase review (BUG-05) found the
+port-3000 path **structurally non-functional and dead since inception**:
+
+- The browser realm (`dita-architect.tsx`) and the Vite Node process (`vite.config.ts`) each get
+  their **own** module instance of `editor-state-bridge.ts`. The browser mutates its copy via
+  `updateTabsState`/`updateEditorStatus`; the Node process serves `/api/*` from its copy. **No
+  transport crosses the realm boundary**, so `/api/status` always reports `tabCount: 0` and every
+  `/api/tabs/:id/*` 404s regardless of editor state.
+- Write routes are additionally shadowed to 405: the `read-only-api` plugin registers
+  `server.middlewares.use('/api/tabs', …)`, which matches all subpaths and never calls `next()` for
+  non-GET methods, and it is registered before the `write-api` plugin.
+- The API test suites pass only because **vitest runs both realms in one process**, so the shared
+  module variable *is* shared there — Gate 3 (run-mode parity) and Gate 5 (test coverage) were both
+  fooled into green.
+
+Only the external-load queue (`POST /api/load-content` + `GET /api/pending-loads`) genuinely works
+on port 3000, because it uses a Node-side `pendingLoads` array polled over HTTP by the browser
+(`useExternalLoad`) — real transport, not shared module state.
+
+**Decision** — Declare the tab API **native-only** (port 3001). Delete the dead port-3000 surface:
+the `read-only-api` and `write-api` Vite plugins' tab routes, the Node-side `editorState` object and
+its `setEditorStateReference` wiring, and `lib/editor-state-bridge.ts` itself; remove the now-dead
+bridge calls from `dita-architect.tsx`. Keep `/api/load-content` + `/api/pending-loads` on port 3000
+(the one dev-server API with real transport). Delete the test suites that asserted the dead behavior
+(`read-only-api*.test.ts`, `write-api-endpoints.test.ts`, `api-sync-integration.test.ts`,
+`elena-typescript-regression.test.ts`) rather than leave false Gate 5 confidence. Sweep API.md and
+CLAUDE.md to state the tab API requires the native app on port 3001.
+
+**Consequences** — One implementation of the tab API instead of two, aligned to the established
+native-bridge transport (ADR-002). Removes a class of misleading green tests. The dev server keeps
+exactly the endpoints that work (external load). If browser-based automation ever becomes a goal
+(e.g. a web deployment with no Swift shell), a real browser→server channel — WebSocket/SSE — is a
+new decision (its own ADR), not a resurrection of the shared-variable pattern. Run-mode parity
+(Gate 3) is now honestly asymmetric by design: the tab API is a native-only capability, documented
+as such, not a parity gap.
+
+**Alternatives considered** — **(B)** Build a real browser→middleware state channel (WebSocket/SSE
+or reverse-poll) so the full tab API works on port 3000 (rejected: adds a whole transport subsystem
+to serve a use case — driving live editor tabs from the dev server — that has had zero consumers
+since the feature shipped; the skills target port 3001; YAGNI). Leaving the dead code in place with
+a doc note (rejected: the false-green tests actively mislead future Gate 3/5 checks).

@@ -58,7 +58,6 @@ import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
 import { formatRelativeTime, formatXml, validateDitaXml } from './lib/xml-utils';
 import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
-import { updateEditorStatus, updateTabsState, setSyncTriggerCallback, setSaveHandlerCallback } from './lib/editor-state-bridge';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
@@ -334,15 +333,6 @@ export default function ProfessionalDitaEditor() {
     setIsHerettoDropdownOpen,
   });
 
-  // Sync state to server for read-only API endpoints
-  useEffect(() => {
-    updateEditorStatus({ herettoConnected, theme: appTheme });
-  }, [herettoConnected, appTheme]);
-
-  useEffect(() => {
-    updateTabsState(tabs, activeTabId);
-  }, [tabs, activeTabId]);
-
   // FR-045: accept/reject a pendingReview staged by the API insert path.
   const handleReviewAccept = useCallback((tabId: string) => {
     const tab = tabs.find(t => t.id === tabId);
@@ -366,36 +356,6 @@ export default function ProfessionalDitaEditor() {
     updateTab(tabId, { pendingReview: null });
     toast.info('Proposed change rejected');
   }, [updateTab]);
-
-  // Register callbacks for API-triggered operations
-  useEffect(() => {
-    setSyncTriggerCallback((tabId: string, xmlContent: string) => {
-      const tab = tabs.find(t => t.id === tabId);
-      if (!tab) return false;
-      updateTab(tabId, { xmlContent, lastUpdatedBy: 'api', syncTrigger: tab.syncTrigger + 1 });
-      return true;
-    });
-
-    setSaveHandlerCallback(async (tabId: string) => {
-      const tab = tabs.find(t => t.id === tabId);
-      if (!tab) {
-        return { success: false, error: 'Tab not found' };
-      }
-      if (!tab.herettoFile) {
-        return { success: false, error: 'Tab has no associated Heretto file' };
-      }
-
-      try {
-        await handleHerettoSave(tabId);
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error during save'
-        };
-      }
-    });
-  }, [updateTab, handleHerettoSave, tabs]);
 
   // Register native app API bridge — activates only when running inside the Swift WKWebView (dita:// protocol)
   useEffect(() => {

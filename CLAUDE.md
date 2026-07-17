@@ -66,8 +66,7 @@ Use port **3001** when running the native app, **3000** for dev server.
 - **Sync bridge:** `components/SyncManager.tsx` — coordinates bidirectional sync between Lexical and Monaco; update sources: `'visual'`, `'xml'`, `'api'`
 - **Heretto integration:** `hooks/useHerettoCms.ts` — all CMS operations (browse, open, save, replace, connection check)
 - **External load:** `hooks/useExternalLoad.ts` — polls `/api/pending-loads` in Vite mode; native mode uses JS bridge directly
-- **State bridge (Vite):** `lib/editor-state-bridge.ts` — syncs React state to Vite middleware for API endpoints
-- **Native API bridge:** `lib/native-api-bridge.ts` — registers `window.__ditaApi` on `dita:` protocol; Swift calls these via `callAsyncJavaScript`
+- **Native API bridge:** `lib/native-api-bridge.ts` — registers `window.__ditaApi` on `dita:` protocol; Swift calls these via `callAsyncJavaScript`. This is the **only** transport for the tab API (ADR-007); the dev server has no browser→middleware channel, so port 3000 serves only the external-load queue.
 - **Swift HTTP server:** `macos/Sources/DITAArchitect/HttpServer.swift` — `NWListener` on port 3001, routes to JS bridge
 - **JS bridge:** `macos/Sources/DITAArchitect/JSBridge.swift` — routes Swift → JS via `callAsyncJavaScript`
 
@@ -152,16 +151,18 @@ Work directly for:
 
 All endpoints return JSON. No authentication required.
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/status` | GET | Version, Heretto connection status, tab count, active tab ID, theme |
-| `/api/tabs` | GET | All open tabs with metadata (id, fileName, herettoFile, dirty, xmlErrorCount) |
-| `/api/tabs/:id/content` | GET | Full DITA XML + validation errors for a tab |
-| `/api/tabs/:id/content` | PUT | Replace tab XML (validates structure before applying; 400 on malformed XML) |
-| `/api/tabs/:id/save` | POST | Save tab to Heretto CMS (tab must have `herettoFile`) |
-| `/api/tabs/:id/insert-section` | POST | Stage a block-level fragment as a pending review — the XML pane shows a read-only Monaco diff with Accept/Reject (FR-045); Accept commits the reviewed text byte-for-byte. Body: `{ xml, replaceId? }`. `replaceId` not found is an error. Native app only (port 3001). |
-| `/api/load-content` | POST | Open DITA XML as a new tab. Body: `{ xml, fileName, herettoTargetUuid? }`. Native: immediate; Dev: queued. |
-| `/api/pending-loads` | GET | Returns queued loads and clears queue atomically. Always empty on port 3001. |
+**The tab API is native-only (port 3001)** — `/api/status`, `/api/tabs`, `/api/tabs/:id/*` read and write the live editor state through the Swift↔JS bridge. The dev server (port 3000) cannot reach editor state (separate browser / Vite-Node realms, no transport — **ADR-007**) and serves **only** `/api/load-content` + `/api/pending-loads`. Full detail in [API.md](./API.md).
+
+| Endpoint | Method | Port | Description |
+|---|---|---|---|
+| `/api/status` | GET | 3001 | Version, Heretto connection status, tab count, active tab ID, theme |
+| `/api/tabs` | GET | 3001 | All open tabs with metadata (id, fileName, herettoFile, dirty, xmlErrorCount) |
+| `/api/tabs/:id/content` | GET | 3001 | Full DITA XML + validation errors for a tab |
+| `/api/tabs/:id/content` | PUT | 3001 | Replace tab XML (validates structure before applying; 400 on malformed XML) |
+| `/api/tabs/:id/save` | POST | 3001 | Save tab to Heretto CMS (tab must have `herettoFile`) |
+| `/api/tabs/:id/insert-section` | POST | 3001 | Stage a block-level fragment as a pending review — the XML pane shows a read-only Monaco diff with Accept/Reject (FR-045); Accept commits the reviewed text byte-for-byte. Body: `{ xml, replaceId? }`. `replaceId` not found is an error. |
+| `/api/load-content` | POST | 3000 + 3001 | Open DITA XML as a new tab. Body: `{ xml, fileName, herettoTargetUuid? }`. Native: immediate; Dev: queued. |
+| `/api/pending-loads` | GET | 3000 + 3001 | Returns queued loads and clears queue atomically. Always empty on port 3001. |
 
 ### `insert-section` accepted block elements
 

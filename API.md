@@ -11,7 +11,12 @@ All endpoints return JSON. No authentication is required.
 | **Native app** (`DITA Architect.app`) | `3001` | Built-in HTTP server; no terminal needed |
 | **Vite dev server** (`npm run dev`) | `3000` | Vite middleware; requires a running terminal |
 
-Use port 3001 when running the native app. Use port 3000 when running the dev server.
+**The tab API is native-only (port 3001).** `GET /api/status`, `GET /api/tabs`, `GET`/`PUT /api/tabs/:id/content`, `POST /api/tabs/:id/save`, and `POST /api/tabs/:id/insert-section` require the native app — they read and write the live editor state through the Swift↔JS bridge. The dev server (port 3000) cannot reach editor state (the browser and the Vite Node process are separate realms with no transport between them — see ADR-007), so it exposes **only** the external-load endpoints:
+
+| Endpoint | Port 3001 (native) | Port 3000 (dev server) |
+|---|---|---|
+| `GET /api/status`, `GET /api/tabs`, `.../content`, `.../save`, `.../insert-section` | ✅ | ❌ not served |
+| `POST /api/load-content`, `GET /api/pending-loads` | ✅ | ✅ |
 
 `POST /api/load-content` behaves differently per mode: in the native app it opens tabs immediately via the JS bridge; in the dev server it queues the content for the editor to pick up on its next poll cycle. `GET /api/pending-loads` exists on both ports but always returns an empty queue on port 3001 — the native app never uses the queue mechanism.
 
@@ -20,14 +25,11 @@ Use port 3001 when running the native app. Use port 3000 when running the dev se
 ## Quick check: Is the editor running?
 
 ```bash
-# Native app
+# Native app (full API)
 curl -s http://localhost:3001/api/status
-
-# Dev server
-curl -s http://localhost:3000/api/status
 ```
 
-If you get a JSON response, the editor is up. If the connection is refused, it's not running.
+If you get a JSON response, the editor is up. If the connection is refused, it's not running. (The dev server on port 3000 does not serve `/api/status` — check it with `GET /api/pending-loads` instead.)
 
 ---
 
@@ -35,11 +37,11 @@ If you get a JSON response, the editor is up. If the connection is refused, it's
 
 ### GET /api/status
 
-Returns the editor's current state at a glance — what version it's running, whether Heretto CMS is connected, how many tabs are open, and which theme is active.
+**Native app only (port 3001).** Returns the editor's current state at a glance — what version it's running, whether Heretto CMS is connected, how many tabs are open, and which theme is active.
 
 **Request:**
 ```bash
-curl -s http://localhost:3000/api/status | jq
+curl -s http://localhost:3001/api/status | jq
 ```
 
 **Response:**
@@ -67,11 +69,11 @@ curl -s http://localhost:3000/api/status | jq
 
 ### GET /api/tabs
 
-Lists all open tabs with summary metadata. Does not include the actual XML content (use `/api/tabs/:id/content` for that).
+**Native app only (port 3001).** Lists all open tabs with summary metadata. Does not include the actual XML content (use `/api/tabs/:id/content` for that).
 
 **Request:**
 ```bash
-curl -s http://localhost:3000/api/tabs | jq
+curl -s http://localhost:3001/api/tabs | jq
 ```
 
 **Response:**
@@ -116,12 +118,12 @@ curl -s http://localhost:3000/api/tabs | jq
 
 ### GET /api/tabs/:id/content
 
-Returns the full DITA XML content of a specific tab, along with any validation errors.
+**Native app only (port 3001).** Returns the full DITA XML content of a specific tab, along with any validation errors.
 
 **Request:**
 ```bash
 # Get the tab ID from /api/tabs first, then:
-curl -s http://localhost:3000/api/tabs/tab-1710612345678/content | jq
+curl -s http://localhost:3001/api/tabs/tab-1710612345678/content | jq
 ```
 
 **Response:**
@@ -162,11 +164,11 @@ curl -s http://localhost:3000/api/tabs/tab-1710612345678/content | jq
 
 ### PUT /api/tabs/:id/content
 
-Replaces the XML content of an open tab. The server validates XML structure before applying the update — malformed XML is rejected with a 400.
+**Native app only (port 3001).** Replaces the XML content of an open tab. The server validates XML structure before applying the update — malformed XML is rejected with a 400.
 
 **Request:**
 ```bash
-curl -s -X PUT http://localhost:3000/api/tabs/tab-1710612345678/content \
+curl -s -X PUT http://localhost:3001/api/tabs/tab-1710612345678/content \
   -H "Content-Type: application/json" \
   -d '{"xml": "<task id=\"my-task\"><title>Updated Title</title><taskbody/></task>"}'
 ```
@@ -197,11 +199,11 @@ curl -s -X PUT http://localhost:3000/api/tabs/tab-1710612345678/content \
 
 ### POST /api/tabs/:id/save
 
-Triggers a save of the tab's current content to Heretto CMS. The tab must have an associated Heretto file (i.e., it was opened from Heretto, not a local new file).
+**Native app only (port 3001).** Triggers a save of the tab's current content to Heretto CMS. The tab must have an associated Heretto file (i.e., it was opened from Heretto, not a local new file).
 
 **Request:**
 ```bash
-curl -s -X POST http://localhost:3000/api/tabs/tab-1710612345678/save
+curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/save
 ```
 
 **Response (200):**
@@ -338,7 +340,7 @@ Returns an empty `loads` array if nothing is queued. The queue is cleared on eve
 
 ## Common patterns for Claude Code skills
 
-The examples below use port `3001` (native app). Substitute `3000` for the dev server.
+The examples below use port `3001` (native app). They rely on the tab API, which is **native-only** — they do not work against the dev server on port 3000 (see the Ports table above).
 
 ### Check if the editor is available
 
