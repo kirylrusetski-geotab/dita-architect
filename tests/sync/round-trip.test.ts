@@ -1503,6 +1503,247 @@ describe('P2-26 Phase 2: info preview round-trip', () => {
   });
 });
 
+// ─── describe: Session 4B (S6): table row add/delete reaches the XML ──────────
+//
+// BUG-04/S6: both patchTableElement and patchSimpleTable walk only
+// Math.min(dom,lex) rows — added rows are silently dropped and deleted rows
+// survive in the DOM. Fixed in Session 4B by adding append/remove phases
+// mirroring patchListElement.
+
+describe('Session 4B (S6): table row add/delete reaches the XML', () => {
+  it('CALS table: adding a row via Lexical mutation appends a <row> to <tbody>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="table-add-row">
+  <title>Table Add Row</title>
+  <conbody>
+    <table>
+      <tgroup cols="2">
+        <colspec colname="col1" colwidth="1*"/>
+        <colspec colname="col2" colwidth="1*"/>
+        <tbody>
+          <row>
+            <entry>Alpha</entry>
+            <entry>A</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const newRow = new TableRowNode();
+      const cell1 = new TableCellNode(0);
+      cell1.append($createParagraphNode().append($createTextNode('Beta')));
+      const cell2 = new TableCellNode(0);
+      cell2.append($createParagraphNode().append($createTextNode('B')));
+      newRow.append(cell1, cell2);
+      tableNode.append(newRow);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('Alpha');
+    expect(body).toContain('Beta');
+    expect((body.match(/<row>/g) || []).length).toBe(2);
+  });
+
+  it('CALS table: removing a row via Lexical mutation removes the <row> from <tbody>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="table-del-row">
+  <title>Table Delete Row</title>
+  <conbody>
+    <table>
+      <tgroup cols="2">
+        <colspec colname="col1" colwidth="1*"/>
+        <colspec colname="col2" colwidth="1*"/>
+        <tbody>
+          <row>
+            <entry>Alpha</entry>
+            <entry>A</entry>
+          </row>
+          <row>
+            <entry>Beta</entry>
+            <entry>B</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const rows = tableNode.getChildren();
+      rows[rows.length - 1].remove();
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('Alpha');
+    expect(body).not.toContain('Beta');
+    expect((body.match(/<row>/g) || []).length).toBe(1);
+  });
+
+  it('CALS table with thead: adding a body row does not disturb the header row', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="table-thead-add">
+  <title>Table Thead Add</title>
+  <conbody>
+    <table>
+      <tgroup cols="2">
+        <colspec colname="col1" colwidth="1*"/>
+        <colspec colname="col2" colwidth="1*"/>
+        <thead>
+          <row>
+            <entry>Name</entry>
+            <entry>Value</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry>Alpha</entry>
+            <entry>A</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const newRow = new TableRowNode();
+      const cell1 = new TableCellNode(0);
+      cell1.append($createParagraphNode().append($createTextNode('Beta')));
+      const cell2 = new TableCellNode(0);
+      cell2.append($createParagraphNode().append($createTextNode('B')));
+      newRow.append(cell1, cell2);
+      tableNode.append(newRow);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('<thead>');
+    expect(body).toContain('Name');
+    expect(body).toContain('Alpha');
+    expect(body).toContain('Beta');
+    expect((body.match(/<row>/g) || []).length).toBe(3);
+  });
+
+  it('simpletable: adding a row via Lexical mutation appends an <strow>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="stbl-add-row">
+  <title>Simpletable Add Row</title>
+  <conbody>
+    <simpletable>
+      <sthead>
+        <stentry>Key</stentry>
+        <stentry>Val</stentry>
+      </sthead>
+      <strow>
+        <stentry>alpha</stentry>
+        <stentry>1</stentry>
+      </strow>
+    </simpletable>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const newRow = new TableRowNode();
+      const cell1 = new TableCellNode(0);
+      cell1.append($createParagraphNode().append($createTextNode('beta')));
+      const cell2 = new TableCellNode(0);
+      cell2.append($createParagraphNode().append($createTextNode('2')));
+      newRow.append(cell1, cell2);
+      tableNode.append(newRow);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('alpha');
+    expect(body).toContain('beta');
+    expect((body.match(/<strow>/g) || []).length).toBe(2);
+  });
+
+  it('simpletable: removing a row via Lexical mutation removes the <strow>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="stbl-del-row">
+  <title>Simpletable Delete Row</title>
+  <conbody>
+    <simpletable>
+      <sthead>
+        <stentry>Key</stentry>
+        <stentry>Val</stentry>
+      </sthead>
+      <strow>
+        <stentry>alpha</stentry>
+        <stentry>1</stentry>
+      </strow>
+      <strow>
+        <stentry>beta</stentry>
+        <stentry>2</stentry>
+      </strow>
+    </simpletable>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const rows = tableNode.getChildren();
+      rows[rows.length - 1].remove();
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+
+    expect(body).toContain('alpha');
+    expect(body).not.toContain('beta');
+    expect((body.match(/<strow>/g) || []).length).toBe(1);
+  });
+});
+
 // ─── describe: Session 4A (ADR-006) — unified body walk ──────────────────────
 
 describe('Session 4A (ADR-006): unified body walk', () => {

@@ -634,6 +634,45 @@ const patchDlElement = (
   }
 };
 
+const isHeaderRow = (row: any): boolean => {
+  const cells = row.getChildren ? row.getChildren() : [];
+  return cells.length > 0 && cells[0].getHeaderStyles &&
+    (cells[0].getHeaderStyles() & TableCellHeaderStates.ROW) !== 0;
+};
+
+const buildRowEl = (lexRow: any, doc: Document, originMap?: NodeOriginMapType): Element => {
+  const rowEl = doc.createElement('row');
+  const cells = lexRow.getChildren ? lexRow.getChildren() : [];
+  let colIndex = 1;
+  cells.forEach((cell: any) => {
+    const entry = doc.createElement('entry');
+    if (cell.getRowSpan && cell.getRowSpan() > 1) {
+      entry.setAttribute('morerows', String(cell.getRowSpan() - 1));
+    }
+    if (cell.getColSpan && cell.getColSpan() > 1) {
+      const colspan = cell.getColSpan();
+      entry.setAttribute('namest', `col${colIndex}`);
+      entry.setAttribute('nameend', `col${colIndex + colspan - 1}`);
+    }
+    const cellChildren = cell.getChildren ? cell.getChildren() : [];
+    if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
+      serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => entry.appendChild(n));
+    } else {
+      cellChildren.forEach((child: any) => {
+        if (child.getType() === 'paragraph') {
+          const p = doc.createElement('p');
+          serializeInlineContent(child, doc, originMap).forEach((n: Node) => p.appendChild(n));
+          entry.appendChild(p);
+        }
+      });
+    }
+    rowEl.appendChild(entry);
+    const colspan = cell.getColSpan && cell.getColSpan() > 1 ? cell.getColSpan() : 1;
+    colIndex += colspan;
+  });
+  return rowEl;
+};
+
 /**
  * Patch a <table> element in the DOM with Lexical table data.
  * Walks rows and entries in parallel, updating only entry text content.
@@ -669,14 +708,23 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, orig
   }
   let lexIdx = 0;
 
-  // Patch thead rows
+  // Patch thead rows (header rows come first in Lexical's flat row list)
   const thead = tgroup.querySelector('thead');
   if (thead) {
     const domRows = Array.from(thead.children).filter(c => c.tagName.toLowerCase() === 'row');
-    for (const domRow of domRows) {
-      if (lexIdx >= lexicalRows.length) break;
-      patchTableRow(domRow, lexicalRows[lexIdx], doc, originMap);
+    const count = Math.min(domRows.length, lexicalRows.length - lexIdx);
+    for (let i = 0; i < count; i++) {
+      patchTableRow(domRows[i], lexicalRows[lexIdx], doc, originMap);
       lexIdx++;
+    }
+    // Extra DOM header rows → remove
+    for (let i = count; i < domRows.length; i++) {
+      thead.removeChild(domRows[i]);
+    }
+    // Extra Lexical header rows → append (rare, but consistent with the contract)
+    for (; lexIdx < lexicalRows.length && isHeaderRow(lexicalRows[lexIdx]); lexIdx++) {
+      const rowEl = buildRowEl(lexicalRows[lexIdx], doc, originMap);
+      thead.appendChild(rowEl);
     }
   }
 
@@ -684,10 +732,18 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, orig
   const tbody = tgroup.querySelector('tbody');
   if (tbody) {
     const domRows = Array.from(tbody.children).filter(c => c.tagName.toLowerCase() === 'row');
-    for (const domRow of domRows) {
-      if (lexIdx >= lexicalRows.length) break;
-      patchTableRow(domRow, lexicalRows[lexIdx], doc, originMap);
-      lexIdx++;
+    const bodyLexRows = lexicalRows.slice(lexIdx);
+    const count = Math.min(domRows.length, bodyLexRows.length);
+    for (let i = 0; i < count; i++) {
+      patchTableRow(domRows[i], bodyLexRows[i], doc, originMap);
+    }
+    // Extra Lexical body rows → append new <row> elements
+    for (let i = count; i < bodyLexRows.length; i++) {
+      tbody.appendChild(buildRowEl(bodyLexRows[i], doc, originMap));
+    }
+    // Extra DOM body rows → remove
+    for (let i = count; i < domRows.length; i++) {
+      tbody.removeChild(domRows[i]);
     }
   }
 };
@@ -789,6 +845,28 @@ const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document, origi
     for (let j = 0; j < entryCount; j++) {
       patchTableEntry(domEntries[j], lexCells[j], doc, originMap);
     }
+  }
+
+  // Extra Lexical rows → append new <strow> elements
+  for (let i = count; i < lexicalRows.length; i++) {
+    const strow = doc.createElement('strow');
+    const lexCells = lexicalRows[i].getChildren ? lexicalRows[i].getChildren() : [];
+    lexCells.forEach((cell: any) => {
+      const stentry = doc.createElement('stentry');
+      const cellChildren = cell.getChildren ? cell.getChildren() : [];
+      if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
+        serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => stentry.appendChild(n));
+      } else {
+        stentry.appendChild(doc.createTextNode(cell.getTextContent()));
+      }
+      strow.appendChild(stentry);
+    });
+    domEl.appendChild(strow);
+  }
+
+  // Extra DOM rows → remove
+  for (let i = count; i < domRows.length; i++) {
+    domEl.removeChild(domRows[i]);
   }
 };
 
