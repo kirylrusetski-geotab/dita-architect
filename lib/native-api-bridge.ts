@@ -81,7 +81,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
 
       const validation = validateDitaXml(xml);
       if (!validation.valid) {
-        return JSON.stringify({ error: 'Invalid XML format', details: validation.error ?? 'Parse error' });
+        return JSON.stringify({ success: false, error: 'Invalid XML format', details: validation.error ?? 'Parse error' });
       }
 
       updateTab(id, { xmlContent: xml, lastUpdatedBy: 'api', syncTrigger: tab.syncTrigger + 1 });

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { parseXmlToLexical, serializeLexicalToXml, createNodeOriginMap, createXmlMetaCache, SyncContext } from '../sync';
@@ -19,6 +19,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   const [editor] = useLexicalComposerContext();
   const lastXmlRef = useRef(xmlContent);
   const pendingXmlRef = useRef<string | null>(null);
+  const [outOfSync, setOutOfSync] = useState(false);
   // masterXmlRef always points to the original code-side XML (from Heretto/file/template).
   // The serializer patches against this ref so every visual edit patches a fresh clone
   // of the true source document, avoiding "patch of a patch" drift.
@@ -67,10 +68,10 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
     if (success) {
       lastXmlRef.current = pending;
       masterXmlRef.current = pending;
-      // Trigger validation after successful sync
       onValidationTrigger?.();
     }
     pendingXmlRef.current = null;
+    setOutOfSync(false);
     clearSyncFlagAfterUpdate();
   }, [editor, clearSyncFlagAfterUpdate, nodeOriginMap]);
 
@@ -113,10 +114,16 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
     }
   }, [syncTrigger]);
 
-  // Sync XML → Lexical: only if Lexical is focused, otherwise buffer
+  // Sync XML → Lexical: buffer during editMode; flush on exit; skip if focused during editMode
   useEffect(() => {
-    if (editMode) return;
     if ((lastUpdatedBy === 'code' || lastUpdatedBy === 'api') && xmlContent !== lastXmlRef.current) {
+      if (editMode) {
+        // Buffer the incoming change — we cannot apply it while the user is reviewing tracked changes.
+        // The effect re-runs when editMode flips to false (editMode is in the dep array), which flushes it.
+        pendingXmlRef.current = xmlContent;
+        return;
+      }
+
       const lexicalRoot = editor.getRootElement();
       const activeEl = document.activeElement;
       const lexicalHasFocus = lexicalRoot && activeEl && lexicalRoot.contains(activeEl);
@@ -129,21 +136,25 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
           if (success) {
             lastXmlRef.current = xmlContent;
             masterXmlRef.current = xmlContent;
-            // Trigger validation after successful sync
             onValidationTrigger?.();
           }
           clearSyncFlagAfterUpdate();
+          setOutOfSync(false);
         }, 800);
         return () => clearTimeout(timeoutId);
       } else {
-        // Monaco (or something else) has focus — buffer the change
+        // Monaco or nothing has focus — buffer so user can review before applying
         pendingXmlRef.current = xmlContent;
+        setOutOfSync(true);
       }
+    } else if (!editMode && pendingXmlRef.current !== null) {
+      // editMode just turned off and there's a buffered update — flush it now
+      applyPendingSync();
+      setOutOfSync(false);
     }
-  }, [xmlContent, editor, lastUpdatedBy, clearSyncFlagAfterUpdate, nodeOriginMap]);
+  }, [xmlContent, editMode, editor, lastUpdatedBy, clearSyncFlagAfterUpdate, nodeOriginMap, applyPendingSync]);
 
-  // Check if visual editor is out of sync
-  const showOutOfSyncBanner = !editMode && lastUpdatedBy === 'code' && pendingXmlRef.current !== null;
+  const showOutOfSyncBanner = outOfSync && !editMode && lastUpdatedBy !== 'editor';
 
   // Sync Lexical → XML
   return (

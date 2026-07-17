@@ -375,7 +375,7 @@ describe('resolveHerettoImageHref', () => {
     );
 
     expect(result).toBe(null);
-    expect(consoleSpy).toHaveBeenCalledWith('[HerettoImageResolver] Invalid UUID format for image file:', 'not-a-real-uuid');
+    expect(consoleSpy).toHaveBeenCalledWith('[HerettoImageResolver] Invalid UUID for image file:', 'not-a-real-uuid');
 
     consoleSpy.mockRestore();
   });

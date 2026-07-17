@@ -8,6 +8,12 @@ import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdated
 import { formatXml } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
+const FETCH_TIMEOUT_MS = 30_000;
+const withTimeout = (signal?: AbortSignal): AbortSignal =>
+  signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(FETCH_TIMEOUT_MS)])
+    : AbortSignal.timeout(FETCH_TIMEOUT_MS);
+
 interface UseHerettoCmsParams {
   activeTab: Tab;
   tabs: Tab[];
@@ -65,7 +71,7 @@ export function useHerettoCms({
   // Check Heretto connectivity on mount — abort on unmount to avoid state updates after cleanup
   useEffect(() => {
     const abort = new AbortController();
-    fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: abort.signal })
+    fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout(abort.signal) })
       .then(res => {
         if (res.ok && res.headers.get('content-type')?.includes('xml')) setHerettoConnected(true);
       })
@@ -76,7 +82,7 @@ export function useHerettoCms({
   const openHerettoStatus = useCallback(async () => {
     setIsHerettoStatusOpen(true);
     try {
-      const res = await fetch('/heretto-credentials');
+      const res = await fetch('/heretto-credentials', { signal: withTimeout() });
       if (res.ok) {
         const data = await res.json();
         // Token is never returned by the server; leave blank so the user must re-enter to save.
@@ -88,7 +94,7 @@ export function useHerettoCms({
   const testHerettoConnection = useCallback(async () => {
     setHerettoStatusChecking(true);
     try {
-      const res = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`);
+      const res = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout() });
       setHerettoConnected(res.ok && !!res.headers.get('content-type')?.includes('xml'));
     } catch {
       setHerettoConnected(false);
@@ -104,10 +110,11 @@ export function useHerettoCms({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(herettoCredentials),
+        signal: withTimeout(),
       });
       if (!res.ok) throw new Error();
       // Test connection with new credentials
-      const testRes = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`);
+      const testRes = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout() });
       const testConnected = testRes.ok && !!testRes.headers.get('content-type')?.includes('xml');
       setHerettoConnected(testConnected);
       if (testConnected) {
@@ -158,7 +165,7 @@ export function useHerettoCms({
     const poll = async () => {
       if (cancelled) return;
       try {
-        const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`);
+        const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`, { signal: withTimeout() });
         if (cancelled) return;
         if (!res.ok) {
           pollFailCountRef.current++;
@@ -195,7 +202,7 @@ export function useHerettoCms({
     setHerettoBrowsing(true);
     setHerettoSelected(null);
     try {
-      const res = await fetch(`/heretto-api/all-files/${uuid}`);
+      const res = await fetch(`/heretto-api/all-files/${uuid}`, { signal: withTimeout() });
       if (!res.ok) throw new Error('Failed to fetch folder');
       const xml = await res.text();
       const items = parseHerettoFolder(xml);
@@ -237,7 +244,7 @@ export function useHerettoCms({
           items = herettoFolderCache.get(uuid)!;
         } else {
           try {
-            const res = await fetch(`/heretto-api/all-files/${uuid}`, { signal });
+            const res = await fetch(`/heretto-api/all-files/${uuid}`, { signal: withTimeout(signal) });
             if (!res.ok) return { matched: [] as HerettoSearchResult[], subfolders: [] as [string, string[], string[]][], failed: true };
             const xml = await res.text();
             items = parseHerettoFolder(xml);
@@ -394,7 +401,7 @@ export function useHerettoCms({
     });
 
     try {
-      const res = await fetch(`/heretto-api/all-files/${item.uuid}/content`, { signal: abort.signal });
+      const res = await fetch(`/heretto-api/all-files/${item.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!res.ok) throw new Error('Failed to fetch content');
       const firstContent = await res.text();
 
@@ -402,7 +409,7 @@ export function useHerettoCms({
 
       setImportVerification(prev => prev ? { ...prev, phase: 'verifying', firstContent } : null);
 
-      const verifyRes = await fetch(`/heretto-api/all-files/${item.uuid}/content`, { signal: abort.signal });
+      const verifyRes = await fetch(`/heretto-api/all-files/${item.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!verifyRes.ok) throw new Error('Failed to verify content');
       const secondContent = await verifyRes.text();
 
@@ -485,7 +492,7 @@ export function useHerettoCms({
         method: 'PUT',
         headers: { 'Content-Type': 'application/xml' },
         body: content,
-        signal: abort.signal,
+        signal: withTimeout(abort.signal),
       });
       if (!res.ok) {
         let errorMessage = `Failed to save (HTTP ${res.status})`;
@@ -511,7 +518,7 @@ export function useHerettoCms({
       }
 
       setHerettoSaveProgress('verifying');
-      const verifyRes = await fetch(`/heretto-api/all-files/${herettoFile.uuid}/content`, { signal: abort.signal });
+      const verifyRes = await fetch(`/heretto-api/all-files/${herettoFile.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!verifyRes.ok) throw new Error('Failed to verify');
       const remote = await verifyRes.text();
 
@@ -556,7 +563,7 @@ export function useHerettoCms({
 
     setHerettoRefreshing(true);
     try {
-      const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`, { signal: abort.signal });
+      const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!res.ok) throw new Error();
       const content = await res.text();
       const beautified = formatXml(content);
@@ -621,6 +628,7 @@ export function useHerettoCms({
         method: 'POST',
         headers: { 'Content-Type': 'application/xml' },
         body: `<resource><name>${escapeXml(finalName)}</name><type>topic</type></resource>`,
+        signal: withTimeout(),
       });
       if (!createRes.ok) throw new Error('Failed to create file');
       const createXml = await createRes.text();
@@ -634,6 +642,7 @@ export function useHerettoCms({
         method: 'PUT',
         headers: { 'Content-Type': 'application/xml' },
         body: content,
+        signal: withTimeout(),
       });
       if (!putRes.ok) throw new Error('Failed to write content');
 
@@ -694,6 +703,7 @@ export function useHerettoCms({
         method: 'PUT',
         headers: { 'Content-Type': 'application/xml' },
         body: content,
+        signal: withTimeout(),
       });
 
       if (!putRes.ok) {
@@ -716,7 +726,7 @@ export function useHerettoCms({
       }
 
       // Step 2: GET content back to verify
-      const verifyRes = await fetch(`/heretto-api/all-files/${target.uuid}/content`);
+      const verifyRes = await fetch(`/heretto-api/all-files/${target.uuid}/content`, { signal: withTimeout() });
       if (!verifyRes.ok) {
         return { success: false, error: 'Failed to verify replacement' };
       }
