@@ -4,7 +4,45 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with Heretto CMS (geotab.heretto.com) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.8.2 (2026-06-04)
+**Current version:** 0.8.4 (2026-06-11)
+
+---
+
+## Governance
+
+How a change gets from idea to merged is the **five-stage model** in [GOVERNANCE.md](./GOVERNANCE.md):
+Capture → Triage → Shape → Build & Review → Anti-entropy. This is a shared model with Cadence
+(`~/ai-projects/Cadence/`); much of it codifies what this project already does.
+
+- **Quality gates:** [REVIEW-CRITERIA.md](./REVIEW-CRITERIA.md) — seven named gates (round-trip
+  fidelity, Heretto-safe output, run-mode parity, strict build, test coverage, `originMap`
+  integrity, and **Gate 7 — conceptual fit & reuse**). Previously implicit in the pipeline personas;
+  now they govern direct work too.
+- **Architectural decisions:** [future-state/decisions.md](./future-state/decisions.md) — the ADR
+  log. Write an ADR (Stage 3) and apply Gate 7's deeper checks **only** when a change meets the
+  **architectural trigger**: a new pattern, a new dependency, a data-model/contract change
+  (`Tab`, `originMap`, the round-trip contract), or a new run-mode / API surface (`/api/*`,
+  `window.__ditaApi`, a Swift route, a macOS menu surface). The Edit Mode rebuild (BUG-02 →
+  FR-045/046) is the canonical example — see ADR-004.
+- **Feature capture:** new FRs in [future-state/feature-requests.md](./future-state/feature-requests.md)
+  open with the problem-first header (**Problem / Signal / Smallest slice / Serves**) above the
+  existing rich body. The triage (Fix Now / Batch + model weight) and filing rules already live in
+  "Filing Bugs and Feature Requests" below — unchanged.
+- **Anti-entropy (Stage 5):** the session-start grooming check below, plus a **per-minor-version
+  consolidation pass** — a `/code-review` + simplification sweep that **files debt as BACKLOG items**
+  rather than fixing inline, so cleanup is scheduled, not impulsive.
+
+---
+
+## Session Start — Backlog Grooming Check
+
+At the start of every session, after reading this file, scan `future-state/BACKLOG.md` and check these three things:
+
+1. **Parked items** — for each row in the Parked/blocked section, does its unblock condition now appear to be met? (e.g. a dependency shipped, a feature landed that changes the calculus.) If yes, surface it — don't silently leave it parked.
+2. **Chain ordering** — for the active feature chains (inline element insertion, edit-mode rebuild, macOS menu bar), does the current sequencing still make sense given what has shipped? Flag any chain where the dependency is now moot or the order should swap.
+3. **Sweep-ready rot** — if 4 or more bugs have accumulated in the Sweep-ready lane, flag it: "N sweep-ready bugs — consider a sweep session before starting new features."
+
+Report findings as a short bullet list before starting work. If nothing has changed, say so in one line and move on.
 
 ---
 
@@ -159,17 +197,18 @@ Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backl
 
 | Lane | Items |
 |---|---|
-| 🔴 **Blocking now** (corrupts data — fix immediately) | *None* — P1-17 and P1-18 shipped in v0.8.2 |
-| 🟡 **Sweep-ready** (batch into next sweep) | *No items* — P2-44, P2-45, P2-46, P2-47 all shipped in v0.8.2 (2026-06-04). |
-| 🔵 **Larger** (own session) | **BUG-01** definition lists (`<dl>`) not rendered in the visual editor (Opus — see `bugreports/BUG-definition-list-not-rendered.md`); **P2-26 Ph2** full `<info>` rendering in steps (Opus) |
+| 🔴 **Blocking now** (corrupts data — fix immediately) | **BUG-03** native API server binds all interfaces, no auth, wildcard CORS + `dita://` path traversal + plaintext credentials GET (Sonnet — ship as v0.8.5) |
+| 🟡 **Sweep-ready** (batch into next sweep) | **BUG-06–BUG-18** — 13 items from the 2026-07-17 codebase review; threshold exceeded, **sweep warranted** (BUG-17 save-success lie first) |
+| 🔵 **Larger** (own session) | **BUG-02** Edit Mode architecturally broken (Fable via FR-045/FR-046 — see `bugreports/BUG-edit-mode-architecture.md`); **BUG-04** serializer content-loss cluster S1–S6, two sessions + ADR, FR-047 first (Fable); **BUG-05** port-3000 tab API structurally dead — ADR-005 decision (Opus analysis) |
 
 ### Features (sequenced by dependency)
 
 | Chain / group | Items |
 |---|---|
-| **Inline element insertion** (biggest authoring gap) | P2-36 content model map → P2-28 + P2-29 (`+` menu shell + catalog) → P2-37 context-aware filtering → P2-38 recently used / P3-45 insertion modes — Opus except the last two (Sonnet) |
+| **Inline element insertion** (biggest authoring gap) | P2-36 content model map (Sonnet — downgraded 2026-07-17) → P2-28 + P2-29 (`+` menu shell + catalog) → P2-37 context-aware filtering (Opus) → P2-38 recently used / P3-45 insertion modes (Sonnet) |
+| **Edit-mode rebuild** (resolves BUG-02) | FR-045 Monaco-diff API review incl. propose-replace (Fable single-session, gates kept) → FR-046 marks-as-data tracked changes (Fable — own sessions) |
 | **macOS native menu bar** | P2-39 File menu (Multi-agent, establishes the `__ditaApi` surface) → P2-41 app menu → P2-40 View menu (Sonnet) |
-| **Standalone** | P2-25 troubleshooting topic support (Sonnet/Opus); P2-27 "Connect a Map" (Opus); P3-46 Altitude theme (Sonnet) |
+| **Standalone** | P2-25 troubleshooting topic support (Sonnet/Opus); P2-27 "Connect a Map" (Opus); P3-46 Altitude theme (Sonnet); **FR-047** byte-stability corpus + shared test factory (Sonnet — **blocks BUG-04, do first**); **FR-048** test-suite triage / Gate 5 artifacts (Sonnet); **FR-049** true placeholders for template title/shortdesc (Sonnet — Option A design approved); **FR-050** native PDF export + print fidelity, two independent slices (Sonnet each) |
 
 Parked/blocked items (AI extractions, conditional text, map discovery, API auth) sit at the bottom of the backlog with explicit unblock conditions.
 
@@ -272,7 +311,8 @@ If none of those apply — backlog row only. Do not create a bugreport file for 
 | **Haiku** | Mechanical one-liner fixes — a wrong constant, a missing condition, a copy change |
 | **Sonnet** | Contained fixes requiring reasoning about one or two files — logic bugs, serialization edge cases, small new behaviors |
 | **Opus** | Fixes requiring architectural understanding across multiple files, or where the root cause is not yet fully known |
-| **Multi-agent** | Fixes that span Swift + TypeScript simultaneously, or require parallel investigation of independent subsystems; use `agents/run.ts` |
+| **Fable** | Reserve for work where the risk is *incomplete invariant tracking in a single context*: cross-cutting refactors of the round-trip contract, rebuilds of subtle stateful machinery (tracked changes), sessions where one wrong assumption ships silent data corruption. Also consider it as a replacement for Multi-agent when the driver was cross-language breadth rather than the need for independent review gates — one Fable session holding Swift + TypeScript together avoids the pipeline's cross-agent context loss (keep the build/review/test gates as checkpoints). |
+| **Multi-agent** | Fixes that span Swift + TypeScript simultaneously, or require parallel investigation of independent subsystems; use `agents/run.ts`. Before choosing this, check whether the Fable row above fits better — Multi-agent earns its overhead when you need *independent* review perspectives, not just breadth. |
 
 When in doubt, pick the weight that matches the complexity of the *investigation*, not just the eventual one-line fix — a subtle invariant that takes an hour to find is Opus even if the patch is small.
 
