@@ -129,40 +129,69 @@ const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =
       originMap?.set(linkNode.getKey(), { tag: 'xref', bodyIndex: -1, inlineAttrs });
     }
     nodes.push(linkNode);
-  } else if (elTag === 'ph' || elTag === 'term') {
+  } else if (
+    (elTag === 'ph' || elTag === 'term') &&
+    (el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref'))
+  ) {
+    // ph/term carrying a reference → DitaPhRefNode (chip). Refless ph/term fall
+    // through to the generic branch below so their tag is preserved via inlineTag.
+    const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
     const ref = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref');
-    if (ref) {
-      const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
-      nodes.push($createDitaPhRefNode(refType, ref, el.textContent || ''));
-    } else {
-      // No ref — transparent pass-through
-      parseTextNodes(el, originMap).forEach(n => nodes.push(n));
-    }
+    nodes.push($createDitaPhRefNode(refType, ref!, el.textContent || ''));
   } else if (elTag === 'image') {
     const href = el.getAttribute('href') || '';
     const alt = el.querySelector('alt')?.textContent || el.getAttribute('alt') || '';
     nodes.push($createDitaPhRefNode('image', href, alt));
   } else if (elTag === 'codeph') {
+    // Kept as a format flag (not inlineTag) so code toggles stay inside the S2
+    // format-run comparison set (b/i/codeph).
     const textNode = $createTextNode(el.textContent || '');
     textNode.toggleFormat('code');
     nodes.push(textNode);
-  } else if (elTag === 'uicontrol') {
+  } else if (elTag === 'b' || elTag === 'strong') {
     const textNode = $createTextNode(el.textContent || '');
     textNode.toggleFormat('bold');
-    originMap?.set(textNode.getKey(), { tag: 'uicontrol', bodyIndex: -1, inlineTag: 'uicontrol' });
     nodes.push(textNode);
-  } else if (elTag === 'wintitle') {
+  } else if (elTag === 'i' || elTag === 'em') {
     const textNode = $createTextNode(el.textContent || '');
     textNode.toggleFormat('italic');
-    originMap?.set(textNode.getKey(), { tag: 'wintitle', bodyIndex: -1, inlineTag: 'wintitle' });
     nodes.push(textNode);
+  } else if (Array.from(el.childNodes).some(c => c.nodeType === Node.ELEMENT_NODE)) {
+    // Container inline element (e.g. <menucascade>, or a phrase wrapping other
+    // inline tags). It can't be one stamped text node without losing the
+    // children, so flatten its inline content — nested leaf tags are preserved
+    // by the recursion below; the wrapper itself round-trips on the no-edit
+    // patch path (full container reconstruction is FR-046 territory).
+    parseTextNodes(el, originMap).forEach(n => nodes.push(n));
   } else {
+    // M1: generic leaf inline element. Stamp the tag + its attributes so it
+    // survives a content rewrite instead of flattening to plain text. This
+    // generalizes the former uicontrol/wintitle point-patches to every inline
+    // phrase element (filepath, term, cite, varname, cmdname, keyword, …).
+    // A couple of elements carry an established editor affordance as a format
+    // flag; the flag only drives appearance — inlineTag still governs output.
+    //
+    // Token mode is essential: without it Lexical merges this node with its
+    // adjacent plain-text siblings during normalization (isSimpleText requires
+    // mode 'normal'), which orphans the inlineTag stamp keyed on this node and
+    // flattens the element back to plain text. uicontrol/wintitle previously
+    // survived only because their bold/italic format differed from neighbors —
+    // token mode makes preservation robust for every tag, including adjacent
+    // same-tag runs (e.g. the <uicontrol>s inside a <menucascade>).
     const textNode = $createTextNode(el.textContent || '');
-    if (elTag === 'b' || elTag === 'strong') {
-      textNode.toggleFormat('bold');
-    } else if (elTag === 'i' || elTag === 'em') {
-      textNode.toggleFormat('italic');
+    textNode.setMode('token');
+    if (elTag === 'uicontrol') textNode.toggleFormat('bold');
+    else if (elTag === 'wintitle') textNode.toggleFormat('italic');
+    const inlineAttrs: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) {
+      inlineAttrs[attr.name] = attr.value;
     }
+    originMap?.set(
+      textNode.getKey(),
+      Object.keys(inlineAttrs).length > 0
+        ? { tag: elTag, bodyIndex: -1, inlineTag: elTag, inlineAttrs }
+        : { tag: elTag, bodyIndex: -1, inlineTag: elTag }
+    );
     nodes.push(textNode);
   }
   return nodes;

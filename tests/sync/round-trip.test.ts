@@ -2086,6 +2086,129 @@ describe('Session 4B (M2): noteType consumed on createElementFromLexical', () =>
   });
 });
 
+// ─── describe: Session 4B (M1) — generic inlineTag stamping ─────────────────
+
+describe('Session 4B (M1): generic inlineTag stamping for all inline elements', () => {
+  const baseTaskXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="t1"><title>T</title><taskbody><context><p>existing</p></context></taskbody></task>`;
+
+  // Insert a fragment as new content, forcing full serialization from Lexical
+  // (createElementFromLexical → serializeInlineContent) — the path where a
+  // dropped inlineTag flattens an element to plain text.
+  function insertAndSerialize(fragmentXml: string): string {
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(baseTaskXml, editor, originMap, true);
+    editor.update(
+      () => {
+        const nodes = parseSectionFragment(fragmentXml, originMap);
+        if (!nodes) throw new Error('parseSectionFragment returned no nodes');
+        const root = $getRoot();
+        nodes.forEach(n => root.append(n));
+      },
+      { discrete: true }
+    );
+    return serializeLexicalToXml(editor.getEditorState(), baseTaskXml, originMap, cache);
+  }
+
+  it('preserves <filepath> instead of flattening to plain text', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Edit <filepath>/etc/hosts</filepath> now.</p></section>'
+    );
+    expect(out).toContain('<filepath>/etc/hosts</filepath>');
+  });
+
+  it('preserves refless <term>', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>The <term>trip chaining factor</term> matters.</p></section>'
+    );
+    expect(out).toContain('<term>trip chaining factor</term>');
+  });
+
+  it('preserves <cite>', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>See <cite>the analytics guide</cite>.</p></section>'
+    );
+    expect(out).toContain('<cite>the analytics guide</cite>');
+  });
+
+  it('preserves <cmdname> and <varname> in one paragraph', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Run <cmdname>git</cmdname> on <varname>branch</varname>.</p></section>'
+    );
+    expect(out).toContain('<cmdname>git</cmdname>');
+    expect(out).toContain('<varname>branch</varname>');
+  });
+
+  it('preserves attributes on a generic leaf inline element', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Press <uicontrol keyref="ok-button">OK</uicontrol>.</p></section>'
+    );
+    expect(out).toContain('<uicontrol keyref="ok-button">OK</uicontrol>');
+  });
+
+  it('preserves refless <ph outputclass="..."> as a leaf', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>A <ph outputclass="brand">phrase</ph> here.</p></section>'
+    );
+    expect(out).toContain('<ph outputclass="brand">phrase</ph>');
+  });
+
+  it('container <menucascade>: nested <uicontrol>s survive (wrapper may flatten)', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Go to <menucascade><uicontrol>File</uicontrol><uicontrol>Export</uicontrol></menucascade> now.</p></section>'
+    );
+    expect(out).toContain('<uicontrol>File</uicontrol>');
+    expect(out).toContain('<uicontrol>Export</uicontrol>');
+  });
+
+  it('does not emit <b>/<i> for a generic leaf inline element', () => {
+    const out = insertAndSerialize(
+      '<section><title>S</title><p>Edit <filepath>/tmp/x</filepath>.</p></section>'
+    );
+    expect(out).not.toMatch(/<b[ >]/);
+    expect(out).not.toMatch(/<i[ >]/);
+  });
+
+  it('<filepath> survives a full paragraph rebuild (replaceElementContent path)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m1-existing-rewrite">
+  <title>Rewrite</title>
+  <conbody>
+    <p>Edit <filepath>/etc/hosts</filepath> carefully.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    // Wrap the trailing word in a LinkNode while keeping the paragraph's total
+    // text identical. The link-count mismatch (1 link vs 0 xrefs) with matching
+    // text forces replaceElementContent — the full rebuild from Lexical via
+    // serializeInlineContent, the path where a lost inlineTag would flatten
+    // <filepath> to plain text.
+    editor.update(() => {
+      const root = $getRoot();
+      const para = root.getChildren().find((n: any) => n.getType() === 'paragraph') as any;
+      const children = para.getChildren();
+      children[children.length - 1].remove(); // drop " carefully."
+      const link = $createLinkNode('more.dita');
+      link.append($createTextNode('carefully'));
+      para.append($createTextNode(' '), link, $createTextNode('.'));
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    // The <filepath> tag must survive the full rebuild.
+    expect(output).toContain('<filepath>/etc/hosts</filepath>');
+    expect(output).toContain('href="more.dita"');
+  });
+});
+
 // ─── describe: Session 4B (M3) — xref attrs preserved via inlineAttrs ───────
 
 describe('Session 4B (M3): xref inlineAttrs written at parse, consumed at serialize', () => {
