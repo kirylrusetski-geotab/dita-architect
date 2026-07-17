@@ -1277,11 +1277,15 @@ const patchSectionFromHeading = (sectionEl: Element, headingNode: any, doc: Docu
 
 /**
  * Strip xmlns="" attributes that XMLSerializer adds spuriously.
+ * Operates only inside start-tags to avoid corrupting codeblock text
+ * that happens to contain the namespace string literally.
  */
 const stripSpuriousXmlns = (xml: string): string => {
-  return xml
-    .replace(/ xmlns=""/g, '')
-    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
+  return xml.replace(/<[^>]+>/g, tag =>
+    tag
+      .replace(/ xmlns=""/g, '')
+      .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '')
+  );
 };
 
 export const serializeLexicalToXml = (editorState: any, originalXml: string, originMap: NodeOriginMapType, cache: XmlMetaCache): string => {

@@ -2086,6 +2086,56 @@ describe('Session 4B (M2): noteType consumed on createElementFromLexical', () =>
   });
 });
 
+// ─── describe: Session 4B (M5) — stripSpuriousXmlns constrained to start-tags ─
+
+describe('Session 4B (M5): stripSpuriousXmlns constrained to start-tags', () => {
+  it('codeblock containing literal xmlns string is preserved unchanged', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m5-codeblock-xmlns">
+  <title>Codeblock Xmlns</title>
+  <conbody>
+    <codeblock>&lt;root xmlns="http://www.w3.org/1999/xhtml"&gt;</codeblock>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    expectBodyContains(output, '<codeblock>&lt;root xmlns="http://www.w3.org/1999/xhtml"&gt;</codeblock>');
+  });
+
+  it('codeblock containing literal xmlns="" string is preserved unchanged', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m5-codeblock-xmlns-empty">
+  <title>Codeblock Xmlns Empty</title>
+  <conbody>
+    <codeblock>some xmlns="" example</codeblock>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    expectBodyContains(output, '<codeblock>some xmlns="" example</codeblock>');
+  });
+
+  it('spurious xmlns on real elements is still stripped', () => {
+    // XMLSerializer adds xmlns="" to elements in certain DOM contexts — those
+    // must still be removed from the tag attributes, not from text content.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m5-strip-real">
+  <title>Strip Real</title>
+  <conbody>
+    <p>Normal paragraph.</p>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    expect(output).not.toContain('<p xmlns=""');
+    expect(output).not.toContain('<p xmlns="http://www.w3.org/1999/xhtml"');
+    expectBodyContains(output, '<p>Normal paragraph.</p>');
+  });
+});
+
 // ─── describe: Session 4A (ADR-006) — unified body walk ──────────────────────
 
 describe('Session 4A (ADR-006): unified body walk', () => {
