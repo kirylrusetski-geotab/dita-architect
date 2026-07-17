@@ -689,8 +689,8 @@ export default function ProfessionalDitaEditor() {
                 </button>
               </div>
               <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: 'var(--app-text-muted)' }}>
-                <span className={`w-1.5 h-1.5 rounded-full ${activeTab.lastUpdatedBy === 'editor' ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
-                Last update: {activeTab.lastUpdatedBy === 'editor' ? 'Visual Editor' : 'Source Code'}
+                <span className={`w-1.5 h-1.5 rounded-full ${activeTab.lastUpdatedBy === 'editor' ? 'bg-purple-500' : activeTab.lastUpdatedBy === 'api' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+                Last update: {activeTab.lastUpdatedBy === 'editor' ? 'Visual Editor' : activeTab.lastUpdatedBy === 'api' ? 'API' : 'Source Code'}
                 {syncHintVisible && (
                   <span style={{ opacity: 0.6 }}>&middot; Press Ctrl+Enter to sync between editors</span>
                 )}
@@ -1193,6 +1193,7 @@ export default function ProfessionalDitaEditor() {
                     editMode={tab.editMode}
                     snapshotRef={tab.snapshotRef}
                     enterTrigger={tab.editModeEnterTrigger}
+                    tabId={tab.id}
                   />
                 </div>
                 <BottomToolbar />

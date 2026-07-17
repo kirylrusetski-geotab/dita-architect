@@ -21,6 +21,31 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.9',
+    date: '2026-07-17',
+    title: 'Polish sweep: native-safe clear dialog, serializer performance, and multi-tab edit mode fixes.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'The Clear Contents button now uses the standard confirm modal instead of `window.confirm`, which was silently returning false in the native app (WKWebView has no `WKUIDelegate` wired up, so `window.confirm` always cancels). The button now works in the native app.',
+          'The visual editor no longer re-serializes the full document on every caret move or selection change. `OnChangePlugin` now ignores selection-only changes, so only real content edits trigger a round-trip.',
+          'The "Last update" indicator in the header now correctly shows "API" (with a green dot) when content was last written by the insert-section API. Before, it showed "Source Code" for all non-editor sources.',
+          'Creating a shortdesc by pressing Enter at the end of the title now reliably works after deleting and recreating a shortdesc. The plugin was checking a stale originMap entry whose node had already been removed from the tree.',
+          'With two tabs open in Edit Mode simultaneously, each tab now uses an isolated CSS highlight channel for tracked insertions. Before, the second tab\'s highlights overwrote the first tab\'s.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'Per-tab `::highlight()` CSS rules are injected dynamically at mount and cleaned up at unmount, replacing the single document-global `tracked-insert` key.',
+          'Dead `lib/dita-utils.ts` and `types/dita-block.ts` removed — these were only ever imported by their own test file and had no production consumers.',
+          'v0.4.0 release notes corrected: the `format` and `stats` endpoints listed there were part of the port-3000 tab API that was never functional (ADR-007). The note now describes the native API accurately.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.8',
     date: '2026-07-17',
     title: 'API insertions are now reviewed as a precise Monaco XML diff — reliable, validated, byte-exact.',
@@ -470,7 +495,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'New Features',
         items: [
           'Click the table icon in the toolbar to create a new DITA table. Pick rows (up to 50), columns (up to 10), and whether you want a header row. The output is valid DITA CALS with proper colspec elements.',
-          'AI tools like Claude Code can now edit your content and trigger saves through four new endpoints: `PUT /api/tabs/:id/content` (update the XML), `POST /api/tabs/:id/save` (save to Heretto), `POST /api/tabs/:id/format` (beautify XML), and `GET /api/tabs/:id/stats` (word count, readability). This closes the read-write loop the read endpoints started.',
+          'AI tools like Claude Code can now edit your content and trigger saves through the native API: `PUT /api/tabs/:id/content` (update the XML) and `POST /api/tabs/:id/save` (save to Heretto). This closes the read-write loop the read endpoints started.',
         ],
       },
       {
@@ -489,7 +514,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Under the Hood',
         items: [
           'Bidirectional sync extended with a third update source (`api`) so content loaded through the write endpoints flows to the visual editor automatically.',
-          'Editor state bridge expanded with write callbacks for content update, save, and format.',
+          'Native API bridge expanded with write callbacks for content update and save.',
           'Parser uses scoped selectors (`:scope > title`) for reliable heading hierarchy across every DITA topic type.',
           '29 new tests across 8 suites covering table creation, keyboard navigation, the write endpoints, API sync integration, and parser edge cases.',
         ],

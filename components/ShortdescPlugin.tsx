@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getRoot,
+  $getNodeByKey,
   $getSelection,
   $isRangeSelection,
   $isElementNode,
@@ -80,8 +81,10 @@ export const ShortdescPlugin = () => {
           $isHeadingNode(topLevelNode) &&
           topLevelNode.getTag() === 'h1'
         ) {
-          // Check if a shortdesc already exists
-          const hasShortdesc = Array.from(nodeOriginMap.values()).some(o => o.tag === 'shortdesc');
+          // Check if a live (non-deleted) shortdesc node still exists
+          const hasShortdesc = Array.from(nodeOriginMap.entries()).some(
+            ([key, o]) => o.tag === 'shortdesc' && $getNodeByKey(key) !== null
+          );
           if (!hasShortdesc) {
             event?.preventDefault();
 

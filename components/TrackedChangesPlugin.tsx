@@ -10,6 +10,7 @@ interface TrackedChangesPluginProps {
   editMode: boolean;
   snapshotRef: React.MutableRefObject<EditorState | null>;
   enterTrigger: number;
+  tabId: string;
 }
 
 interface BaselineBlock {
@@ -126,6 +127,7 @@ export const TrackedChangesPlugin = ({
   editMode,
   snapshotRef,
   enterTrigger,
+  tabId,
 }: TrackedChangesPluginProps) => {
   const [editor] = useLexicalComposerContext();
   const baselineRef = useRef<Map<string, BaselineBlock>>(new Map());
@@ -135,6 +137,7 @@ export const TrackedChangesPlugin = ({
   const insertedDeletionsRef = useRef<Map<string, string>>(new Map()); // descriptor -> nodeKey
   // Track whether we have active CSS highlights for insertions
   const hasHighlightsRef = useRef(false);
+  const highlightKey = `tracked-insert-${tabId}`;
 
   // Build baseline when entering edit mode
   useEffect(() => {
@@ -171,7 +174,7 @@ export const TrackedChangesPlugin = ({
     baselineKeysOrderRef.current = keysOrder;
     insertedDeletionsRef.current.clear();
     if (hasHighlightsRef.current && 'highlights' in CSS) {
-      (CSS as any).highlights.delete('tracked-insert');
+      (CSS as any).highlights.delete(highlightKey);
       hasHighlightsRef.current = false;
     }
   }, [enterTrigger]);
@@ -336,10 +339,10 @@ export const TrackedChangesPlugin = ({
       // Apply CSS Custom Highlight for all insertion ranges
       if ('highlights' in CSS) {
         if (insertRanges.length > 0) {
-          (CSS as any).highlights.set('tracked-insert', new (window as any).Highlight(...insertRanges));
+          (CSS as any).highlights.set(highlightKey, new (window as any).Highlight(...insertRanges));
           hasHighlightsRef.current = true;
         } else if (hasHighlightsRef.current) {
-          (CSS as any).highlights.delete('tracked-insert');
+          (CSS as any).highlights.delete(highlightKey);
           hasHighlightsRef.current = false;
         }
       }
@@ -516,7 +519,7 @@ export const TrackedChangesPlugin = ({
       elements.forEach((el) => el.classList.remove('tracked-addition'));
     }
     if (hasHighlightsRef.current && 'highlights' in CSS) {
-      (CSS as any).highlights.delete('tracked-insert');
+      (CSS as any).highlights.delete(highlightKey);
       hasHighlightsRef.current = false;
     }
 
@@ -556,6 +559,18 @@ export const TrackedChangesPlugin = ({
     baselineKeysOrderRef.current = [];
     insertedDeletionsRef.current.clear();
   }, [editMode, editor]);
+
+  // Inject per-tab ::highlight() CSS rule and clean up on unmount
+  useEffect(() => {
+    if (!('highlights' in CSS)) return;
+    const style = document.createElement('style');
+    style.textContent = `::highlight(${highlightKey}) { text-decoration: underline; text-decoration-color: #22c55e; text-decoration-thickness: 2px; text-underline-offset: 2px; background-color: rgba(34, 197, 94, 0.10); }`;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+      (CSS as any).highlights.delete(highlightKey);
+    };
+  }, [highlightKey]);
 
   return null;
 };

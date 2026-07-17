@@ -22,6 +22,7 @@ import { $setBlocksType } from '@lexical/selection';
 import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip } from './Tooltip';
+import { ConfirmModal } from './ConfirmModal';
 
 export const THEME_OPTIONS = [
   { value: 'dark', label: 'Dark' },
@@ -61,6 +62,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
   const [linkError, setLinkError] = useState('');
   const linkInputRef = useRef<HTMLInputElement>(null);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
   const [tableIncludeHeader, setTableIncludeHeader] = useState(true);
@@ -275,10 +277,21 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Clear Contents">
-        <button aria-label="Clear contents" onClick={() => { if (window.confirm('Clear all editor contents? This cannot be undone.')) { editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined); toast('Cleared editor contents'); } }} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Clear contents" onClick={() => setIsClearConfirmOpen(true)} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Trash2 className="w-4 h-4" />
         </button>
       </Tooltip>
+      {isClearConfirmOpen && (
+        <ConfirmModal
+          message="Clear all editor contents? This cannot be undone."
+          onConfirm={() => {
+            setIsClearConfirmOpen(false);
+            editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+            toast('Cleared editor contents');
+          }}
+          onClose={() => setIsClearConfirmOpen(false)}
+        />
+      )}
 
       {/* Insert Link Modal */}
       {isLinkModalOpen && (

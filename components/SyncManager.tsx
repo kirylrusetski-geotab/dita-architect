@@ -149,6 +149,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   return (
     <SyncContext.Provider value={syncContextValue}>
       <OnChangePlugin
+        ignoreSelectionChange={true}
         onChange={(editorState) => {
           if (editMode) return;
           if (isSyncingFromXmlRef.current) return;
