@@ -121,7 +121,13 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
     } else if (child.getType() === 'link') {
       const xref = doc.createElement('xref');
       xref.setAttribute('href', child.getURL());
-      xref.setAttribute('format', 'html');
+      const linkOrigin = originMap?.get(child.getKey());
+      if (linkOrigin?.inlineAttrs) {
+        Object.entries(linkOrigin.inlineAttrs).forEach(([k, v]) => xref.setAttribute(k, v));
+      } else {
+        const href = child.getURL();
+        xref.setAttribute('format', href.startsWith('http://') || href.startsWith('https://') ? 'html' : 'dita');
+      }
       const linkChildren = serializeInlineContent(child, doc, originMap);
       linkChildren.forEach(n => xref.appendChild(n));
       nodes.push(xref);

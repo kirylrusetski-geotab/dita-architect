@@ -121,6 +121,13 @@ const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =
     const href = el.getAttribute('href') || '';
     const linkNode = $createLinkNode(href);
     parseTextNodes(el, originMap).forEach(n => linkNode.append(n));
+    const inlineAttrs: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name !== 'href') inlineAttrs[attr.name] = attr.value;
+    }
+    if (Object.keys(inlineAttrs).length > 0) {
+      originMap?.set(linkNode.getKey(), { tag: 'xref', bodyIndex: -1, inlineAttrs });
+    }
     nodes.push(linkNode);
   } else if (elTag === 'ph' || elTag === 'term') {
     const ref = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref');

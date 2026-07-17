@@ -2086,6 +2086,98 @@ describe('Session 4B (M2): noteType consumed on createElementFromLexical', () =>
   });
 });
 
+// ─── describe: Session 4B (M3) — xref attrs preserved via inlineAttrs ───────
+
+describe('Session 4B (M3): xref inlineAttrs written at parse, consumed at serialize', () => {
+  it('xref format+scope attrs survive a bold-toggle rewrite of the parent paragraph', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m3-xref-rewrite">
+  <title>Xref Attrs</title>
+  <conbody>
+    <p>See <xref href="topic.dita" format="dita" scope="local">the topic</xref> for details.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    // Toggle bold on "See " text — forces replaceElementContent, which calls
+    // serializeInlineContent, which must emit the xref with original attrs.
+    editor.update(() => {
+      const root = $getRoot();
+      const para = root.getChildren().find((n: any) => n.getType() === 'paragraph') as any;
+      const textNode = para.getChildren().find((n: any) => n.getType() === 'text') as any;
+      textNode.toggleFormat('bold');
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('format="dita"');
+    expect(output).toContain('scope="local"');
+    expect(output).not.toContain('format="html"');
+  });
+
+  it('xref with class+type attrs survives a rewrite', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m3-xref-class">
+  <title>Xref Class</title>
+  <conbody>
+    <p>See <xref href="topic.dita" format="dita" scope="local" class="- topic/xref ">link</xref>.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const para = root.getChildren().find((n: any) => n.getType() === 'paragraph') as any;
+      const textNode = para.getChildren().find((n: any) => n.getType() === 'text') as any;
+      textNode.toggleFormat('bold');
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('format="dita"');
+    expect(output).toContain('scope="local"');
+    expect(output).not.toContain('format="html"');
+  });
+
+  it('new xref LinkNode with no originMap entry and non-http href gets format="dita"', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m3-xref-new">
+  <title>New Xref</title>
+  <conbody>
+    <p>Click the link for details.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const para = root.getChildren().find((n: any) => n.getType() === 'paragraph') as any;
+      para.clear();
+      const link = $createLinkNode('other-topic.dita');
+      link.append($createTextNode('the link'));
+      para.append($createTextNode('Click '), link, $createTextNode(' for details.'));
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('href="other-topic.dita"');
+    expect(output).toContain('format="dita"');
+    expect(output).not.toContain('format="html"');
+  });
+});
+
 // ─── describe: Session 4B (M5) — stripSpuriousXmlns constrained to start-tags ─
 
 describe('Session 4B (M5): stripSpuriousXmlns constrained to start-tags', () => {
