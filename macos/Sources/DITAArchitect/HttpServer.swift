@@ -18,6 +18,7 @@ final class HttpServer {
         do {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
             let listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
             listener.stateUpdateHandler = { [weak self] state in
                 guard let self else { return }
@@ -47,12 +48,19 @@ final class HttpServer {
         receiveRequest(connection: connection, accumulated: Data())
     }
 
+    private static let maxRequestBytes = 10 * 1024 * 1024  // 10 MB
+
     private func receiveRequest(connection: NWConnection, accumulated: Data) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
             guard let self, error == nil else { connection.cancel(); return }
 
             var buffer = accumulated
             if let data { buffer.append(data) }
+
+            if buffer.count > HttpServer.maxRequestBytes {
+                self.sendError(connection: connection, status: 413, message: "Request too large")
+                return
+            }
 
             let headerDelimiter = Data("\r\n\r\n".utf8)
             guard let headerEndRange = buffer.range(of: headerDelimiter) else {
@@ -293,18 +301,15 @@ final class HttpServer {
         case 400: statusText = "Bad Request"
         case 404: statusText = "Not Found"
         case 405: statusText = "Method Not Allowed"
+        case 413: statusText = "Payload Too Large"
         default:  statusText = "Internal Server Error"
         }
 
-        let header = [
-            "HTTP/1.1 \(status) \(statusText)",
-            "Content-Type: application/json; charset=utf-8",
-            "Content-Length: \(body.count)",
-            "Access-Control-Allow-Origin: *",
-            "Connection: close",
-            "",
-            "",
-        ].joined(separator: "\r\n")
+        let header = "HTTP/1.1 \(status) \(statusText)\r\n" +
+            "Content-Type: application/json; charset=utf-8\r\n" +
+            "Content-Length: \(body.count)\r\n" +
+            "Connection: close\r\n" +
+            "\r\n"
 
         var response = Data(header.utf8)
         response.append(body)

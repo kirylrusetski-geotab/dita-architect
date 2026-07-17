@@ -79,7 +79,8 @@ export function useHerettoCms({
       const res = await fetch('/heretto-credentials');
       if (res.ok) {
         const data = await res.json();
-        setHerettoCredentials({ email: data.email || '', token: data.token || '' });
+        // Token is never returned by the server; leave blank so the user must re-enter to save.
+        setHerettoCredentials({ email: data.email || '', token: '' });
       }
     } catch { /* silent */ }
   }, []);

@@ -252,14 +252,22 @@ export default defineConfig({
         name: 'heretto-credentials-api',
         configureServer(server) {
           server.middlewares.use('/heretto-credentials', (req, res) => {
+            // Only serve to the local dev app; reject requests from other origins.
+            const host = req.headers['host'] ?? '';
+            if (!host.startsWith('localhost:') && !host.startsWith('127.0.0.1:')) {
+              res.writeHead(403, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Forbidden' }));
+              return;
+            }
             if (req.method === 'GET') {
               try {
                 const raw = JSON.parse(fs.readFileSync(herettoConfigPath, 'utf-8'));
+                // Return email + presence flag only; never expose the token over HTTP.
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ email: raw.email || '', token: raw.token || '' }));
+                res.end(JSON.stringify({ email: raw.email || '', hasCredentials: !!(raw.email && raw.token) }));
               } catch {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ email: '', token: '' }));
+                res.end(JSON.stringify({ email: '', hasCredentials: false }));
               }
             } else if (req.method === 'PUT') {
               let body = '';

@@ -43,11 +43,19 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
+        let distPath = distURL.standardizedFileURL.path
+
         let relative = path == "/" ? "index.html" : String(path.dropFirst())
-        var fileURL = distURL.appendingPathComponent(relative)
+        var fileURL = distURL.appendingPathComponent(relative).standardizedFileURL
+
+        // Path-traversal guard: resolved path must stay inside dist/
+        guard fileURL.path.hasPrefix(distPath + "/") || fileURL.path == distPath else {
+            fail(task, id: id, with: URLError(.badURL))
+            return
+        }
 
         if !FileManager.default.fileExists(atPath: fileURL.path) {
-            fileURL = distURL.appendingPathComponent("index.html")
+            fileURL = distURL.appendingPathComponent("index.html").standardizedFileURL
         }
 
         guard let data = try? Data(contentsOf: fileURL) else {
@@ -156,13 +164,14 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
         let url = request.url!
         switch request.httpMethod?.uppercased() ?? "GET" {
         case "GET":
-            let result: [String: String]
+            // Return only email + presence flag; never return the token over the scheme handler.
+            let result: [String: Any]
             if let creds = loadCredentials() {
-                result = ["email": creds.email, "token": creds.token]
+                result = ["email": creds.email, "hasCredentials": true]
             } else {
-                result = ["email": "", "token": ""]
+                result = ["email": "", "hasCredentials": false]
             }
-            let data = (try? JSONEncoder().encode(result)) ?? Data("{}".utf8)
+            let data = (try? JSONSerialization.data(withJSONObject: result)) ?? Data("{}".utf8)
             respond(task, id: id, url: url, status: 200,
                     headers: ["Content-Type": "application/json"], body: data)
 
