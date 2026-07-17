@@ -329,15 +329,24 @@ const patchInlineNodes = (domEl: Element, lexicalNode: any): boolean => {
  * Attempts surgical inline update to preserve element wrappers before falling back
  * to full replacement.
  */
+const BLOCKISH_CHILD_TAGS = new Set([
+  'p', 'ul', 'ol', 'codeblock', 'table', 'simpletable', 'fig', 'dl', 'section',
+]);
+
 const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType): boolean => {
   const domText = getNormalizedDomText(domEl);
   const lexText = lexicalNode.getTextContent();
+
+  // Link-structure check counts xrefs at ANY depth: the parser flattens
+  // <note><p>…<xref/></p></note> so the LinkNode is a direct Lexical child
+  // while the <xref> sits inside the <p> — counting only direct DOM children
+  // reported a false mismatch and destroyed unedited notes (BUG-04/S3).
+  const lexLinkCount = lexicalNode.getChildren
+    ? lexicalNode.getChildren().filter((c: any) => c.getType() === 'link').length
+    : 0;
+  const domXrefCount = domEl.querySelectorAll('xref').length;
+
   if (domText === lexText) {
-    // Text matches, but check if inline link structure changed (e.g. a LinkNode was added)
-    const lexLinkCount = lexicalNode.getChildren
-      ? lexicalNode.getChildren().filter((c: any) => c.getType() === 'link').length
-      : 0;
-    const domXrefCount = Array.from(domEl.children).filter((el: Element) => el.tagName === 'xref').length;
     if (lexLinkCount === domXrefCount) {
       return true; // untouched — all inline markup preserved
     }
@@ -345,6 +354,24 @@ const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document, or
     replaceElementContent(domEl, lexicalNode, doc, originMap);
     return false;
   }
+
+  // Elements with block children (e.g. <note><p>…</p><p>…</p></note>) are
+  // flattened by the parser with per-block edge trimming, which DELETES the
+  // whitespace between blocks — the Lexical text is whitespace-lossy BY
+  // DESIGN, so exact inequality does not mean the user edited anything.
+  // Compare with all whitespace removed before concluding a real change;
+  // preserving the element wins over honoring a whitespace-only "edit" the
+  // flatten may have fabricated (ADR-006).
+  const hasBlockChildren = Array.from(domEl.children).some(
+    c => BLOCKISH_CHILD_TAGS.has(c.tagName.toLowerCase())
+  );
+  if (hasBlockChildren) {
+    const stripWs = (s: string) => s.replace(/\s+/g, '');
+    if (stripWs(domText) === stripWs(lexText) && lexLinkCount === domXrefCount) {
+      return true; // untouched modulo flatten whitespace loss
+    }
+  }
+
   if (!patchInlineNodes(domEl, lexicalNode)) {
     replaceElementContent(domEl, lexicalNode, doc, originMap);
   }
@@ -600,7 +627,9 @@ const patchDlElement = (
     if (domDd) {
       // Patch the <dd>'s recognized block children in parallel; unrecognized
       // children are left untouched (same contract as the body walk).
-      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap);
+      // groupDl:false — every dd node carries dlEntryIndex; re-grouping them
+      // here would wrongly hunt for a nested <dl> (ADR-006).
+      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap, { groupDl: false });
     }
   }
 };
@@ -795,8 +824,22 @@ const patchSection = (
 };
 
 /**
- * Core routine: walk DOM children and Lexical nodes in parallel, patching recognized elements.
- * Unrecognized DOM children are left untouched.
+ * THE body walk (ADR-006): walk DOM children and grouped Lexical nodes in
+ * parallel, patching recognized elements. Used at body level, inside sections,
+ * and inside <dd> — the former top-level walk is gone.
+ *
+ * Capabilities, unified from both former walks:
+ *  - dl-run and section grouping (via groupBodyNodesForSections), including
+ *    the Heretto non-standard <p><dl>…</dl></p> wrapper;
+ *  - look-ahead on mismatch, so a deleted element does not shift content onto
+ *    a wrong-identity sibling (M9);
+ *  - the non-recreatable node contract: a DOM element is NEVER removed in
+ *    favor of a Lexical node that createElementFromLexical cannot express
+ *    (returns null) — the element is preserved in place instead (S1).
+ *
+ * Unrecognized DOM children are always left untouched.
+ * options.groupDl=false disables dl-run grouping — required when patching
+ * <dd> content, where every node carries dlEntryIndex by construction.
  */
 const patchBodyChildren = (
   domChildren: Element[],
@@ -805,70 +848,130 @@ const patchBodyChildren = (
   doc: Document,
   rootTag: string,
   originMap: NodeOriginMapType,
+  options?: { groupDl?: boolean },
 ) => {
-  let lexIdx = 0;
+  const groupDl = options?.groupDl !== false;
+  const groups = groupBodyNodesForSections(lexicalNodes, originMap, groupDl);
 
-  // Track which DOM children are "recognized" for removal later
-  const recognizedDomChildren: Element[] = [];
-  const unrecognizedDomChildren: Element[] = [];
+  const recognizedDomChildren = domChildren.filter(
+    c => RECOGNIZED_BODY_TAGS.has(c.tagName.toLowerCase())
+  );
 
-  for (const child of domChildren) {
-    const tag = child.tagName.toLowerCase();
-    if (RECOGNIZED_BODY_TAGS.has(tag)) {
-      recognizedDomChildren.push(child);
-    } else {
-      unrecognizedDomChildren.push(child);
-    }
-  }
+  const consumed = new Set<Element>();
+  let gIdx = 0;
 
-  // Patch recognized children in parallel with Lexical nodes.
-  // maxIterations guards against infinite loops when createElementFromLexical
-  // returns null repeatedly for the same DOM child (recognizedIdx-- never advances).
-  let recognizedIdx = 0;
-  const maxIterations = recognizedDomChildren.length + lexicalNodes.length + 1;
-  let iterations = 0;
-  for (; recognizedIdx < recognizedDomChildren.length && lexIdx < lexicalNodes.length; recognizedIdx++) {
-    if (++iterations > maxIterations) break;
-    const domChild = recognizedDomChildren[recognizedIdx];
+  for (let domIdx = 0; domIdx < recognizedDomChildren.length && gIdx < groups.length; domIdx++) {
+    const domChild = recognizedDomChildren[domIdx];
+    if (domChild.parentNode !== parentEl) continue; // already removed by look-ahead
     const domTag = domChild.tagName.toLowerCase();
-    const lexNode = lexicalNodes[lexIdx];
-    const lexType = lexNode.getType();
-    const lexOrigin = originMap.get(lexNode.getKey());
+    const group = groups[gIdx];
 
-    if (areTypesCompatible(domTag, lexType, lexOrigin, rootTag)) {
-      patchRecognizedElement(domChild, lexNode, doc, rootTag, originMap);
-      lexIdx++;
-    } else {
-      // Type mismatch — check if the next DOM child matches this Lexical node (look-ahead)
-      const nextDomChild = recognizedIdx + 1 < recognizedDomChildren.length ? recognizedDomChildren[recognizedIdx + 1] : null;
-      const nextDomTag = nextDomChild ? nextDomChild.tagName.toLowerCase() : null;
-
-      if (nextDomTag && areTypesCompatible(nextDomTag, lexType, lexOrigin, rootTag)) {
-        // Next DOM child matches — remove current DOM child and let the for-loop advance
-        // to the next DOM child which will match this Lexical node on the next iteration.
-        parentEl.removeChild(domChild);
+    if (group.type === 'dl') {
+      // A definition list. The source may author it bare (<dl>) or, as in
+      // Heretto, wrapped in a non-standard <p><dl>…</dl></p>. In the wrapped
+      // case patch the inner <dl> and leave the <p> wrapper byte-for-byte.
+      const innerDl =
+        domTag === 'dl'
+          ? domChild
+          : domTag === 'p'
+            ? domChild.querySelector(':scope > dl')
+            : null;
+      if (innerDl) {
+        patchDlElement(innerDl, group.nodes, doc, rootTag, originMap);
+        consumed.add(domChild);
       } else {
-        // No look-ahead match — replace this DOM child with the new Lexical element
-        const newEl = createElementFromLexical(lexNode, doc, rootTag, originMap);
-        if (newEl) {
-          parentEl.insertBefore(newEl, domChild);
-        }
+        const newEl = createDlFromLexical(group.nodes, doc, rootTag, originMap);
+        parentEl.insertBefore(newEl, domChild);
         parentEl.removeChild(domChild);
-        lexIdx++;
+      }
+      gIdx++;
+    } else if (group.type === 'section') {
+      if (domTag === 'section') {
+        patchSection(domChild, group.nodes, doc, rootTag, originMap);
+        consumed.add(domChild);
+      } else {
+        const sectionEl = createSectionFromLexical(group.nodes, doc, rootTag, originMap);
+        parentEl.insertBefore(sectionEl, domChild);
+        parentEl.removeChild(domChild);
+      }
+      gIdx++;
+    } else {
+      // Single node group
+      const lexNode = group.nodes[0];
+      const lexType = lexNode.getType();
+      const lexOrigin = originMap.get(lexNode.getKey());
+
+      // Identity-aware deletion detection (M9): when both sides carry ids and
+      // they disagree, but a LATER recognized sibling has the Lexical node's
+      // id, the current DOM element was deleted in Lexical — remove it and
+      // retry this group, instead of patching foreign content into an element
+      // whose id other topics may conref/xref.
+      const lexXmlId = lexOrigin?.xmlId;
+      const domId = domChild.getAttribute('id');
+      if (
+        lexXmlId && domId && domId !== lexXmlId &&
+        recognizedDomChildren.some(
+          (c, j) => j > domIdx && c.parentNode === parentEl && c.getAttribute('id') === lexXmlId
+        )
+      ) {
+        parentEl.removeChild(domChild);
+        continue; // group retries against a later DOM child
+      }
+
+      if (domTag !== 'section' && areTypesCompatible(domTag, lexType, lexOrigin, rootTag)) {
+        patchRecognizedElement(domChild, lexNode, doc, rootTag, originMap);
+        consumed.add(domChild);
+        gIdx++;
+      } else {
+        // Mismatch — look ahead: does the NEXT recognized DOM child match this
+        // node? If so the current element was deleted in Lexical; remove it and
+        // retry this group against the next DOM child.
+        const nextDomChild = domIdx + 1 < recognizedDomChildren.length ? recognizedDomChildren[domIdx + 1] : null;
+        const nextDomTag = nextDomChild ? nextDomChild.tagName.toLowerCase() : null;
+        const nextMatches =
+          nextDomTag !== null &&
+          nextDomTag !== 'section' &&
+          areTypesCompatible(nextDomTag, lexType, lexOrigin, rootTag);
+
+        if (nextMatches) {
+          parentEl.removeChild(domChild);
+          // do not advance gIdx — the group retries against nextDomChild
+        } else {
+          const newEl = createElementFromLexical(lexNode, doc, rootTag, originMap);
+          if (newEl) {
+            parentEl.insertBefore(newEl, domChild);
+            parentEl.removeChild(domChild);
+          } else {
+            // Non-recreatable node contract (ADR-006/S1): the Lexical node has
+            // no serializable form of its own — the DOM element it was parsed
+            // from is its representation. Preserve it; never delete.
+            consumed.add(domChild);
+          }
+          gIdx++;
+        }
       }
     }
   }
 
-  // Remove unmatched recognized DOM children
-  for (let i = recognizedIdx; i < recognizedDomChildren.length; i++) {
-    parentEl.removeChild(recognizedDomChildren[i]);
+  // Remove recognized DOM children not consumed by the walk (deletions, or a
+  // stale master with more elements than Lexical — e.g. PUT replacing 3
+  // paragraphs with 1 note must not leave the 2 old paragraphs behind).
+  for (const child of recognizedDomChildren) {
+    if (!consumed.has(child) && child.parentNode === parentEl) {
+      parentEl.removeChild(child);
+    }
   }
 
-  // Append remaining Lexical nodes as new DOM elements
-  for (let i = lexIdx; i < lexicalNodes.length; i++) {
-    const newEl = createElementFromLexical(lexicalNodes[i], doc, rootTag, originMap);
-    if (newEl) {
-      parentEl.appendChild(newEl);
+  // Append remaining Lexical groups as new DOM elements
+  for (let i = gIdx; i < groups.length; i++) {
+    const group = groups[i];
+    if (group.type === 'section') {
+      parentEl.appendChild(createSectionFromLexical(group.nodes, doc, rootTag, originMap));
+    } else if (group.type === 'dl') {
+      parentEl.appendChild(createDlFromLexical(group.nodes, doc, rootTag, originMap));
+    } else {
+      const newEl = createElementFromLexical(group.nodes[0], doc, rootTag, originMap);
+      if (newEl) parentEl.appendChild(newEl);
     }
   }
 };
@@ -886,6 +989,10 @@ const areTypesCompatible = (
   if (domTag === 'p' && lexType === 'paragraph' && !taskBodyTags.includes(lexOrigin?.tag ?? '')) return true;
   if (taskBodyTags.includes(domTag) && lexType === 'paragraph' && lexOrigin?.tag === domTag) return true;
   if (domTag === 'note' && lexType === 'quote') return true;
+  // A ref-carrying <note conkeyref/keyref/conref> parses to a DitaPhRefNode.
+  // The pairing is "compatible" so the walk consumes both together — the DOM
+  // element is preserved as-is (non-recreatable node contract, ADR-006/S1).
+  if (domTag === 'note' && lexType === 'ditaphref') return true;
   if (domTag === 'steps' && lexType === 'list') return true;
   if (domTag === 'ol' && lexType === 'list') return true;
   if (domTag === 'ul' && lexType === 'list') return true;
@@ -905,6 +1012,9 @@ const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document,
   if (tag === 'p' || tag === 'prereq' || tag === 'context' || tag === 'result' || tag === 'postreq') {
     patchElementContent(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'note') {
+    // Ref-carrying note ↔ DitaPhRefNode: the ref IS the content — the DOM
+    // element stays byte-stable, never patched from the chip's display text.
+    if (lexicalNode.getType() === 'ditaphref') return;
     patchElementContent(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'steps' || tag === 'ol' || tag === 'ul') {
     patchListElement(domEl, lexicalNode, doc, originMap);
@@ -1013,134 +1123,10 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
       }
     }
 
-    // 3. Patch body element
+    // 3. Patch body element — delegated entirely to THE body walk (ADR-006).
     const bodyEl = rootEl.querySelector(bodyTag);
     if (bodyEl && bodyNodes.length > 0) {
-      // Group body nodes: sections are an h2 followed by nodes until next h2;
-      // definition lists are a run of dt/dd nodes carrying dlEntryIndex.
-      const groupedNodes = groupBodyNodesForSections(bodyNodes, originMap);
-
-      const domChildren = Array.from(bodyEl.children);
-
-      // Walk DOM children and grouped Lexical nodes in parallel
-      let lexGroupIdx = 0;
-      const recognizedDomSections: { el: Element; idx: number }[] = [];
-      const recognizedDomOther: { el: Element; idx: number }[] = [];
-
-      domChildren.forEach((child, idx) => {
-        const tag = child.tagName.toLowerCase();
-        if (tag === 'section') {
-          recognizedDomSections.push({ el: child, idx });
-        } else if (RECOGNIZED_BODY_TAGS.has(tag)) {
-          recognizedDomOther.push({ el: child, idx });
-        }
-        // Unrecognized children: left untouched
-      });
-
-      // Track which recognized DOM children were consumed by the walk
-      const consumedDomChildren = new Set<Element>();
-
-      // Process in document order: walk all DOM children
-      for (const child of domChildren) {
-        if (lexGroupIdx >= groupedNodes.length) break;
-        const tag = child.tagName.toLowerCase();
-
-        if (!RECOGNIZED_BODY_TAGS.has(tag)) {
-          continue; // skip unrecognized — preserved automatically
-        }
-
-        const group = groupedNodes[lexGroupIdx];
-
-        if (group.type === 'dl') {
-          // A definition list. The source may author it bare (<dl>) or, as in
-          // Heretto, wrapped in a non-standard <p><dl>…</dl></p>. In the wrapped
-          // case patch the inner <dl> and leave the <p> wrapper byte-for-byte.
-          const innerDl =
-            tag === 'dl'
-              ? child
-              : tag === 'p'
-                ? child.querySelector(':scope > dl')
-                : null;
-          if (innerDl) {
-            patchDlElement(innerDl, group.nodes, clonedDoc, rootTag, originMap);
-            consumedDomChildren.add(child); // preserve the wrapper (or the dl itself)
-            lexGroupIdx++;
-          } else {
-            // Mismatch — DOM child is some other element but Lexical expects a dl.
-            const newEl = createDlFromLexical(group.nodes, clonedDoc, rootTag, originMap);
-            bodyEl.insertBefore(newEl, child);
-            bodyEl.removeChild(child);
-            lexGroupIdx++;
-          }
-        } else if (tag === 'section' && group.type === 'section') {
-          patchSection(child, group.nodes, clonedDoc, rootTag, originMap);
-          consumedDomChildren.add(child);
-          lexGroupIdx++;
-        } else if (tag !== 'section' && group.type === 'single') {
-          const lexNode = group.nodes[0];
-          const lexType = lexNode.getType();
-          const lexOrigin = originMap.get(lexNode.getKey());
-
-          if (areTypesCompatible(tag, lexType, lexOrigin, rootTag)) {
-            patchRecognizedElement(child, lexNode, clonedDoc, rootTag, originMap);
-            consumedDomChildren.add(child);
-            lexGroupIdx++;
-          } else {
-            // Type mismatch — insert new element, remove old
-            const newEl = createElementFromLexical(lexNode, clonedDoc, rootTag, originMap);
-            if (newEl) {
-              bodyEl.insertBefore(newEl, child);
-            }
-            bodyEl.removeChild(child);
-            // child was removed, so it does not need to go into consumedDomChildren
-            lexGroupIdx++;
-          }
-        } else if (tag === 'section' && group.type === 'single') {
-          // DOM has a section but Lexical has a non-section node
-          // The section might have been deleted — remove it and insert the new node
-          const newEl = createElementFromLexical(group.nodes[0], clonedDoc, rootTag, originMap);
-          if (newEl) {
-            bodyEl.insertBefore(newEl, child);
-          }
-          bodyEl.removeChild(child);
-          lexGroupIdx++;
-        } else if (tag !== 'section' && group.type === 'section') {
-          // DOM has a non-section element but Lexical has a section group
-          // Remove old element, create section
-          const sectionEl = createSectionFromLexical(group.nodes, clonedDoc, rootTag, originMap);
-          bodyEl.insertBefore(sectionEl, child);
-          bodyEl.removeChild(child);
-          lexGroupIdx++;
-        }
-      }
-
-      // Remove any recognized DOM children not consumed by the walk above.
-      // This handles the case where Lexical has fewer nodes than the master XML —
-      // e.g. after a PUT that replaces 3 paragraphs with 1 note: without this, the
-      // 2 unmatched <p> elements would remain in the output alongside the new note.
-      for (const child of domChildren) {
-        if (!RECOGNIZED_BODY_TAGS.has(child.tagName.toLowerCase())) continue;
-        if (!consumedDomChildren.has(child) && child.parentNode === bodyEl) {
-          bodyEl.removeChild(child);
-        }
-      }
-
-      // The loop above handles replacements inline, so remaining
-      // Lexical groups just need to be appended.
-
-      for (let i = lexGroupIdx; i < groupedNodes.length; i++) {
-        const group = groupedNodes[i];
-        if (group.type === 'section') {
-          const sectionEl = createSectionFromLexical(group.nodes, clonedDoc, rootTag, originMap);
-          bodyEl.appendChild(sectionEl);
-        } else if (group.type === 'dl') {
-          const dlEl = createDlFromLexical(group.nodes, clonedDoc, rootTag, originMap);
-          bodyEl.appendChild(dlEl);
-        } else {
-          const newEl = createElementFromLexical(group.nodes[0], clonedDoc, rootTag, originMap);
-          if (newEl) bodyEl.appendChild(newEl);
-        }
-      }
+      patchBodyChildren(Array.from(bodyEl.children), bodyEl, bodyNodes, clonedDoc, rootTag, originMap);
     } else if (!bodyEl && bodyNodes.length > 0) {
       // No body element exists — create one
       const newBody = clonedDoc.createElement(bodyTag);
@@ -1176,7 +1162,7 @@ interface NodeGroup {
   nodes: any[];
 }
 
-const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapType): NodeGroup[] => {
+const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapType, groupDl: boolean = true): NodeGroup[] => {
   const groups: NodeGroup[] = [];
   let i = 0;
 
@@ -1187,7 +1173,9 @@ const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapTy
     // Definition-list group: a run of nodes carrying dlEntryIndex (one <dt>
     // paragraph + the <dd>'s block children, repeated per <dlentry>). A fresh
     // entry-0 <dt> signals the start of the *next* <dl>, so it bounds the run.
-    if (origin?.dlEntryIndex !== undefined) {
+    // Disabled inside <dd> patching (groupDl=false), where every node carries
+    // dlEntryIndex by construction and must be treated as singles.
+    if (groupDl && origin?.dlEntryIndex !== undefined) {
       const dlNodes: any[] = [node];
       i++;
       while (i < bodyNodes.length) {

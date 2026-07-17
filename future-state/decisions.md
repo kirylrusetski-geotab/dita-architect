@@ -125,3 +125,42 @@ mapping table in CLAUDE.md is preserved for historical reference only.
 
 **Alternatives considered** — Adopting beads (rejected: overhead exceeds value at single-maintainer
 scale).
+
+---
+
+## ADR-006 — One body walk: patchBodyChildren subsumes the top-level serializer walk
+
+**Date:** 2026-07-17 · **Status:** Accepted (implemented with BUG-04 Session 4A)
+
+**Context** — `serializeLexicalToXml` had two parallel walk implementations doing the same job with
+different capabilities: the inline top-level body walk knew about dl-runs and sections but had no
+look-ahead; `patchBodyChildren` (used for sections and `<dd>` content) had look-ahead but no dl or
+section awareness. Every capability gap was a live content-loss bug: a `<dl>` inside a `<section>`
+was destroyed to bare `<p>`s (S4), a deleted paragraph at body level shifted identity onto the wrong
+`id` (M9), and the mismatch paths deleted DOM elements whose Lexical counterparts cannot be
+recreated — `<note conkeyref>` parsed to a `DitaPhRefNode` was simply removed from the output (S1).
+The 2026-07-17 review identified this divergence (D1) as the root cause of BUG-04 and "the likely
+site of the next three bugs."
+
+**Decision** — There is exactly **one** walk: `patchBodyChildren`. It groups its Lexical nodes via
+`groupBodyNodesForSections` (dl-runs, section groups, singles), handles the Heretto `<p><dl>`
+wrapper, keeps look-ahead for deletions, and enforces a **non-recreatable node contract**: when
+`createElementFromLexical` returns `null` for a Lexical node, the corresponding DOM element is
+preserved in place, never removed (`note`↔`ditaphref` is an explicit preserve-as-is pairing). The
+top-level serializer delegates its body patching to this walk. Callers that must not re-group
+dl-flattened nodes (the `<dd>` walk inside `patchDlElement`, whose nodes all carry `dlEntryIndex`)
+pass `{ groupDl: false }`. Additionally, `patchElementContent` detects "untouched" for elements
+with block children using whitespace-collapsed text equality plus a **recursive** xref count —
+because the parser's flatten-with-trim is whitespace-lossy by design, exact equality was a false
+mismatch trigger that destroyed unedited notes (S3, including the real-topic `<dd>` variant).
+
+**Consequences** — Byte-stability for unedited round-trips is enforceable (the FR-047 corpus is the
+gate); dl/section/look-ahead behavior is identical at body level, in sections, and in `<dd>`.
+Whitespace-only edits inside block-children notes are treated as no-ops (accepted trade). Any new
+grouping concept (e.g. a future block type) is added in ONE place. The formatting-blindness of the
+text-diff patch (S2) is *not* addressed here — that is 4B/FR-046 scope.
+
+**Alternatives considered** — Patching S1/S3/S4 individually inside the existing two walks
+(rejected: exactly the point-fix pattern that produced this bug class); rebuilding serialization
+from scratch without the patch-against-master design (rejected: destroys the Heretto-attribute
+preservation that patching exists to provide).

@@ -42,27 +42,27 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
     expectByteStable('tables.dita');
   });
 
-  // BUG-04/S3 (in-dd variant): the <note> inside <dd> is force-rewritten —
-  // <p class="- topic/p "> wrappers dropped, <uicontrol> attributes stripped.
-  it.fails('journey-definition.dita — real Heretto topic (p-wrapped dl, conkeyrefs, table, note) [BUG-04/S3]', () => {
+  // Fixed in Session 4A (ADR-006): whitespace-insensitive untouched-detection
+  // for flattened block-children elements preserves the in-dd note.
+  it('journey-definition.dita — real Heretto topic (p-wrapped dl, conkeyrefs, table, note) [BUG-04/S3]', () => {
     expectByteStable('journey-definition.dita');
   });
 
-  // BUG-04/S1: the ref-carrying note is DELETED — the serializer's mismatch
-  // path removes the DOM node and cannot recreate a ditaphref.
-  it.fails('ref-note.dita — body-level <note conkeyref/> [BUG-04/S1]', () => {
+  // Fixed in Session 4A (ADR-006): non-recreatable node contract — the
+  // note↔ditaphref pairing preserves the DOM element byte-stable.
+  it('ref-note.dita — body-level <note conkeyref/> [BUG-04/S1]', () => {
     expectByteStable('ref-note.dita');
   });
 
-  // BUG-04/S3: xref-count mismatch (direct children only) forces a rewrite —
-  // <p> wrapper dropped, format="dita" rewritten to format="html".
-  it.fails('xref-in-note.dita — <note><p>…<xref format="dita"/></p></note> [BUG-04/S3]', () => {
+  // Fixed in Session 4A (ADR-006): recursive xref counting removes the false
+  // mismatch that forced the rewrite.
+  it('xref-in-note.dita — <note><p>…<xref format="dita"/></p></note> [BUG-04/S3]', () => {
     expectByteStable('xref-in-note.dita');
   });
 
-  // BUG-04/S4: patchBodyChildren has no dl grouping — the <dl> skeleton is
-  // destroyed into bare <p> elements.
-  it.fails('section-dl.dita — <dl> nested inside <section> [BUG-04/S4]', () => {
+  // Fixed in Session 4A (ADR-006): the unified walk carries dl grouping into
+  // sections.
+  it('section-dl.dita — <dl> nested inside <section> [BUG-04/S4]', () => {
     expectByteStable('section-dl.dita');
   });
 

@@ -1502,3 +1502,38 @@ describe('P2-26 Phase 2: info preview round-trip', () => {
     expect(output).not.toContain('xmlns="http://www.w3.org/1999/xhtml"');
   });
 });
+
+// ─── describe: Session 4A (ADR-006) — unified body walk ──────────────────────
+
+describe('Session 4A (ADR-006): unified body walk', () => {
+  it('M9: deleting the first paragraph keeps the survivor\'s id (identity-aware walk)', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m9-fixture">
+  <title>Identity survives deletion</title>
+  <conbody>
+    <p id="intro">Introductory paragraph.</p>
+    <p id="detail">Detailed paragraph other topics conref.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const target = root
+        .getChildren()
+        .find((n: any) => n.getTextContent() === 'Introductory paragraph.');
+      target!.remove();
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+
+    // The surviving paragraph must keep ITS OWN id — not inherit "intro".
+    expect(output).toContain('<p id="detail">Detailed paragraph other topics conref.</p>');
+    expect(output).not.toContain('id="intro"');
+  });
+});

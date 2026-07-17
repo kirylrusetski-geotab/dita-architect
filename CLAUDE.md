@@ -199,7 +199,7 @@ Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backl
 |---|---|
 | 🔴 **Blocking now** (corrupts data — fix immediately) | **BUG-03** native API server binds all interfaces, no auth, wildcard CORS + `dita://` path traversal + plaintext credentials GET (Sonnet — ship as v0.8.5) |
 | 🟡 **Sweep-ready** (batch into next sweep) | **BUG-06–BUG-18** — 13 items from the 2026-07-17 codebase review; threshold exceeded, **sweep warranted** (BUG-17 save-success lie first) |
-| 🔵 **Larger** (own session) | **BUG-02** Edit Mode architecturally broken (Fable via FR-045/FR-046 — see `bugreports/BUG-edit-mode-architecture.md`); **BUG-04** serializer content-loss cluster S1–S6, two sessions + ADR, FR-047 first (Fable); **BUG-05** port-3000 tab API structurally dead — ADR-005 decision (Opus analysis) |
+| 🔵 **Larger** (own session) | **BUG-02** Edit Mode architecturally broken (Fable via FR-045/FR-046 — see `bugreports/BUG-edit-mode-architecture.md`); **BUG-04** serializer content-loss cluster — Session 4A shipped 2026-07-17 (ADR-006, S1/S3/S4/M9 fixed); Session 4B remains: S2 (Fable) + S6/mediums (Sonnet); **BUG-05** port-3000 tab API structurally dead — ADR-007 decision (Opus analysis) |
 
 ### Features (sequenced by dependency)
 
