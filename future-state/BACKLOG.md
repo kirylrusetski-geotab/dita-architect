@@ -37,7 +37,7 @@ The subsection a bug sits in **is** its schedule signal — blocking bugs are fi
 
 ### 🟡 Sweep-ready — small and contained; batch into the next bug sweep
 
-13 items filed 2026-07-17 from the codebase review — well past the ~4–6 sweep threshold: **a sweep session is warranted** (remediation plan Item 8 batches these as v0.8.8; BUG-17 first — it affects AI-caller data integrity).
+12 items remaining (BUG-17 shipped in v0.8.6 — see Completed) — well past the ~4–6 sweep threshold: **a sweep session is warranted** (remediation plan Item 8 batches these as v0.8.8).
 
 | ID | Item | Type | Rationale |
 |----|------|------|-----------|
@@ -52,7 +52,6 @@ The subsection a bug sits in **is** its schedule signal — blocking bugs are fi
 | BUG-14 | No fetch timeouts anywhere in useHerettoCms | Bug | All 15 fetch sites in `hooks/useHerettoCms.ts` lack `AbortSignal.timeout`; a hung connection wedges `herettoSaving`/save-progress indefinitely, and one hung poll silently stops remote-change detection with no error path. **Sonnet.** |
 | BUG-15 | Readability score becomes NaN on the word "constructor" | Bug | `textAnalysis.ts:32` — the syllable-exceptions lookup on a plain object literal hits the Object prototype chain, so "constructor"/"toString"/"valueOf"/"hasOwnProperty" return functions and poison the score to NaN in the status bar. Fix: `Object.create(null)` or `hasOwnProperty.call`. **Haiku.** |
 | BUG-16 | Heretto verification/polling gaps (three related) | Bug | (1) Save verification lacks the class-attribute strip that Replace has (`useHerettoCms.ts:516-523` vs `:725-726`) — every save of an API-loaded tab toasts a false "remote content differs". (2) Remote-change poll and Refresh lack the documented content-type guard (`:160-177`, `:554-566`) — Refresh can overwrite a tab's XML **and** `savedXmlRef` with an HTML error page. (3) `hooks/useExternalLoad.ts:34` — poll loop exits permanently on the first non-OK response while `POST /api/load-content` keeps returning 200; queued content silently lost. Land together with the FR-048 `useHerettoCms` behavioral tests. **Sonnet.** |
-| BUG-17 | Save API reports success on failed Heretto saves; unknown tabId saves the wrong tab | Bug | `hooks/useHerettoCms.ts:536-540` — `handleHerettoSave` catches every error, toasts, and resolves normally, so `POST /api/tabs/:id/save` returns `{success:true}` on HTTP 500/network failure and AI callers (altitude-release-notes flow) discard drafts that never reached the CMS. `:463` — an unknown tabId silently falls back to saving the **active tab** (`?? activeTab`), an unintended CMS write when racing a tab close. Rethrow/return failure; error on unknown id. Do this one first in the sweep. **Sonnet.** |
 | BUG-18 | Hygiene batch | Polish | "Last update: Source Code" mislabel for `lastUpdatedBy === 'api'` (`dita-architect.tsx:725`); dead `lib/dita-utils.ts` (only its own test imports it — a second, lossy DITA serialize surface waiting to be misused; delete or document); `lib/heretto-image-resolver.ts` console noise (20+ logs per resolution) + unbounded `resolvedUrlCache`; 0.4.0 release note claims `POST .../format` and `GET .../stats` endpoints that don't exist (`constants/version.ts:382`) — correct the note or decide to restore them. **Haiku.** |
 
 ---
@@ -135,6 +134,26 @@ Not scheduled. Each carries an explicit unblock condition — revisit only when 
 ---
 
 ## Completed
+
+### Shipped in v0.8.6 (2026-07-17)
+
+Save API truthfulness fix (Item 5.2 of the remediation plan).
+
+| Former ID | Item | Type | Resolution |
+|-----------|------|------|------------|
+| BUG-17 | Save API reports success on failed Heretto saves; unknown tabId saves the wrong tab | Bug | `handleHerettoSave` now rethrows after toasting the error, so the native bridge's `saveTab` catch block fires and returns `{success:false}` to callers. Unknown tabId now throws immediately (before entering the saving state) instead of silently falling back to `activeTab`. `useHerettoCms.ts:463-466, 540-545`. |
+
+---
+
+### Shipped in v0.8.5 (2026-07-17)
+
+Security hardening: loopback bind, path traversal guard, plaintext credential protection (BUG-03, Item 2 of the remediation plan).
+
+| Former ID | Item | Type | Resolution |
+|-----------|------|------|------------|
+| BUG-03 | Native API server network-exposed + credential disclosure | Bug | (1) `HttpServer.swift` — `NWListener` now binds `127.0.0.1` via `requiredLocalEndpoint`; wildcard CORS removed; 10 MB request size cap added. (2) `DITASchemeHandler.swift` — `handleStaticFile` validates resolved path stays inside `dist/` via `standardizedFileURL` + prefix guard. (3) Credentials GET returns `{email, hasCredentials}` only — token never leaves disk. (4) `vite.config.ts` `/heretto-credentials` checks `Host` header; dev server GET also returns `{email, hasCredentials}`. (5) `Info.plist` `CFBundleShortVersionString` synced to `0.8.4`. |
+
+---
 
 ### Shipped in v0.8.4 (2026-06-11)
 

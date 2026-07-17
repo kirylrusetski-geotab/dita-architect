@@ -21,6 +21,20 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.6',
+    date: '2026-07-17',
+    title: 'Save API now correctly reports failure when a Heretto save fails.',
+    sections: [
+      {
+        heading: 'Fixes',
+        items: [
+          'POST /api/tabs/:id/save no longer returns {success:true} when the Heretto PUT fails (HTTP 500, network error, etc.). The error is now propagated to callers so the altitude-release-notes workflow and other API consumers can detect and handle save failures correctly.',
+          'Passing an unknown tab ID to the save API now returns an explicit error instead of silently saving the wrong (active) tab.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.5',
     date: '2026-07-17',
     title: 'Security hardening: loopback-only bind, path traversal guard, plaintext credential protection.',

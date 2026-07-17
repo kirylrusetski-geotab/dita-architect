@@ -461,7 +461,10 @@ export function useHerettoCms({
   }, [importVerification, setTabs, setActiveTabId]);
 
   const handleHerettoSave = useCallback(async (tabId?: string) => {
-    const tab = tabId ? (tabs.find(t => t.id === tabId) ?? activeTab) : activeTab;
+    if (tabId && !tabs.find(t => t.id === tabId)) {
+      throw new Error(`Tab "${tabId}" not found`);
+    }
+    const tab = tabId ? tabs.find(t => t.id === tabId)! : activeTab;
     if (!tab.herettoFile) {
       openHerettoBrowser('save');
       return;
@@ -539,6 +542,7 @@ export function useHerettoCms({
       const message = err instanceof Error ? err.message : String(err);
       toast.error(`Failed to save to Heretto: ${message}`);
       setHerettoSaveProgress('idle');
+      throw err;
     } finally {
       if (!abort.signal.aborted) setHerettoSaving(false);
     }
