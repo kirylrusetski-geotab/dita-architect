@@ -1744,6 +1744,266 @@ describe('Session 4B (S6): table row add/delete reaches the XML', () => {
   });
 });
 
+// ─── describe: Session 4B (S2): formatting-only edits reach the XML ───────────
+//
+// BUG-04/S2: patchElementContent compared text + link count only, so a
+// bold/italic/code toggle (text unchanged) was treated as "untouched" and the
+// formatting never reached the XML. Fixed by a format-run signature comparison
+// restricted to the provably-safe inline subset (text, attribute-less b/i/codeph
+// with text-only content). Elements containing xref/ph/uicontrol/nested inline
+// tags bail to the old behavior — preserved byte-stable, formatting edits there
+// still dropped (residual, annotated on FR-046).
+
+describe('Session 4B (S2): formatting-only edits reach the XML', () => {
+  function editParagraphByText(editor: any, matchText: string, buildChildren: () => any[]) {
+    editor.update(() => {
+      const root = $getRoot();
+      for (const child of root.getChildren()) {
+        if (child.getTextContent() === matchText) {
+          (child as any).clear();
+          buildChildren().forEach(n => (child as any).append(n));
+          break;
+        }
+      }
+    }, { discrete: true });
+  }
+
+  it('bold toggle on a plain paragraph produces <b> in the XML', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-bold">
+  <title>Bold Toggle</title>
+  <conbody>
+    <p>Make this word bold now.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editParagraphByText(editor, 'Make this word bold now.', () => {
+      const bold = $createTextNode('word');
+      bold.toggleFormat('bold');
+      return [$createTextNode('Make this '), bold, $createTextNode(' bold now.')];
+    });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(getBodyContent(output)).toContain('<p>Make this <b>word</b> bold now.</p>');
+  });
+
+  it('removing bold produces plain text in the XML', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-unbold">
+  <title>Unbold</title>
+  <conbody>
+    <p>Some <b>emphasis</b> here.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editParagraphByText(editor, 'Some emphasis here.', () => [
+      $createTextNode('Some emphasis here.'),
+    ]);
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+    expect(body).toContain('<p>Some emphasis here.</p>');
+    expect(body).not.toMatch(/<b[ >]/);
+  });
+
+  it('italic toggle inside a task <cmd> produces <i>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
+<task id="s2-cmd-italic">
+  <title>Cmd Italic</title>
+  <taskbody>
+    <steps>
+      <step><cmd>Click the save button.</cmd></step>
+    </steps>
+  </taskbody>
+</task>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const list = root.getChildren().find((n: any) => n.getType() === 'list') as any;
+      const li = list.getChildren()[0];
+      li.clear();
+      const ital = $createTextNode('save');
+      ital.toggleFormat('italic');
+      li.append($createTextNode('Click the '), ital, $createTextNode(' button.'));
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('<cmd>Click the <i>save</i> button.</cmd>');
+  });
+
+  it('code toggle produces <codeph>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-codeph">
+  <title>Code Toggle</title>
+  <conbody>
+    <p>Run npm install to set up.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editParagraphByText(editor, 'Run npm install to set up.', () => {
+      const code = $createTextNode('npm install');
+      code.toggleFormat('code');
+      return [$createTextNode('Run '), code, $createTextNode(' to set up.')];
+    });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(getBodyContent(output)).toContain('<p>Run <codeph>npm install</codeph> to set up.</p>');
+  });
+
+  it('bold toggle inside a simple <note> preserves the type attribute and adds <b>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-note-bold">
+  <title>Note Bold</title>
+  <conbody>
+    <note type="tip">Remember this word.</note>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const quote = root.getChildren().find((n: any) => n.getType() === 'quote') as any;
+      quote.clear();
+      const bold = $createTextNode('this');
+      bold.toggleFormat('bold');
+      quote.append($createTextNode('Remember '), bold, $createTextNode(' word.'));
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+    expect(body).toContain('<note type="tip">Remember <b>this</b> word.</note>');
+  });
+
+  it('table entry with direct text: bold toggle reaches the <entry>', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-entry-bold">
+  <title>Entry Bold</title>
+  <conbody>
+    <table>
+      <tgroup cols="1">
+        <colspec colname="col1" colwidth="1*"/>
+        <tbody>
+          <row>
+            <entry>plain cell</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const tableNode = root.getChildren().find((n: any) => n.getType() === 'table') as any;
+      const cell = tableNode.getChildren()[0].getChildren()[0];
+      const para = cell.getChildren()[0];
+      para.clear();
+      const bold = $createTextNode('plain');
+      bold.toggleFormat('bold');
+      para.append(bold, $createTextNode(' cell'));
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(getBodyContent(output)).toContain('<entry><b>plain</b> cell</entry>');
+  });
+
+  it('SAFETY: paragraph containing <ph conkeyref> bails — ref preserved, formatting edit dropped', () => {
+    // Residual limitation (annotated on FR-046): elements whose inline content
+    // includes non-recreatable pieces (ph/xref/uicontrol/...) are never
+    // force-replaced on a formatting-only edit, because the rewrite would lose
+    // the ref/attributes. Preservation wins over honoring the toggle.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-ph-bail">
+  <title>Ph Bail</title>
+  <conbody>
+    <p>See <ph conkeyref="vars/Product"/> and more text.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      for (const child of root.getChildren()) {
+        if (child.getType() !== 'paragraph') continue;
+        const kids = (child as any).getChildren();
+        const last = kids[kids.length - 1];
+        if (last?.getType() === 'text' && last.getTextContent() === ' and more text.') {
+          last.remove();
+          const bold = $createTextNode('more');
+          bold.toggleFormat('bold');
+          (child as any).append($createTextNode(' and '), bold, $createTextNode(' text.'));
+          break;
+        }
+      }
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    const body = getBodyContent(output);
+    // The ref must survive — never sacrificed to a formatting toggle
+    expect(body).toContain('conkeyref="vars/Product"');
+    expect(body).not.toMatch(/<b[ >]/);
+  });
+
+  it('SAFETY: unedited nested <b><i> and inline DITA elements stay byte-identical', () => {
+    // The parser flattens <b><i>x</i></b> to bold-only; a naive format
+    // comparison would see a mismatch and rewrite. The signature builder must
+    // bail on nested inline tags so unedited content is never touched.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="s2-nested-safe">
+  <title>Nested Safe</title>
+  <conbody>
+    <p>Text with <b><i>both styles</i></b> and <uicontrol>OK</uicontrol> together.</p>
+  </conbody>
+</concept>`;
+
+    const output = roundTrip(xml);
+    const body = getBodyContent(output);
+    expect(body).toContain('<b><i>both styles</i></b>');
+    expect(body).toContain('<uicontrol>OK</uicontrol>');
+  });
+});
+
 // ─── describe: Session 4A (ADR-006) — unified body walk ──────────────────────
 
 describe('Session 4A (ADR-006): unified body walk', () => {

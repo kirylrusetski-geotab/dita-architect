@@ -323,6 +323,137 @@ const patchInlineNodes = (domEl: Element, lexicalNode: any): boolean => {
   return true;
 };
 
+// ─── S2 (Session 4B): formatting-only edit detection ──────────────────────────
+//
+// A bold/italic/code toggle leaves the text identical, so the text+link-count
+// comparison below reports "untouched" and the edit never reaches the XML.
+// These helpers compare format-run signatures between the DOM element and the
+// Lexical node — but ONLY over a provably-safe inline subset, because the
+// failure asymmetry is stark: a missed toggle is an annoyance (today's bug); a
+// spurious rewrite silently corrupts refs/attributes the serializer cannot
+// recreate. Anything outside the subset bails to "no change detected":
+//   - xref / ph / term / image / uicontrol / wintitle (refs, attrs, inlineTag
+//     stamps — rewriting these is FR-046 marks-as-data territory),
+//   - nested inline tags like <b><i>… (the parser flattens them to the OUTER
+//     tag's format only, so flags can't faithfully express them),
+//   - b/i/codeph carrying attributes, PIs, comments.
+// Final guard: the two sides' concatenated run text must agree byte-for-byte;
+// any divergence means the DOM mirror below drifted from the parser — bail
+// rather than risk a rewrite built on a wrong model.
+
+const FMT_BOLD = 1;
+const FMT_ITALIC = 2;
+const FMT_CODE = 4;
+
+interface InlineRun { text: string; fmt: number }
+
+const SAFE_INLINE_FMT: Record<string, number> = {
+  b: FMT_BOLD,
+  i: FMT_ITALIC,
+  codeph: FMT_CODE,
+};
+
+/**
+ * Build format runs from a DOM element's inline content, mirroring exactly what
+ * parseTextNodes would produce in Lexical: newline-collapse on text nodes (raw
+ * textContent for inline elements), then edge-trim of the first/last run —
+ * including the parser's quirk of dropping the format flag when an edge trim
+ * rewrites the node. Returns null (bail) on anything outside the safe subset.
+ */
+const buildDomInlineRuns = (domEl: Element): InlineRun[] | null => {
+  const runs: InlineRun[] = [];
+  for (const child of Array.from(domEl.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      let text = child.textContent || '';
+      if (!text) continue;
+      text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
+      if (text) runs.push({ text, fmt: 0 });
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const el = child as Element;
+      const fmt = SAFE_INLINE_FMT[el.tagName.toLowerCase()];
+      if (fmt === undefined) return null;
+      if (el.attributes.length > 0) return null;
+      if (Array.from(el.childNodes).some(c => c.nodeType !== Node.TEXT_NODE)) return null;
+      runs.push({ text: el.textContent || '', fmt });
+    } else {
+      return null; // PI, comment, CDATA — outside the modeled subset
+    }
+  }
+  if (runs.length > 0) {
+    const first = runs[0];
+    const trimmed = first.text.replace(/^\s+/, '');
+    if (!trimmed) runs.shift();
+    else if (trimmed !== first.text) { first.text = trimmed; first.fmt = 0; }
+  }
+  if (runs.length > 0) {
+    const last = runs[runs.length - 1];
+    const trimmed = last.text.replace(/\s+$/, '');
+    if (!trimmed) runs.pop();
+    else if (trimmed !== last.text) { last.text = trimmed; last.fmt = 0; }
+  }
+  return runs;
+};
+
+/**
+ * Build format runs from a Lexical node's inline children. Bails (null) on any
+ * non-text child or inlineTag-stamped text (uicontrol/wintitle). Only the three
+ * serializable flags are read — underline etc. can't be expressed in this DITA
+ * mapping, so toggling them must not trigger a rewrite.
+ */
+const buildLexicalInlineRuns = (lexicalNode: any, originMap?: NodeOriginMapType): InlineRun[] | null => {
+  if (!lexicalNode.getChildren) return null;
+  const runs: InlineRun[] = [];
+  for (const child of lexicalNode.getChildren()) {
+    const type = child.getType();
+    if (type === 'dita-info-preview') continue; // visual-only, never serialized
+    if (type !== 'text') return null;
+    if (originMap?.get(child.getKey())?.inlineTag) return null;
+    let fmt = 0;
+    if (child.hasFormat('bold')) fmt |= FMT_BOLD;
+    if (child.hasFormat('italic')) fmt |= FMT_ITALIC;
+    if (child.hasFormat('code')) fmt |= FMT_CODE;
+    runs.push({ text: child.getTextContent(), fmt });
+  }
+  return runs;
+};
+
+/** Merge adjacent same-format runs so Lexical's text-node normalization
+ *  (which merges adjacent identical-format nodes) can't fake a difference. */
+const mergeRuns = (runs: InlineRun[]): InlineRun[] => {
+  const out: InlineRun[] = [];
+  for (const r of runs) {
+    if (!r.text) continue;
+    const prev = out[out.length - 1];
+    if (prev && prev.fmt === r.fmt) prev.text += r.text;
+    else out.push({ ...r });
+  }
+  return out;
+};
+
+/**
+ * True ONLY when confident the inline formatting differs between the DOM
+ * element and the Lexical node. Every uncertainty path returns false, keeping
+ * the element untouched (preservation beats honoring a toggle we can't model).
+ */
+const hasFormattingChange = (domEl: Element, lexicalNode: any, originMap?: NodeOriginMapType): boolean => {
+  const domRuns = buildDomInlineRuns(domEl);
+  if (!domRuns) return false;
+  const lexRuns = buildLexicalInlineRuns(lexicalNode, originMap);
+  if (!lexRuns) return false;
+
+  const d = mergeRuns(domRuns);
+  const l = mergeRuns(lexRuns);
+
+  if (d.map(r => r.text).join('') !== l.map(r => r.text).join('')) {
+    return false; // mirror diverged from the parser — do not risk a rewrite
+  }
+  if (d.length !== l.length) return true;
+  for (let i = 0; i < d.length; i++) {
+    if (d[i].text !== l[i].text || d[i].fmt !== l[i].fmt) return true;
+  }
+  return false;
+};
+
 /**
  * Compare text content and update only if changed. Returns true if element was left untouched.
  * Uses PI-aware text extraction so review markers don't cause false mismatches.
@@ -348,6 +479,12 @@ const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document, or
 
   if (domText === lexText) {
     if (lexLinkCount === domXrefCount) {
+      // S2: identical text can still hide a bold/italic/code toggle — compare
+      // format-run signatures (safe subset only; bails to "untouched").
+      if (hasFormattingChange(domEl, lexicalNode, originMap)) {
+        replaceElementContent(domEl, lexicalNode, doc, originMap);
+        return false;
+      }
       return true; // untouched — all inline markup preserved
     }
     // Link structure changed — force full replacement
@@ -808,10 +945,17 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, ori
       }
     }
   } else {
-    // Entry with direct text content — compare and patch as a unit
+    // Entry with direct text content — compare and patch as a unit.
+    // S2: equal text can still hide a formatting toggle in the cell's single
+    // paragraph — same signature check as patchElementContent.
     const domText = domEntry.textContent || '';
     const lexText = lexicalCell.getTextContent();
-    if (domText !== lexText) {
+    const formattingChanged =
+      domText === lexText &&
+      cellChildren.length === 1 &&
+      cellChildren[0].getType() === 'paragraph' &&
+      hasFormattingChange(domEntry, cellChildren[0], originMap);
+    if (domText !== lexText || formattingChanged) {
       while (domEntry.firstChild) domEntry.removeChild(domEntry.firstChild);
       if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
         serializeInlineContent(cellChildren[0], doc, originMap).forEach(n => domEntry.appendChild(n));

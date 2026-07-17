@@ -1992,6 +1992,16 @@ Record each change as **durable, identity-bearing data in the document model at 
 
 FR-045 (Monaco-diff API review) ships first and stands alone. Once FR-046 lands, an API insertion can *additionally* be shown as green tracked-insert marks in Lexical using the same model — unifying the two surfaces — while the Monaco XML diff remains available as the precise view.
 
+### Inherited scope from BUG-04/S2 (Session 4B scope check, 2026-07-17)
+
+Session 4B.2 fixed S2 (formatting-only edits discarded) **within** patch-against-master via a format-run signature comparison in `serializeLexicalToXml.ts` (`hasFormattingChange`), deliberately restricted to a provably-safe inline subset: plain text plus attribute-less `<b>`/`<i>`/`<codeph>` with text-only content. Everything outside that subset bails to preserve-untouched, because rewriting it from format flags would lose data. **The residual cases below are this FR's problem — they need inline marks carried as data (an inline analog of `originMap.inlineTag`, with attributes), not a better comparison:**
+
+- Formatting toggles in elements containing `<xref>` (LinkNode serialization hardcodes `format="html"`), refless `<ph>`/`<term>` (parse to transparent plain text — a rewrite drops the wrapper), `<uicontrol>`/`<wintitle>` (attributes not carried — the M3 `inlineAttrs` dead field), inline `<image>`, or Heretto review PIs.
+- Nested inline tags (`<b><i>…</i></b>`): the parser flattens to the outer tag's format only, so flags cannot faithfully express them; they are preserved byte-stable but formatting edits alongside them are dropped.
+- Table entries with pretty-printed (edge-whitespace) direct text: `parseCellContent`'s whitespace rules diverge from `parseTextNodes`, so the signature's concat guard bails.
+
+In all residual cases the failure mode is the *old* one (toggle silently dropped, element preserved) — never corruption. When FR-046's marks model lands, `hasFormattingChange` and its helpers can be retired in favor of serializing marks directly.
+
 ### Value proposition
 
 This is the durable fix for the whole class of Edit Mode failures. It turns tracked changes from disposable pixels into real, attributed, reviewable document data — enabling per-change decisions, a change list, and (with a round-trip carrier) changes that survive save and reload. It is the difference between an editor that *looks* like it supports review and one that actually does.
