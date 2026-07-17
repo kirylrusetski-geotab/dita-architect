@@ -21,6 +21,28 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.5',
+    date: '2026-07-17',
+    title: 'Security hardening: loopback-only bind, path traversal guard, plaintext credential protection.',
+    sections: [
+      {
+        heading: 'Security',
+        items: [
+          'The native app HTTP server now binds to 127.0.0.1 only (loopback), making the API unreachable from the LAN. Removed wildcard CORS header — the API is for local tools only.',
+          'The `dita://` static file handler now validates that resolved paths stay inside the `dist/` directory, blocking `../../../etc/passwd` traversal attempts.',
+          'Credentials endpoints (native and dev server) no longer return the Heretto API token. They return only `{email, hasCredentials}` so the token never travels over the network. The Settings modal token field starts blank — users must re-enter their token to save, which is correct security practice for any credential.',
+          'Added a 10 MB request size cap to the native HTTP server to prevent resource exhaustion.',
+        ],
+      },
+      {
+        heading: 'Fixes',
+        items: [
+          'Synced Info.plist `CFBundleShortVersionString` to match the actual app version (was stuck at retired 0.9.6).',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.8.4',
     date: '2026-06-11',
     title: 'Step info content now renders nested under each step instead of as a placeholder chip.',
