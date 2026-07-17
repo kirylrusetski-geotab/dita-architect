@@ -11,7 +11,15 @@ import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeL
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
 
 export function createTestEditor() {
-  return createEditor({ nodes: EDITOR_NODES });
+  // onError MUST rethrow: Lexical's default is console.error, which silently
+  // swallows assertion failures thrown inside editor.update() — tests would
+  // pass vacuously (discovered in FR-046 Phase 1).
+  return createEditor({
+    nodes: EDITOR_NODES,
+    onError: (error: Error) => {
+      throw error;
+    },
+  });
 }
 
 /** Parse XML into a fresh editor and serialize straight back out — the

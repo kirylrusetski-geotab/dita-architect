@@ -22,6 +22,19 @@ const RECOGNIZED_BODY_TAGS = new Set([
   'p', 'note', 'section', 'steps', 'ol', 'ul', 'prereq', 'context', 'result', 'postreq', 'table', 'simpletable', 'codeblock', 'dl',
 ]);
 
+// FR-046 tripwire: tracked marks are resolved before serialization by design
+// (sync suspended during suggesting mode). Warn once — not per node — if one
+// ever reaches the serializer, so a broken invariant is visible without
+// flooding the console.
+let warnedTrackedTextReachedSerializer = false;
+const warnTrackedTextReachedSerializer = (): void => {
+  if (warnedTrackedTextReachedSerializer) return;
+  warnedTrackedTextReachedSerializer = true;
+  console.warn(
+    '[FR-046] A tracked-change mark reached the serializer — marks should be accepted/rejected before serialization. Delete/split marks were skipped; insert marks were serialized as plain text.',
+  );
+};
+
 const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
   if (originalXml === cache.source && cache.meta) {
     return cache.meta;
@@ -80,7 +93,16 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
     // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
     // The original <info> DOM is left byte-stable by the patch path.
     if (child.getType() === 'dita-info-preview') return;
-    if (child.getType() === 'text') {
+    // FR-046 defensive guard: tracked marks must be resolved (accepted or
+    // rejected) before serialization — sync is suspended during suggesting
+    // mode, so this path is unreachable in practice. If a mark does slip
+    // through: delete/split marks are not document content (skip); insert
+    // marks serialize as the plain text they carry (fall through below).
+    if (child.getType() === 'tracked-text') {
+      warnTrackedTextReachedSerializer();
+      if (child.getMark().kind !== 'insert') return;
+    }
+    if (child.getType() === 'text' || child.getType() === 'tracked-text') {
       const text = child.getTextContent();
       const isBold = child.hasFormat('bold');
       const isItalic = child.hasFormat('italic');

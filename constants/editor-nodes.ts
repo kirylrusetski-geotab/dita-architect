@@ -15,6 +15,7 @@ import { DitaImageNode } from '../components/DitaImageNode';
 import { DitaPhRefNode } from '../components/DitaPhRefNode';
 import { DitaInfoPreviewNode } from '../components/DitaInfoPreviewNode';
 import { TrackedDeletionNode } from '../components/TrackedDeletionNode';
+import { TrackedTextNode } from '../components/TrackedTextNode';
 import { ValidationDecoratorNode } from '../components/ValidationDecoratorNode';
 
 export const EDITOR_NODES = [
@@ -35,5 +36,6 @@ export const EDITOR_NODES = [
   DitaPhRefNode,
   DitaInfoPreviewNode,
   TrackedDeletionNode,
+  TrackedTextNode,
   ValidationDecoratorNode,
 ];
