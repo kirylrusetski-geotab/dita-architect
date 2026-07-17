@@ -160,17 +160,15 @@ describe('Tab interface modifications for external content loading', () => {
       expect(tab).toHaveProperty('syncTrigger', 0);
       expect(tab).toHaveProperty('monacoApiRef');
       expect(tab).toHaveProperty('localFileName', null);
-      expect(tab).toHaveProperty('editMode', false);
-      expect(tab).toHaveProperty('editModeEnterTrigger', 0);
-      expect(tab).toHaveProperty('editModeAcceptTrigger', 0);
-      expect(tab).toHaveProperty('editModeRejectTrigger', 0);
-      expect(tab).toHaveProperty('snapshotRef');
+      expect(tab).toHaveProperty('documentMode', 'editing');
+      expect(tab).toHaveProperty('acceptAllTrigger', 0);
+      expect(tab).toHaveProperty('rejectAllTrigger', 0);
+      expect(tab).toHaveProperty('trackedChangeCount', 0);
       expect(tab).toHaveProperty('herettoReplaceTarget', null);
 
       expect(Array.isArray(tab.xmlErrors)).toBe(true);
       expect(typeof tab.savedXmlRef).toBe('object');
       expect(typeof tab.monacoApiRef).toBe('object');
-      expect(typeof tab.snapshotRef).toBe('object');
     });
   });
 

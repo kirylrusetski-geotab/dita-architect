@@ -89,7 +89,6 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
   if (!lexicalNode.getChildren) return nodes;
 
   lexicalNode.getChildren().forEach((child: any) => {
-    if (child.getType() === 'tracked-deletion') return;
     // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
     // The original <info> DOM is left byte-stable by the patch path.
     if (child.getType() === 'dita-info-preview') return;

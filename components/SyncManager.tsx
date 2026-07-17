@@ -8,12 +8,12 @@ interface SyncManagerProps {
   onLexicalChange: (serializedXml: string) => void;
   lastUpdatedBy: 'editor' | 'code' | 'api';
   syncTrigger?: number;
-  editMode?: boolean;
+  suspendSync?: boolean;
   children?: React.ReactNode;
   onValidationTrigger?: () => void;
 }
 
-export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTrigger = 0, editMode = false, children, onValidationTrigger }: SyncManagerProps) => {
+export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTrigger = 0, suspendSync = false, children, onValidationTrigger }: SyncManagerProps) => {
   const isSyncingFromXmlRef = useRef(false);
   const syncGenRef = useRef(0); // generation counter to avoid clearing stale syncs
   const [editor] = useLexicalComposerContext();
@@ -91,7 +91,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   // Ctrl+Enter: force immediate sync in both directions
   useEffect(() => {
     if (syncTrigger === 0) return;
-    if (editMode) return;
+    if (suspendSync) return;
 
     const lexicalRoot = editor.getRootElement();
     const activeEl = document.activeElement;
@@ -114,12 +114,12 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
     }
   }, [syncTrigger]);
 
-  // Sync XML → Lexical: buffer during editMode; flush on exit; skip if focused during editMode
+  // Sync XML → Lexical: buffer while suspended (suggesting mode); flush when suspension lifts
   useEffect(() => {
     if ((lastUpdatedBy === 'code' || lastUpdatedBy === 'api') && xmlContent !== lastXmlRef.current) {
-      if (editMode) {
-        // Buffer the incoming change — we cannot apply it while the user is reviewing tracked changes.
-        // The effect re-runs when editMode flips to false (editMode is in the dep array), which flushes it.
+      if (suspendSync) {
+        // Buffer the incoming change — it cannot apply while tracked-change marks are live in the tree.
+        // The effect re-runs when suspendSync flips to false (it is in the dep array), which flushes it.
         pendingXmlRef.current = xmlContent;
         return;
       }
@@ -147,14 +147,14 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
         pendingXmlRef.current = xmlContent;
         setOutOfSync(true);
       }
-    } else if (!editMode && pendingXmlRef.current !== null) {
-      // editMode just turned off and there's a buffered update — flush it now
+    } else if (!suspendSync && pendingXmlRef.current !== null) {
+      // suspension just lifted and there's a buffered update — flush it now
       applyPendingSync();
       setOutOfSync(false);
     }
-  }, [xmlContent, editMode, editor, lastUpdatedBy, clearSyncFlagAfterUpdate, nodeOriginMap, applyPendingSync]);
+  }, [xmlContent, suspendSync, editor, lastUpdatedBy, clearSyncFlagAfterUpdate, nodeOriginMap, applyPendingSync]);
 
-  const showOutOfSyncBanner = outOfSync && !editMode && lastUpdatedBy !== 'editor';
+  const showOutOfSyncBanner = outOfSync && !suspendSync && lastUpdatedBy !== 'editor';
 
   // Sync Lexical → XML
   return (
@@ -162,7 +162,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
       <OnChangePlugin
         ignoreSelectionChange={true}
         onChange={(editorState) => {
-          if (editMode) return;
+          if (suspendSync) return;
           if (isSyncingFromXmlRef.current) return;
 
           const generatedXml = serializeLexicalToXml(editorState, masterXmlRef.current, nodeOriginMap, xmlMetaCache);

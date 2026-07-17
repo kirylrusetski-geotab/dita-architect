@@ -19,9 +19,10 @@ import {
 } from '../dita-architect';
 import { TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $setBlocksType } from '@lexical/selection';
-import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, Check, X } from 'lucide-react';
+import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, PenLine, Eye, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip } from './Tooltip';
+import type { DocumentMode } from '../types/tab';
 import { ConfirmModal } from './ConfirmModal';
 
 export const THEME_OPTIONS = [
@@ -47,14 +48,20 @@ export const THEME_DESCRIPTIONS: Record<ThemeName, string> = {
 interface ToolbarProps {
   currentTheme: ThemeName;
   onThemeChange: (theme: ThemeName) => void;
-  editMode?: boolean;
-  onEnterEditMode?: () => void;
-  onAcceptEdits?: () => void;
-  onRejectEdits?: () => void;
+  documentMode?: DocumentMode;
+  onModeChange?: (mode: DocumentMode) => void;
+  trackedChangeCount?: number;
+  onAcceptAll?: () => void;
+  onRejectAll?: () => void;
 }
 
-export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnterEditMode, onAcceptEdits, onRejectEdits }: ToolbarProps) => {
+export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing', onModeChange, trackedChangeCount = 0, onAcceptAll, onRejectAll }: ToolbarProps) => {
   const [editor] = useLexicalComposerContext();
+  // Content-mutating buttons are only live in editing mode: suggesting-mode
+  // structural changes are untracked (FR-046 v1 blocks them), and viewing
+  // mode is read-only.
+  const editingDisabled = documentMode !== 'editing';
+  const contentBtnClass = `p-1 rounded transition-colors hover-toolbar${editingDisabled ? ' opacity-40 pointer-events-none' : ''}`;
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -211,73 +218,108 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Heading 1">
-        <button aria-label="Heading 1" onClick={() => formatHeading('h1')} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Heading 1" disabled={editingDisabled} onClick={() => formatHeading('h1')} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Heading1 className="w-4 h-4" />
         </button>
       </Tooltip>
       <Tooltip content="Heading 2">
-        <button aria-label="Heading 2" onClick={() => formatHeading('h2')} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Heading 2" disabled={editingDisabled} onClick={() => formatHeading('h2')} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Heading2 className="w-4 h-4" />
         </button>
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Bold">
-        <button aria-label="Bold" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Bold" disabled={editingDisabled} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <span className="font-bold font-serif">B</span>
         </button>
       </Tooltip>
       <Tooltip content="Italic">
-        <button aria-label="Italic" onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Italic" disabled={editingDisabled} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <span className="italic font-serif">I</span>
         </button>
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Numbered List">
-        <button aria-label="Numbered list" onClick={() => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Numbered list" disabled={editingDisabled} onClick={() => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <ListOrdered className="w-4 h-4" />
         </button>
       </Tooltip>
       <Tooltip content="Bulleted List">
-        <button aria-label="Bulleted list" onClick={() => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Bulleted list" disabled={editingDisabled} onClick={() => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <List className="w-4 h-4" />
         </button>
       </Tooltip>
       <Tooltip content="Insert Table">
-        <button aria-label="Insert table" onClick={() => {
+        <button aria-label="Insert table" disabled={editingDisabled} onClick={() => {
           setTableRows(3);
           setTableCols(3);
           setTableIncludeHeader(true);
           setIsTableModalOpen(true);
           setTimeout(() => tableRowsInputRef.current?.focus(), 0);
-        }} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        }} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Table className="w-4 h-4" />
         </button>
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Warning Note">
-        <button aria-label="Warning note" onClick={() => formatQuote()} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Warning note" disabled={editingDisabled} onClick={() => formatQuote()} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <AlertTriangle className="w-3.5 h-3.5" />
         </button>
       </Tooltip>
       <Tooltip content="Insert Link">
-        <button aria-label="Insert link" onClick={() => {
+        <button aria-label="Insert link" disabled={editingDisabled} onClick={() => {
           setLinkUrl('');
           setLinkError('');
           setIsLinkModalOpen(true);
           setTimeout(() => linkInputRef.current?.focus(), 0);
-        }} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        }} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Link className="w-3.5 h-3.5" />
         </button>
       </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
-      <Tooltip content={editMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}>
-        <button aria-label={editMode ? 'Exit edit mode' : 'Enter edit mode'} onClick={onEnterEditMode} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-      </Tooltip>
+      <div
+        className="flex items-center rounded"
+        style={{ border: '1px solid var(--editor-toolbar-divider)' }}
+        role="group"
+        aria-label="Document mode"
+      >
+        <Tooltip content="Viewing — visual editor is read-only">
+          <button
+            aria-label="Viewing mode"
+            aria-pressed={documentMode === 'viewing'}
+            onClick={() => onModeChange?.('viewing')}
+            className="p-1 rounded-l transition-colors hover-toolbar"
+            style={{ color: 'var(--editor-toolbar-text-strong)', backgroundColor: documentMode === 'viewing' ? 'var(--editor-toolbar-divider)' : 'transparent' }}
+          >
+            <Eye className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Suggesting — edits become tracked changes">
+          <button
+            aria-label="Suggesting mode"
+            aria-pressed={documentMode === 'suggesting'}
+            onClick={() => onModeChange?.('suggesting')}
+            className="p-1 transition-colors hover-toolbar"
+            style={{ color: 'var(--editor-toolbar-text-strong)', backgroundColor: documentMode === 'suggesting' ? 'var(--editor-toolbar-divider)' : 'transparent' }}
+          >
+            <PenLine className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+        <Tooltip content="Editing — direct edits">
+          <button
+            aria-label="Editing mode"
+            aria-pressed={documentMode === 'editing'}
+            onClick={() => onModeChange?.('editing')}
+            className="p-1 rounded-r transition-colors hover-toolbar"
+            style={{ color: 'var(--editor-toolbar-text-strong)', backgroundColor: documentMode === 'editing' ? 'var(--editor-toolbar-divider)' : 'transparent' }}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        </Tooltip>
+      </div>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Clear Contents">
-        <button aria-label="Clear contents" onClick={() => setIsClearConfirmOpen(true)} className="p-1 rounded transition-colors hover-toolbar" style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Clear contents" disabled={editingDisabled} onClick={() => setIsClearConfirmOpen(true)} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Trash2 className="w-4 h-4" />
         </button>
       </Tooltip>
@@ -525,29 +567,36 @@ export const Toolbar = ({ currentTheme, onThemeChange, editMode = false, onEnter
         </div>
       )}
 
-      {/* Edit Mode accept/reject controls */}
-      {editMode && (
+      {/* Suggesting-mode accept/reject-all controls */}
+      {documentMode === 'suggesting' && trackedChangeCount > 0 && (
         <div className="ml-auto flex items-center gap-1">
-          <Tooltip content="Accept Edits">
+          <span
+            className="px-1.5 py-0.5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: 'var(--editor-toolbar-divider)', color: 'var(--editor-toolbar-text-strong)' }}
+            aria-label={`${trackedChangeCount} tracked changes`}
+          >
+            {trackedChangeCount}
+          </span>
+          <Tooltip content="Accept all tracked changes">
             <button
-              aria-label="Accept edits"
-              onClick={onAcceptEdits}
+              aria-label="Accept all changes"
+              onClick={onAcceptAll}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors hover-accept"
               style={{ color: '#22c55e' }}
             >
               <Check className="w-3.5 h-3.5" />
-              Accept
+              Accept All
             </button>
           </Tooltip>
-          <Tooltip content="Reject Edits">
+          <Tooltip content="Reject all tracked changes">
             <button
-              aria-label="Reject edits"
-              onClick={onRejectEdits}
+              aria-label="Reject all changes"
+              onClick={onRejectAll}
               className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors hover-reject"
               style={{ color: '#ef4444' }}
             >
               <X className="w-3.5 h-3.5" />
-              Reject
+              Reject All
             </button>
           </Tooltip>
         </div>

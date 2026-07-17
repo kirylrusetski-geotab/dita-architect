@@ -109,8 +109,8 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === tabId);
       if (!tab) return JSON.stringify({ success: false, error: `Tab "${tabId}" not found` });
-      if (tab.editMode) {
-        return JSON.stringify({ success: false, error: 'Tab is in edit mode — exit edit mode before inserting via the API' });
+      if (tab.documentMode === 'suggesting') {
+        return JSON.stringify({ success: false, error: 'Tab is in suggesting mode — resolve tracked changes before inserting via the API' });
       }
       if (tab.pendingReview) {
         return JSON.stringify({ success: false, error: 'Tab already has a pending review — accept or reject it first' });

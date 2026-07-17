@@ -16,7 +16,12 @@ type MenuState = {
   position: { x: number; y: number };
 } | null;
 
-export const InsertElementPlugin = () => {
+interface InsertElementPluginProps {
+  /** FR-046: structural inserts are untracked — hide the + affordance in suggesting mode. */
+  suggesting?: boolean;
+}
+
+export const InsertElementPlugin = ({ suggesting = false }: InsertElementPluginProps) => {
   const [editor] = useLexicalComposerContext();
   const { nodeOriginMap } = useSyncContext();
   const [hover, setHover] = useState<ButtonState>(null);
@@ -204,6 +209,8 @@ export const InsertElementPlugin = () => {
       document.body,
     );
   })();
+
+  if (suggesting) return null;
 
   return (
     <>

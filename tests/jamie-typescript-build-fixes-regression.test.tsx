@@ -341,7 +341,7 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
               xmlContent="<task><title>Test</title></task>"
               onLexicalChange={mockOnLexicalChange}
               lastUpdatedBy="code"
-              editMode={false}
+              suspendSync={false}
               syncTrigger={0}
             >
               <div data-testid="test-content">Test Content</div>
@@ -367,7 +367,7 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
             xmlContent="<task><title>Updated by code</title></task>"
             onLexicalChange={mockOnLexicalChange}
             lastUpdatedBy="code"
-            editMode={false}
+            suspendSync={false}
             syncTrigger={0}
           >
             <div data-testid="editor-content">Mock Editor Content</div>
@@ -491,7 +491,7 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
               xmlContent="<task><title>Build test</title></task>"
               onLexicalChange={vi.fn()}
               lastUpdatedBy="editor"
-              editMode={false}
+              suspendSync={false}
               syncTrigger={0}
             >
               <div>Test</div>

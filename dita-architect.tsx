@@ -23,8 +23,7 @@ import { Tooltip } from './components/Tooltip';
 import { SyncManager } from './components/SyncManager';
 import { TableColumnSizer } from './components/TableColumnSizer';
 import { TableActionMenuPlugin } from './components/TableActionMenuPlugin';
-import { EditModePlugin } from './components/EditModePlugin';
-import { TrackedChangesPlugin } from './components/TrackedChangesPlugin';
+import { SuggestionPlugin } from './components/SuggestionPlugin';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { InsertElementPlugin } from './components/InsertElementPlugin';
@@ -35,7 +34,6 @@ import { DitaCodeBlockNode } from './components/DitaCodeBlockNode';
 import { DitaImageNode } from './components/DitaImageNode';
 import { DitaPhRefNode } from './components/DitaPhRefNode';
 import { DitaInfoPreviewNode } from './components/DitaInfoPreviewNode';
-import { TrackedDeletionNode } from './components/TrackedDeletionNode';
 import { ValidationDecoratorNode } from './components/ValidationDecoratorNode';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
 import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard } from 'lucide-react';
@@ -61,7 +59,7 @@ import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
-import { createTab } from './types/tab';
+import { createTab, type DocumentMode } from './types/tab';
 import { useLocalFile } from './hooks/useLocalFile';
 import { useHerettoCms } from './hooks/useHerettoCms';
 import { useExternalLoad } from './hooks/useExternalLoad';
@@ -175,7 +173,7 @@ export default function ProfessionalDitaEditor() {
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
-  const [exitEditModeConfirmTabId, setExitEditModeConfirmTabId] = useState<string | null>(null);
+  const [exitSuggestingConfirm, setExitSuggestingConfirm] = useState<{ tabId: string; targetMode: DocumentMode } | null>(null);
   const [isHerettoReplaceModalOpen, setIsHerettoReplaceModalOpen] = useState(false);
 
   const [wordWrapEnabled, setWordWrapEnabled] = useState<boolean>(() =>
@@ -539,17 +537,18 @@ export default function ProfessionalDitaEditor() {
         />
       )}
 
-      {exitEditModeConfirmTabId && (
+      {exitSuggestingConfirm && (
         <ExitEditModeModal
+          changeCount={tabs.find(t => t.id === exitSuggestingConfirm.tabId)?.trackedChangeCount ?? 0}
           onAccept={() => {
-            setTabs(prev => prev.map(t => t.id === exitEditModeConfirmTabId ? { ...t, editModeAcceptTrigger: t.editModeAcceptTrigger + 1 } : t));
-            setExitEditModeConfirmTabId(null);
+            // Bump the trigger; SuggestionPlugin resolves marks, serializes,
+            // and its onAcceptAll callback applies the requested target mode.
+            setTabs(prev => prev.map(t => t.id === exitSuggestingConfirm.tabId ? { ...t, acceptAllTrigger: t.acceptAllTrigger + 1 } : t));
           }}
           onReject={() => {
-            setTabs(prev => prev.map(t => t.id === exitEditModeConfirmTabId ? { ...t, editModeRejectTrigger: t.editModeRejectTrigger + 1 } : t));
-            setExitEditModeConfirmTabId(null);
+            setTabs(prev => prev.map(t => t.id === exitSuggestingConfirm.tabId ? { ...t, rejectAllTrigger: t.rejectAllTrigger + 1 } : t));
           }}
-          onCancel={() => setExitEditModeConfirmTabId(null)}
+          onCancel={() => setExitSuggestingConfirm(null)}
         />
       )}
 
@@ -992,26 +991,30 @@ export default function ProfessionalDitaEditor() {
           {tabs.map(tab => (
             <LexicalComposer key={tab.id} initialConfig={{ ...editorConfig, namespace: `DitaEditor-${tab.id}` }}>
               <div
-                className={`flex-1 relative flex flex-col min-h-0 overflow-hidden ${tab.editMode ? 'dita-editor-edit-mode-container' : ''}`}
+                className={`flex-1 relative flex flex-col min-h-0 overflow-hidden ${tab.documentMode === 'suggesting' ? 'dita-editor-edit-mode-container' : ''}`}
                 style={{ display: tab.id === activeTabId ? 'flex' : 'none' }}
               >
                 <Toolbar
                   currentTheme={appTheme}
                   onThemeChange={handleThemeChange}
-                  editMode={tab.editMode}
-                  onEnterEditMode={() => {
-                    if (tab.editMode) {
-                      setExitEditModeConfirmTabId(tab.id);
-                    } else {
-                      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeEnterTrigger: t.editModeEnterTrigger + 1 } : t));
+                  documentMode={tab.documentMode}
+                  onModeChange={(mode) => {
+                    if (mode === tab.documentMode) return;
+                    if (tab.documentMode === 'suggesting' && tab.trackedChangeCount > 0) {
+                      // Unresolved changes: confirm accept/reject-all first.
+                      setExitSuggestingConfirm({ tabId: tab.id, targetMode: mode });
+                      return;
                     }
+                    updateTab(tab.id, { documentMode: mode });
+                    if (mode === 'suggesting') toast('Suggesting mode — edits become tracked changes');
                   }}
-                  onAcceptEdits={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeAcceptTrigger: t.editModeAcceptTrigger + 1 } : t))}
-                  onRejectEdits={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, editModeRejectTrigger: t.editModeRejectTrigger + 1 } : t))}
+                  trackedChangeCount={tab.trackedChangeCount}
+                  onAcceptAll={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, acceptAllTrigger: t.acceptAllTrigger + 1 } : t))}
+                  onRejectAll={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, rejectAllTrigger: t.rejectAllTrigger + 1 } : t))}
                 />
-                {/* Edit Mode Badge */}
-                {tab.editMode && (
-                  <div className="dita-editor-edit-mode-badge">Edit Mode</div>
+                {/* Document mode badge (anything but plain editing) */}
+                {tab.documentMode !== 'editing' && (
+                  <div className="dita-editor-edit-mode-badge">{tab.documentMode === 'suggesting' ? 'Suggesting' : 'Viewing'}</div>
                 )}
                 {/* Heretto Replace Bar */}
                 {tab.herettoReplaceTarget && (
@@ -1160,26 +1163,32 @@ export default function ProfessionalDitaEditor() {
                     onLexicalChange={(xml: string) => updateTab(tab.id, { xmlContent: xml, lastUpdatedBy: 'editor' })}
                     lastUpdatedBy={tab.lastUpdatedBy}
                     syncTrigger={tab.syncTrigger}
-                    editMode={tab.editMode}
+                    suspendSync={tab.documentMode === 'suggesting'}
                     onValidationTrigger={() => updateTab(tab.id, { validationTrigger: tab.validationTrigger + 1 })}
                   >
                     <ShortdescPlugin />
-                    <InsertElementPlugin />
+                    <InsertElementPlugin suggesting={tab.documentMode === 'suggesting'} />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}
                       syncTrigger={tab.syncTrigger}
                     />
-                    <EditModePlugin
+                    <SuggestionPlugin
                       tabId={tab.id}
-                      editMode={tab.editMode}
+                      documentMode={tab.documentMode}
                       masterXml={tab.xmlContent}
-                      snapshotRef={tab.snapshotRef}
-                      enterTrigger={tab.editModeEnterTrigger}
-                      acceptTrigger={tab.editModeAcceptTrigger}
-                      rejectTrigger={tab.editModeRejectTrigger}
-                      onEnterEditMode={(tabId) => updateTab(tabId, { editMode: true })}
-                      onAcceptEdits={(tabId, xml) => updateTab(tabId, { editMode: false, xmlContent: xml, lastUpdatedBy: 'editor' })}
-                      onRejectEdits={(tabId) => updateTab(tabId, { editMode: false })}
+                      acceptAllTrigger={tab.acceptAllTrigger}
+                      rejectAllTrigger={tab.rejectAllTrigger}
+                      onAcceptAll={(tabId, xml) => {
+                        const target = exitSuggestingConfirm?.tabId === tabId ? exitSuggestingConfirm.targetMode : 'editing';
+                        updateTab(tabId, { documentMode: target, xmlContent: xml, lastUpdatedBy: 'editor' });
+                        setExitSuggestingConfirm(null);
+                      }}
+                      onRejectAll={(tabId) => {
+                        const target = exitSuggestingConfirm?.tabId === tabId ? exitSuggestingConfirm.targetMode : 'editing';
+                        updateTab(tabId, { documentMode: target });
+                        setExitSuggestingConfirm(null);
+                      }}
+                      onChangeCountChanged={(tabId, count) => updateTab(tabId, { trackedChangeCount: count })}
                     />
                   </SyncManager>
                   <InlineValidationPlugin
@@ -1189,12 +1198,6 @@ export default function ProfessionalDitaEditor() {
                   />
                   <TableColumnSizer />
                   <TableActionMenuPlugin />
-                  <TrackedChangesPlugin
-                    editMode={tab.editMode}
-                    snapshotRef={tab.snapshotRef}
-                    enterTrigger={tab.editModeEnterTrigger}
-                    tabId={tab.id}
-                  />
                 </div>
                 <BottomToolbar />
               </div>

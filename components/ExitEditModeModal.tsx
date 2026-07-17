@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 
 interface ExitEditModeModalProps {
+  changeCount?: number;
   onAccept: () => void;
   onReject: () => void;
   onCancel: () => void;
 }
 
-export const ExitEditModeModal = ({ onAccept, onReject, onCancel }: ExitEditModeModalProps) => {
+export const ExitEditModeModal = ({ changeCount = 0, onAccept, onReject, onCancel }: ExitEditModeModalProps) => {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', handler);
@@ -31,10 +32,12 @@ export const ExitEditModeModal = ({ onAccept, onReject, onCancel }: ExitEditMode
           className="text-lg font-bold mb-2"
           style={{ color: 'var(--app-text-primary)' }}
         >
-          Exit Edit Mode
+          Exit Suggesting Mode
         </h3>
         <p className="text-sm mb-6" style={{ color: 'var(--app-text-secondary)' }}>
-          You have tracked changes. What would you like to do before exiting?
+          {changeCount > 0
+            ? `You have ${changeCount} unresolved tracked ${changeCount === 1 ? 'change' : 'changes'}. What would you like to do before exiting?`
+            : 'You have unresolved tracked changes. What would you like to do before exiting?'}
         </p>
         <div className="flex gap-2">
           <button

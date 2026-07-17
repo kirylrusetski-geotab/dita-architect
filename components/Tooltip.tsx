@@ -7,12 +7,14 @@ export const Tooltip = ({
 }: {
   children: React.ReactNode,
   content: string,
-  placement?: 'bottom' | 'right' | 'left'
+  placement?: 'top' | 'bottom' | 'right' | 'left'
 }) => {
   const positionClasses = placement === 'right'
     ? 'left-full ml-2 top-1/2 -translate-y-1/2'
     : placement === 'left'
     ? 'right-full mr-2 top-1/2 -translate-y-1/2'
+    : placement === 'top'
+    ? 'bottom-full mb-2 left-1/2 -translate-x-1/2'
     : 'top-full mt-2 left-1/2 -translate-x-1/2';
 
   return (

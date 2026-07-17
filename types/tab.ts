@@ -1,6 +1,13 @@
-import type { EditorState } from 'lexical';
 import type { XmlError } from '../components/MonacoDitaEditor';
 import type { HerettoFile } from './heretto';
+
+/**
+ * FR-046: three document modes replace the old editMode boolean.
+ *  - 'editing'    — direct edits, live XML sync (the default)
+ *  - 'suggesting' — edits are recorded as tracked-change marks; XML sync suspended
+ *  - 'viewing'    — the visual editor is read-only (the XML pane stays live)
+ */
+export type DocumentMode = 'viewing' | 'suggesting' | 'editing';
 
 export interface Tab {
   id: string;
@@ -16,11 +23,12 @@ export interface Tab {
   syncTrigger: number;
   monacoApiRef: { current: { revealLine: (line: number, col?: number) => void } | null };
   localFileName: string | null;
-  editMode: boolean;
-  editModeEnterTrigger: number;
-  editModeAcceptTrigger: number;
-  editModeRejectTrigger: number;
-  snapshotRef: { current: EditorState | null };
+  documentMode: DocumentMode;
+  /** Monotonic triggers: bumping one fires the corresponding SuggestionPlugin effect. */
+  acceptAllTrigger: number;
+  rejectAllTrigger: number;
+  /** Live count of unresolved tracked changes (updated by SuggestionPlugin). */
+  trackedChangeCount: number;
   herettoReplaceTarget?: { uuid: string; name?: string; path?: string } | null;
   herettoJustLoaded: boolean;
   inlineValidationErrors: Map<string, { type: 'broken-xref' | 'unresolved-keyref', message: string }>;
@@ -52,11 +60,10 @@ export const createTab = (xml: string): Tab => ({
   syncTrigger: 0,
   monacoApiRef: { current: null },
   localFileName: null,
-  editMode: false,
-  editModeEnterTrigger: 0,
-  editModeAcceptTrigger: 0,
-  editModeRejectTrigger: 0,
-  snapshotRef: { current: null },
+  documentMode: 'editing',
+  acceptAllTrigger: 0,
+  rejectAllTrigger: 0,
+  trackedChangeCount: 0,
   herettoReplaceTarget: null,
   herettoJustLoaded: false,
   inlineValidationErrors: new Map(),

@@ -19,15 +19,15 @@ const createMockTab = (id: string, overrides: Partial<Tab> = {}): Tab => ({
   syncTrigger: 0,
   monacoApiRef: { current: null },
   localFileName: null,
-  editMode: false,
-  editModeEnterTrigger: 0,
-  editModeAcceptTrigger: 0,
-  editModeRejectTrigger: 0,
-  snapshotRef: { current: null },
+  documentMode: 'editing' as const,
+  acceptAllTrigger: 0,
+  rejectAllTrigger: 0,
+  trackedChangeCount: 0,
   herettoReplaceTarget: null,
   herettoJustLoaded: false,
   inlineValidationErrors: new Map(),
   validationTrigger: 0,
+  pendingReview: null,
   ...overrides
 });
 

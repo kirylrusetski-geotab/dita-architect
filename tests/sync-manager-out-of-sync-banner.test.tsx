@@ -21,7 +21,7 @@ function createTestConfig() {
 function renderSyncManager(props: {
   xmlContent: string;
   lastUpdatedBy: 'editor' | 'code' | 'api';
-  editMode?: boolean;
+  suspendSync?: boolean;
   syncTrigger?: number;
 }) {
   return render(
@@ -30,7 +30,7 @@ function renderSyncManager(props: {
         xmlContent={props.xmlContent}
         onLexicalChange={vi.fn()}
         lastUpdatedBy={props.lastUpdatedBy}
-        editMode={props.editMode ?? false}
+        suspendSync={props.suspendSync ?? false}
         syncTrigger={props.syncTrigger ?? 0}
       >
         <div data-testid="editor-content">Mock Editor Content</div>
@@ -46,7 +46,7 @@ describe('SyncManager out-of-sync banner functionality', () => {
     renderSyncManager({
       xmlContent: '<task><title>Updated by visual editor</title></task>',
       lastUpdatedBy: 'editor',
-      editMode: false,
+      suspendSync: false,
     });
     expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
   });
@@ -55,7 +55,7 @@ describe('SyncManager out-of-sync banner functionality', () => {
     renderSyncManager({
       xmlContent: '<task><title>Updated by API</title></task>',
       lastUpdatedBy: 'api',
-      editMode: false,
+      suspendSync: false,
     });
     expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
   });
@@ -64,7 +64,7 @@ describe('SyncManager out-of-sync banner functionality', () => {
     renderSyncManager({
       xmlContent: '<task><title>Updated by code while in edit mode</title></task>',
       lastUpdatedBy: 'code',
-      editMode: true,
+      suspendSync: true,
     });
     expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
   });
@@ -73,7 +73,7 @@ describe('SyncManager out-of-sync banner functionality', () => {
     renderSyncManager({
       xmlContent: '<task><title>Test</title></task>',
       lastUpdatedBy: 'editor',
-      editMode: false,
+      suspendSync: false,
     });
     expect(screen.getByTestId('editor-content')).toBeInTheDocument();
   });

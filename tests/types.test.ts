@@ -94,29 +94,29 @@ describe('createTab', () => {
     expect(tab.localFileName).toBeNull();
   });
 
-  it('sets editMode to false by default', () => {
+  it("sets documentMode to 'editing' by default", () => {
     const tab = createTab('<task/>');
-    expect(tab.editMode).toBe(false);
+    expect(tab.documentMode).toBe('editing');
   });
 
-  it('sets editModeEnterTrigger to 0 by default', () => {
+  it('sets acceptAllTrigger to 0 by default', () => {
     const tab = createTab('<task/>');
-    expect(tab.editModeEnterTrigger).toBe(0);
+    expect(tab.acceptAllTrigger).toBe(0);
   });
 
-  it('sets editModeAcceptTrigger to 0 by default', () => {
+  it('sets rejectAllTrigger to 0 by default', () => {
     const tab = createTab('<task/>');
-    expect(tab.editModeAcceptTrigger).toBe(0);
+    expect(tab.rejectAllTrigger).toBe(0);
   });
 
-  it('sets editModeRejectTrigger to 0 by default', () => {
+  it('sets trackedChangeCount to 0 by default', () => {
     const tab = createTab('<task/>');
-    expect(tab.editModeRejectTrigger).toBe(0);
+    expect(tab.trackedChangeCount).toBe(0);
   });
 
-  it('sets snapshotRef.current to null by default', () => {
+  it('sets pendingReview to null by default (snapshotRef retired by FR-046)', () => {
     const tab = createTab('<task/>');
-    expect(tab.snapshotRef.current).toBeNull();
+    expect(tab.pendingReview).toBeNull();
   });
 
   it('creates independent savedXmlRef objects per tab', () => {
