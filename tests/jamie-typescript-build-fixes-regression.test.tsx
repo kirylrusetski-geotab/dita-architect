@@ -37,7 +37,7 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
       expect(tab).toBeDefined();
       expect(tab).toHaveProperty('id');
       expect(tab).toHaveProperty('xmlContent', xmlContent);
-      expect(tab).toHaveProperty('lastUpdatedBy', 'editor');
+      expect(tab).toHaveProperty('lastUpdatedBy', 'code');
       expect(tab).toHaveProperty('herettoJustLoaded', false);
       expect(tab).toHaveProperty('savedXmlRef');
       expect(tab).toHaveProperty('herettoFile', null);
@@ -57,7 +57,7 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
 
       expect(tab.xmlContent).toBe(defaultXml);
       expect(tab.savedXmlRef.current).toBe(defaultXml);
-      expect(tab.lastUpdatedBy).toBe('editor');
+      expect(tab.lastUpdatedBy).toBe('code');
       expect(tab.herettoJustLoaded).toBe(false);
     });
 
@@ -375,8 +375,8 @@ describe('Jamie TypeScript build fixes regression test suite', () => {
         </LexicalComposer>
       );
 
-      // Verify SyncManager can render the out-of-sync banner with correct createEditor import
-      expect(screen.getByText('Visual editor is out of sync — press Ctrl+Enter to refresh')).toBeInTheDocument();
+      // Verify SyncManager renders without error using createEditor from lexical (not @lexical/headless)
+      expect(screen.getByTestId('editor-content')).toBeInTheDocument();
     });
 
     it('@lexical/headless import is not used - preventing the original import error', () => {

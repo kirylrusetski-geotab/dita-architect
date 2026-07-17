@@ -12,7 +12,7 @@ import { createEditor, $getRoot, LexicalEditor } from 'lexical';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
-import { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
+import { TableNode, TableRowNode, TableCellNode, $isTableCellNode, $isTableRowNode, $isTableNode } from '@lexical/table';
 import { DitaOpaqueNode } from '../components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from '../components/DitaCodeBlockNode';
 import { DitaImageNode } from '../components/DitaImageNode';
@@ -91,13 +91,13 @@ describe('Table Structure Diagnostics', () => {
         const indent = '  '.repeat(depth);
         console.log(`${indent}Node type: ${node.__type}`);
 
-        if (node.__type === 'table') {
+        if ($isTableNode(node)) {
           tableFound = true;
           console.log(`${indent}  Found table node`);
-        } else if (node.__type === 'table-row') {
+        } else if ($isTableRowNode(node)) {
           rowCount++;
           console.log(`${indent}  Found table row ${rowCount}`);
-        } else if (node.__type === 'table-cell') {
+        } else if ($isTableCellNode(node)) {
           cellCount++;
           const headerStyles = node.getHeaderStyles ? node.getHeaderStyles() : 0;
           const colspan = node.getColSpan ? node.getColSpan() : 1;
@@ -150,7 +150,7 @@ describe('Table Structure Diagnostics', () => {
       const root = $getRoot();
 
       const validateStructure = (node: any): void => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           // Check if this cell has header styles
           const headerStyles = node.getHeaderStyles ? node.getHeaderStyles() : 0;
           const content = node.getTextContent ? node.getTextContent().trim() : '';
@@ -219,7 +219,7 @@ describe('Span Parsing Diagnostics', () => {
       const root = $getRoot();
 
       const collectSpanData = (node: any): void => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const content = node.getTextContent ? node.getTextContent().trim() : '';
           const colspan = node.getColSpan ? node.getColSpan() : 1;
           const rowspan = node.getRowSpan ? node.getRowSpan() : 1;

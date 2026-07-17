@@ -25,7 +25,10 @@ import {
   $createTableCellNode,
   $getTableRowIndexFromTableCellNode,
   $getTableColumnIndexFromTableCellNode,
-  TableCellHeaderStates
+  TableCellHeaderStates,
+  $isTableCellNode,
+  $isTableRowNode,
+  $isTableNode,
 } from '@lexical/table';
 import { DitaOpaqueNode } from '../components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from '../components/DitaCodeBlockNode';
@@ -130,7 +133,7 @@ describe('Elena\'s Blocking Issue #1: Header/Body Boundary Merge Validation', ()
     editor.update(() => {
       const root = $getRoot();
       const findCellsInDifferentSections = (node: any): any => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const headerStyles = node.getHeaderStyles();
           const isHeaderCell = (headerStyles & TableCellHeaderStates.ROW) !== 0;
 
@@ -198,13 +201,13 @@ describe('Elena\'s Blocking Issue #1: Header/Body Boundary Merge Validation', ()
     editor.update(() => {
       const root = $getRoot();
       const findAdjacentCellsInSameSection = (node: any): boolean => {
-        if (node.__type === 'table-row') {
+        if ($isTableRowNode(node)) {
           const cells = node.getChildren();
           if (cells.length >= 2) {
             const firstCell = cells[0];
             const secondCell = cells[1];
 
-            if (firstCell.__type === 'table-cell' && secondCell.__type === 'table-cell') {
+            if ($isTableCellNode(firstCell) && $isTableCellNode(secondCell)) {
               const firstCellHeaderStyles = firstCell.getHeaderStyles();
               const secondCellHeaderStyles = secondCell.getHeaderStyles();
 
@@ -269,7 +272,7 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation During Merge', () =
       const root = $getRoot();
 
       const findAndValidateSpanMerge = (node: any): boolean => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const existingColspan = node.getColSpan();
           const existingRowspan = node.getRowSpan();
 
@@ -280,13 +283,13 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation During Merge', () =
 
             // Simulate finding an adjacent cell to merge with
             const parentRow = node.getParent();
-            if (parentRow && parentRow.__type === 'table-row') {
+            if (parentRow && $isTableRowNode(parentRow)) {
               const cells = parentRow.getChildren();
               const cellIndex = cells.indexOf(node);
 
               if (cellIndex < cells.length - 1) {
                 const nextCell = cells[cellIndex + 1];
-                if (nextCell.__type === 'table-cell') {
+                if ($isTableCellNode(nextCell)) {
                   const nextCellColspan = nextCell.getColSpan() || 1;
                   const nextCellRowspan = nextCell.getRowSpan() || 1;
 
@@ -336,14 +339,14 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation During Merge', () =
       const root = $getRoot();
 
       const findVerticalMergeCandidates = (node: any): boolean => {
-        if (node.__type === 'table') {
+        if ($isTableNode(node)) {
           const rows = node.getChildren();
 
           for (let i = 0; i < rows.length - 1; i++) {
             const currentRow = rows[i];
             const nextRow = rows[i + 1];
 
-            if (currentRow.__type === 'table-row' && nextRow.__type === 'table-row') {
+            if ($isTableRowNode(currentRow) && $isTableRowNode(nextRow)) {
               const currentRowCells = currentRow.getChildren();
               const nextRowCells = nextRow.getChildren();
 
@@ -351,7 +354,7 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation During Merge', () =
                 const topCell = currentRowCells[currentRowCells.length - 1]; // Last cell
                 const bottomCell = nextRowCells[nextRowCells.length - 1]; // Last cell in next row
 
-                if (topCell.__type === 'table-cell' && bottomCell.__type === 'table-cell') {
+                if ($isTableCellNode(topCell) && $isTableCellNode(bottomCell)) {
                   const existingRowspan = topCell.getRowSpan() || 1;
                   const bottomRowspan = bottomCell.getRowSpan() || 1;
 
@@ -402,7 +405,7 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation During Merge', () =
 
       // Find cells with existing spans and validate proper handling
       const validateComplexSpans = (node: any): boolean => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const colspan = node.getColSpan();
           const rowspan = node.getRowSpan();
 
@@ -470,13 +473,13 @@ describe('Content Preservation During All Merge Operations', () => {
       const root = $getRoot();
 
       const collectAndMergeCellContent = (node: any): boolean => {
-        if (node.__type === 'table-row') {
+        if ($isTableRowNode(node)) {
           const cells = node.getChildren();
           if (cells.length >= 2) {
             const targetCell = cells[0];
             const sourceCell = cells[1];
 
-            if (targetCell.__type === 'table-cell' && sourceCell.__type === 'table-cell') {
+            if ($isTableCellNode(targetCell) && $isTableCellNode(sourceCell)) {
               // Collect original content
               allOriginalContent = [
                 targetCell.getTextContent().trim(),
@@ -560,7 +563,7 @@ describe('Multi-Cell Merge Functionality Validation', () => {
       const root = $getRoot();
 
       const performRectangularMerge = (node: any): boolean => {
-        if (node.__type === 'table') {
+        if ($isTableNode(node)) {
           const rows = node.getChildren();
 
           // Get first two rows for rectangular merge test
@@ -568,7 +571,7 @@ describe('Multi-Cell Merge Functionality Validation', () => {
             const firstRow = rows[1]; // Use body rows, not header
             const secondRow = rows[2];
 
-            if (firstRow.__type === 'table-row' && secondRow.__type === 'table-row') {
+            if ($isTableRowNode(firstRow) && $isTableRowNode(secondRow)) {
               const firstRowCells = firstRow.getChildren();
               const secondRowCells = secondRow.getChildren();
 
@@ -579,8 +582,8 @@ describe('Multi-Cell Merge Functionality Validation', () => {
                 const bottomLeft = secondRowCells[0];
                 const bottomRight = secondRowCells[1];
 
-                if (topLeft.__type === 'table-cell' && topRight.__type === 'table-cell' &&
-                    bottomLeft.__type === 'table-cell' && bottomRight.__type === 'table-cell') {
+                if ($isTableCellNode(topLeft) && $isTableCellNode(topRight) &&
+                    $isTableCellNode(bottomLeft) && $isTableCellNode(bottomRight)) {
 
                   // Collect content from all cells
                   const allContent = [
@@ -599,11 +602,12 @@ describe('Multi-Cell Merge Functionality Validation', () => {
                   });
 
                   // Set proper spans for 2x2 rectangle
-                  topLeft.setColSpan(2);
-                  topLeft.setRowSpan(2);
+                  const writable = topLeft.getWritable();
+                  writable.setColSpan(2);
+                  writable.setRowSpan(2);
 
                   rectangularMergeExecuted = true;
-                  spanCalculationCorrect = topLeft.getColSpan() === 2 && topLeft.getRowSpan() === 2;
+                  spanCalculationCorrect = writable.getColSpan() === 2 && writable.getRowSpan() === 2;
 
                   // Validate content preservation
                   const mergedText = topLeft.getTextContent();
@@ -643,13 +647,13 @@ describe('Multi-Cell Merge Functionality Validation', () => {
       const root = $getRoot();
 
       const validateTableStructure = (node: any): boolean => {
-        if (node.__type === 'table') {
+        if ($isTableNode(node)) {
           const rows = node.getChildren();
           let minRowCellCount = Infinity;
           let maxRowCellCount = 0;
 
           for (const row of rows) {
-            if (row.__type === 'table-row') {
+            if ($isTableRowNode(row)) {
               const cellCount = row.getChildren().length;
               minRowCellCount = Math.min(minRowCellCount, cellCount);
               maxRowCellCount = Math.max(maxRowCellCount, cellCount);

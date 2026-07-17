@@ -22,7 +22,10 @@ import {
   $createTableNode,
   $createTableRowNode,
   $createTableCellNode,
-  TableCellHeaderStates
+  TableCellHeaderStates,
+  $isTableCellNode,
+  $isTableRowNode,
+  $isTableNode,
 } from '@lexical/table';
 import { DitaOpaqueNode } from '../components/DitaOpaqueNode';
 import { DitaCodeBlockNode } from '../components/DitaCodeBlockNode';
@@ -128,7 +131,7 @@ describe('Elena\'s Blocking Issue #1: Header/Body Boundary Validation', () => {
       const root = $getRoot();
 
       const checkCellTypes = (node: any): void => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const headerStyles = node.getHeaderStyles();
           if ((headerStyles & TableCellHeaderStates.ROW) !== 0) {
             hasHeaderCells = true;
@@ -182,21 +185,25 @@ describe('Elena\'s Blocking Issue #1: Header/Body Boundary Validation', () => {
   it('should identify when cells are in different sections (regression test for boundary validation)', () => {
     parseXmlToLexical(testCalsTable, editor, originMap, true);
 
-    let headerCell: any = null;
-    let bodyCell: any = null;
+    let foundHeaderCell = false;
+    let foundBodyCell = false;
+    let headerIsInHeader = false;
+    let bodyIsInHeader = true;
 
     editor.getEditorState().read(() => {
       const root = $getRoot();
 
       const findCellsInDifferentSections = (node: any): void => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const headerStyles = node.getHeaderStyles();
           const isHeader = (headerStyles & TableCellHeaderStates.ROW) !== 0;
 
-          if (isHeader && !headerCell) {
-            headerCell = node;
-          } else if (!isHeader && !bodyCell) {
-            bodyCell = node;
+          if (isHeader && !foundHeaderCell) {
+            foundHeaderCell = true;
+            headerIsInHeader = true;
+          } else if (!isHeader && !foundBodyCell) {
+            foundBodyCell = true;
+            bodyIsInHeader = false;
           }
         }
         if (node.getChildren) {
@@ -207,23 +214,10 @@ describe('Elena\'s Blocking Issue #1: Header/Body Boundary Validation', () => {
       findCellsInDifferentSections(root);
     });
 
-    expect(headerCell).toBeTruthy();
-    expect(bodyCell).toBeTruthy();
-
-    // This test validates that we can detect cells in different sections
-    // The actual blocking issue is that Jamie's implementation doesn't
-    // prevent merging across these boundaries
-    if (headerCell && bodyCell) {
-      const headerStyles = headerCell.getHeaderStyles();
-      const bodyStyles = bodyCell.getHeaderStyles();
-
-      const headerIsInHeader = (headerStyles & TableCellHeaderStates.ROW) !== 0;
-      const bodyIsInHeader = (bodyStyles & TableCellHeaderStates.ROW) !== 0;
-
-      // These cells are in different sections - merging them would violate DITA structure
-      expect(headerIsInHeader).toBe(true);
-      expect(bodyIsInHeader).toBe(false);
-    }
+    expect(foundHeaderCell).toBeTruthy();
+    expect(foundBodyCell).toBeTruthy();
+    expect(headerIsInHeader).toBe(true);
+    expect(bodyIsInHeader).toBe(false);
   });
 });
 
@@ -248,7 +242,7 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation', () => {
       const root = $getRoot();
 
       const checkSpans = (node: any): void => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const colspan = node.getColSpan();
           const rowspan = node.getRowSpan();
 
@@ -296,7 +290,7 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation', () => {
 
       // Find cells with existing spans
       const findCellsWithSpans = (node: any): boolean => {
-        if (node.__type === 'table-cell') {
+        if ($isTableCellNode(node)) {
           const colspan = node.getColSpan();
           const rowspan = node.getRowSpan();
 
@@ -349,14 +343,14 @@ describe('Elena\'s Blocking Issue #2: Span Data Preservation', () => {
 
       // Demonstrate the correct way to handle span merging
       const demonstrateCorrectSpanMerge = (node: any): boolean => {
-        if (node.__type === 'table-row') {
+        if ($isTableRowNode(node)) {
           const cells = node.getChildren();
 
           if (cells.length >= 2) {
             const cell1 = cells[0];
             const cell2 = cells[1];
 
-            if (cell1.__type === 'table-cell' && cell2.__type === 'table-cell') {
+            if ($isTableCellNode(cell1) && $isTableCellNode(cell2)) {
               // Get existing spans
               const cell1Colspan = cell1.getColSpan() || 1;
               const cell1Rowspan = cell1.getRowSpan() || 1;
@@ -410,14 +404,14 @@ describe('Content Preservation Validation', () => {
       const root = $getRoot();
 
       const performContentPreservingMerge = (node: any): boolean => {
-        if (node.__type === 'table-row') {
+        if ($isTableRowNode(node)) {
           const cells = node.getChildren();
 
           if (cells.length >= 2) {
             const targetCell = cells[0];
             const sourceCell = cells[1];
 
-            if (targetCell.__type === 'table-cell' && sourceCell.__type === 'table-cell') {
+            if ($isTableCellNode(targetCell) && $isTableCellNode(sourceCell)) {
               // Collect original content
               const targetText = targetCell.getTextContent().trim();
               const sourceText = sourceCell.getTextContent().trim();
@@ -466,7 +460,7 @@ describe('Content Preservation Validation', () => {
       const root = $getRoot();
 
       const validateTableStructure = (node: any): boolean => {
-        if (node.__type === 'table') {
+        if ($isTableNode(node)) {
           const rows = node.getChildren();
           rowCount = rows.length;
 
@@ -475,7 +469,7 @@ describe('Content Preservation Validation', () => {
 
           // Validate each row has cells
           for (const row of rows) {
-            if (row.__type === 'table-row') {
+            if ($isTableRowNode(row)) {
               const cells = row.getChildren();
               if (cells.length === 0) {
                 tableStructureValid = false;
