@@ -2004,6 +2004,88 @@ describe('Session 4B (S2): formatting-only edits reach the XML', () => {
   });
 });
 
+// ─── describe: Session 4B (M2) — noteType consumed on createElementFromLexical ─
+
+describe('Session 4B (M2): noteType consumed on createElementFromLexical', () => {
+  it('new warning note created in Lexical writes type="warning" to XML', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m2-warning">
+  <title>Note Type</title>
+  <conbody>
+    <p>Before.</p>
+  </conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const quote = $createQuoteNode();
+      quote.append($createTextNode('Do not ignore this.'));
+      originMap.set(quote.getKey(), { tag: 'note', bodyIndex: 1, noteType: 'WARNING' });
+      root.append(quote);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('<note type="warning">Do not ignore this.</note>');
+  });
+
+  it('new caution note writes type="caution" to XML', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m2-caution">
+  <title>Note Type</title>
+  <conbody></conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const quote = $createQuoteNode();
+      quote.append($createTextNode('Be careful.'));
+      originMap.set(quote.getKey(), { tag: 'note', bodyIndex: 0, noteType: 'CAUTION' });
+      root.append(quote);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('<note type="caution">Be careful.</note>');
+  });
+
+  it('new plain note (noteType NOTE) writes no type attribute', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="m2-plain">
+  <title>Note Type</title>
+  <conbody></conbody>
+</concept>`;
+
+    const editor = createTestEditor();
+    const originMap = createNodeOriginMap();
+    const cache = createXmlMetaCache();
+    parseXmlToLexical(xml, editor, originMap, true);
+
+    editor.update(() => {
+      const root = $getRoot();
+      const quote = $createQuoteNode();
+      quote.append($createTextNode('A plain note.'));
+      originMap.set(quote.getKey(), { tag: 'note', bodyIndex: 0, noteType: 'NOTE' });
+      root.append(quote);
+    }, { discrete: true });
+
+    const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
+    expect(output).toContain('<note>A plain note.</note>');
+    expect(output).not.toContain('type="note"');
+  });
+});
+
 // ─── describe: Session 4A (ADR-006) — unified body walk ──────────────────────
 
 describe('Session 4A (ADR-006): unified body walk', () => {

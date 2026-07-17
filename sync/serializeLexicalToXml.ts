@@ -535,6 +535,8 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
 
   if (type === 'quote') {
     const el = doc.createElement('note');
+    const noteType = origin?.noteType;
+    if (noteType && noteType !== 'NOTE') el.setAttribute('type', noteType.toLowerCase());
     serializeInlineContent(lexicalNode, doc, originMap).forEach(n => el.appendChild(n));
     return el;
   }
