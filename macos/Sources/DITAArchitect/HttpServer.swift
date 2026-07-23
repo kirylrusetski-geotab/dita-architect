@@ -19,7 +19,7 @@ final class HttpServer {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
             params.requiredLocalEndpoint = NWEndpoint.hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
-            let listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            let listener = try NWListener(using: params, on: .any)
             listener.stateUpdateHandler = { [weak self] state in
                 guard let self else { return }
                 switch state {
@@ -157,8 +157,7 @@ final class HttpServer {
             switch result {
             case .success(let json):
                 let bodyStr = json ?? #"{"error":"Bridge unavailable"}"#
-                // Error responses have "success":false; success responses have an "xml" field
-                let status = bodyStr.contains("\"success\":false") ? 404 : 200
+                let status = self.statusCode(from: bodyStr, defaultError: 404)
                 self.sendResponse(connection: connection, status: status, body: Data(bodyStr.utf8))
             case .failure(let error):
                 self.sendError(connection: connection, status: 500, message: error.localizedDescription)
@@ -184,10 +183,7 @@ final class HttpServer {
             switch result {
             case .success(let json):
                 let bodyStr = json ?? #"{"success":false}"#
-                let status: Int
-                if bodyStr.contains("not found") { status = 404 }
-                else if bodyStr.contains("\"error\"") { status = 400 }
-                else { status = 200 }
+                let status = self.statusCode(from: bodyStr)
                 self.sendResponse(connection: connection, status: status, body: Data(bodyStr.utf8))
             case .failure(let error):
                 self.sendError(connection: connection, status: 500, message: error.localizedDescription)
@@ -205,10 +201,7 @@ final class HttpServer {
             switch result {
             case .success(let json):
                 let bodyStr = json ?? #"{"success":false}"#
-                let status: Int
-                if bodyStr.contains("\"success\":true") { status = 200 }
-                else if bodyStr.contains("not found") { status = 404 }
-                else { status = 400 }
+                let status = self.statusCode(from: bodyStr)
                 self.sendResponse(connection: connection, status: status, body: Data(bodyStr.utf8))
             case .failure(let error):
                 self.sendError(connection: connection, status: 500, message: error.localizedDescription)
@@ -274,6 +267,15 @@ final class HttpServer {
 
     // MARK: – Response helpers
 
+    private func statusCode(from bodyStr: String, defaultError: Int = 400) -> Int {
+        guard
+            let data = bodyStr.data(using: .utf8),
+            let obj  = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let code = obj["httpStatus"] as? Int
+        else { return defaultError }
+        return code
+    }
+
     private func dispatchResult(_ result: Result<String?, Error>, to connection: NWConnection) {
         switch result {
         case .success(let json):
@@ -287,7 +289,7 @@ final class HttpServer {
         switch result {
         case .success(let json):
             let bodyStr = json ?? #"{"success":false}"#
-            let status = bodyStr.contains("\"success\":true") ? 200 : 400
+            let status = statusCode(from: bodyStr)
             sendResponse(connection: connection, status: status, body: Data(bodyStr.utf8))
         case .failure(let error):
             sendError(connection: connection, status: 500, message: error.localizedDescription)
