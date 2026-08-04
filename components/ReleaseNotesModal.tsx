@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, X } from 'lucide-react';
 import { RELEASE_NOTES, ReleaseNote } from '../constants/version';
 
 interface ReleaseNotesModalProps {
@@ -16,6 +16,9 @@ const SECTION_TAG_MAP: Record<string, TagStyle> = {
   'Bug Fixes':                    { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
   'Reliability':                  { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
   'Sync & Data Integrity':        { label: 'FIX',    bg: 'rgba(239,68,68,0.12)',    color: '#ef4444' },
+  'New':                          { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
+  'Improvements':                 { label: 'UPD',    bg: 'rgba(234,179,8,0.12)',    color: '#eab308' },
+  'Known Limits':                 { label: 'LIMIT',  bg: 'rgba(148,163,184,0.12)', color: '#94a3b8' },
   'New Features':                 { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
   'New API Endpoint':             { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
   'Content Insertion':            { label: 'NEW',    bg: 'rgba(16,185,129,0.12)',   color: '#10b981' },
@@ -54,8 +57,8 @@ function flattenSections(sections: ReleaseNote['sections']): FlatItem[] {
   return result;
 }
 
-function renderInlineCode(text: string): React.ReactNode {
-  const parts = text.split(/(`[^`]+`)/g);
+function renderMarkdown(text: string): React.ReactNode {
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
       return (
@@ -70,6 +73,9 @@ function renderInlineCode(text: string): React.ReactNode {
           {part.slice(1, -1)}
         </code>
       );
+    }
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
     }
     return part;
   });
@@ -114,16 +120,26 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
         }}
       >
         {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dita-500 to-dita-600 flex items-center justify-center shadow-lg shadow-dita-500/20">
-            <BookOpen className="text-white w-5 h-5" />
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dita-500 to-dita-600 flex items-center justify-center shadow-lg shadow-dita-500/20">
+              <BookOpen className="text-white w-5 h-5" />
+            </div>
+            <div>
+              <h3 id="release-notes-title" className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>
+                DITA <span className="text-dita-500">Architect</span>
+              </h3>
+              <p className="text-xs" style={{ color: 'var(--app-text-muted)' }}>Release Notes</p>
+            </div>
           </div>
-          <div>
-            <h3 id="release-notes-title" className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>
-              DITA <span className="text-dita-500">Architect</span>
-            </h3>
-            <p className="text-xs" style={{ color: 'var(--app-text-muted)' }}>Release Notes</p>
-          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close release notes"
+            className="rounded-md p-1 transition-colors hover:bg-black/10"
+            style={{ color: 'var(--app-text-muted)' }}
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Two-column layout */}
@@ -167,7 +183,7 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
               </span>
             </div>
             <p className="text-xs mb-5 leading-relaxed" style={{ color: 'var(--app-text-muted)' }}>
-              {renderInlineCode(release.title)}
+              {renderMarkdown(release.title)}
             </p>
 
             {/* Flat tagged item list */}
@@ -181,7 +197,7 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
                     {tag}
                   </span>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--app-text-secondary)' }}>
-                    {renderInlineCode(item)}
+                    {renderMarkdown(item)}
                   </p>
                 </div>
               ))}
@@ -189,16 +205,6 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--app-border-subtle)' }}>
-          <button
-            autoFocus
-            onClick={onClose}
-            className="w-full py-2 rounded-lg text-sm font-medium bg-dita-600 hover:bg-dita-500 text-white transition-colors"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );

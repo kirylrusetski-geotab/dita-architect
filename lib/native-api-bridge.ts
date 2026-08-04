@@ -61,8 +61,10 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
 
     getTabContent: (id: string): string => {
       const tab = getTabs().find(t => t.id === id);
-      if (!tab) return JSON.stringify({ success: false, error: `Tab with ID "${id}" not found` });
+      if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
       return JSON.stringify({
+        success: true,
+        httpStatus: 200,
         id: tab.id,
         fileName: tab.localFileName || tab.herettoFile?.name || null,
         herettoFile: tab.herettoFile
@@ -77,29 +79,30 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     updateTabContent: (id: string, xml: string): string => {
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === id);
-      if (!tab) return JSON.stringify({ success: false, error: `Tab with ID "${id}" not found` });
+      if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
 
       const validation = validateDitaXml(xml);
       if (!validation.valid) {
-        return JSON.stringify({ success: false, error: 'Invalid XML format', details: validation.error ?? 'Parse error' });
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Invalid XML format', details: validation.error ?? 'Parse error' });
       }
 
       updateTab(id, { xmlContent: xml, lastUpdatedBy: 'api', syncTrigger: tab.syncTrigger + 1 });
-      return JSON.stringify({ success: true, tabId: id });
+      return JSON.stringify({ success: true, httpStatus: 200, tabId: id });
     },
 
     saveTab: async (id: string): Promise<string> => {
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === id);
-      if (!tab) return JSON.stringify({ success: false, error: `Tab with ID "${id}" not found` });
-      if (!tab.herettoFile) return JSON.stringify({ success: false, error: 'Tab has no associated Heretto file' });
+      if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
+      if (!tab.herettoFile) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has no associated Heretto file' });
 
       try {
         await handleHerettoSave(id);
-        return JSON.stringify({ success: true, tabId: id });
+        return JSON.stringify({ success: true, httpStatus: 200, tabId: id });
       } catch (error) {
         return JSON.stringify({
           success: false,
+          httpStatus: 400,
           error: error instanceof Error ? error.message : 'Unknown error during save',
         });
       }
@@ -108,12 +111,12 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     insertSection: (tabId: string, sectionXml: string, replaceId?: string): string => {
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === tabId);
-      if (!tab) return JSON.stringify({ success: false, error: `Tab "${tabId}" not found` });
+      if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab "${tabId}" not found` });
       if (tab.documentMode === 'suggesting') {
-        return JSON.stringify({ success: false, error: 'Tab is in suggesting mode — resolve tracked changes before inserting via the API' });
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab is in suggesting mode — resolve tracked changes before inserting via the API' });
       }
       if (tab.pendingReview) {
-        return JSON.stringify({ success: false, error: 'Tab already has a pending review — accept or reject it first' });
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
       }
 
       // FR-045: compute the proposed document deterministically at the XML
@@ -122,7 +125,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       const baseXml = tab.xmlContent;
       const result = computeProposedXml(baseXml, sectionXml, replaceId);
       if ('error' in result) {
-        return JSON.stringify({ success: false, error: result.error });
+        return JSON.stringify({ success: false, httpStatus: 400, error: result.error });
       }
 
       // baseXml is the exact string the proposal was computed against — the
@@ -140,13 +143,13 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
           : t
       ));
 
-      return JSON.stringify({ success: true, status: 'pending-review' });
+      return JSON.stringify({ success: true, httpStatus: 200, status: 'pending-review' });
     },
 
     loadContent: (xml: string, fileName: string, herettoTargetUuid?: string): string => {
       const validation = validateDitaXml(xml);
       if (!validation.valid) {
-        return JSON.stringify({ success: false, error: `Invalid XML: ${validation.error ?? 'Parse error'}` });
+        return JSON.stringify({ success: false, httpStatus: 400, error: `Invalid XML: ${validation.error ?? 'Parse error'}` });
       }
 
       try {
@@ -163,10 +166,11 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         setTabs(prev => [...prev, newTab]);
         setActiveTabId(newTab.id);
         toast.success(`Imported ${fileName}`);
-        return JSON.stringify({ success: true, status: 'loaded' });
+        return JSON.stringify({ success: true, httpStatus: 200, status: 'loaded' });
       } catch (err) {
         return JSON.stringify({
           success: false,
+          httpStatus: 400,
           error: err instanceof Error ? err.message : 'Failed to load content',
         });
       }

@@ -177,6 +177,11 @@ export function useHerettoCms({
           schedule();
           return;
         }
+        if (!res.headers.get('content-type')?.includes('application/xml')) {
+          pollFailCountRef.current++;
+          schedule();
+          return;
+        }
         pollFailCountRef.current = 0;
         const remote = await res.text();
         setTabs(prev => prev.map(t => {
@@ -520,11 +525,12 @@ export function useHerettoCms({
       setHerettoSaveProgress('verifying');
       const verifyRes = await fetch(`/heretto-api/all-files/${herettoFile.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!verifyRes.ok) throw new Error('Failed to verify');
+      if (!verifyRes.headers.get('content-type')?.includes('application/xml')) throw new Error('Heretto returned a non-XML response during verification');
       const remote = await verifyRes.text();
 
       if (abort.signal.aborted) return;
 
-      const comparison = compareXml(content, remote);
+      const comparison = compareXml(stripHerettoClassAttrs(content), stripHerettoClassAttrs(remote));
       setHerettoSaveProgress('complete');
       if (comparison === 'identical') {
         toast.success(`Saved and verified ${herettoFile.name}`);
@@ -565,6 +571,7 @@ export function useHerettoCms({
     try {
       const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!res.ok) throw new Error();
+      if (!res.headers.get('content-type')?.includes('application/xml')) throw new Error('Heretto returned a non-XML response');
       const content = await res.text();
       const beautified = formatXml(content);
 

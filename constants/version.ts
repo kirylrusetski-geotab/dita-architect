@@ -21,28 +21,63 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.1',
+    date: '2026-08-04',
+    title: 'Every dialog now closes with Escape and keeps your keyboard inside it, and Heretto stops reporting problems that were never there.',
+    sections: [
+      {
+        heading: 'Accessibility',
+        items: [
+          'Escape now closes every dialog. In the Confirm, New Topic, and Download Warning dialogs it did nothing at all: the key handler sat on an element that never held focus, so the keystroke never reached it.',
+          'Tab now stays inside the open dialog instead of wandering into the page behind it, and when a dialog closes, focus returns to whatever you were on before it opened. Both behaviours come from one shared **Modal** component rather than being re-implemented per dialog (WCAG 2.1.2, 2.4.3).',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Saving a topic that was loaded through the API no longer reports a false "remote content differs". Heretto injects `class` attributes on ingest, and the save check was comparing them against your local copy: the same attribute strip that Replace already used is now applied to both sides before comparing.',
+          'Refresh and the remote-change poll can no longer overwrite a topic with an error page. Both now confirm Heretto actually returned XML before touching your content — previously an HTML error response would be written straight into the tab **and** into the saved-state reference.',
+          'Content sent to a running editor is no longer lost when a single poll fails. The external-load loop treated one non-OK response as permanent and stopped forever, silently discarding everything queued after it; it now keeps polling.',
+        ],
+      },
+      {
+        heading: 'Improvements',
+        items: [
+          'Release notes render `code` and **bold** inline, and the modal closes with an X button in the top-right corner instead of a full-width button at the bottom.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'API responses from the native bridge now carry an explicit `httpStatus`, which the Swift server reads directly instead of guessing the HTTP status by searching the response text for phrases like "not found". Any error message that happened to contain those words previously changed the status code.',
+          'New `components/Modal.tsx` owns overlay, focus trap, focus restore, document-level Escape, and ARIA wiring; `ConfirmModal`, `TopicTypeModal`, and `DownloadWarningModal` are now thin wrappers over it.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-07-17',
-    title: 'Suggesting mode: tracked changes are now real data — insertions, deletions, and splits you can accept or reject one by one.',
+    title: 'Suggesting mode: tracked changes are now real data: insertions, deletions, and splits you can accept or reject one by one.',
     sections: [
       {
         heading: 'New',
         items: [
           'The pencil button is now a three-way mode control: **Viewing** (read-only), **Suggesting** (edits become tracked changes), and **Editing** (direct edits). In Suggesting mode, typed text shows green underlined, deleted text stays visible with red strikethrough, and pressing Enter marks the paragraph split with a small pilcrow.',
-          'A tracked-changes panel docks to the right edge of the editor whenever suggestions exist: every change listed with its text, kind, and time — click a row to jump to it, or accept/reject each change individually. Accept All / Reject All live in the toolbar with a live change counter.',
-          'Every change is durable data in the document model (`TrackedTextNode` carrying a change ID, author, and timestamp) — not pixels recomputed from a diff. Deleting your own suggestion simply retracts it. Backspacing right after your own paragraph split undoes that split.',
+          'A tracked-changes panel docks to the right edge of the editor whenever suggestions exist: every change listed with its text, kind, and time. Click a row to jump to it, or accept/reject each change individually. Accept All / Reject All live in the toolbar with a live change counter.',
+          'Every change is durable data in the document model (`TrackedTextNode` carrying a change ID, author, and timestamp), not pixels recomputed from a diff. Deleting your own suggestion retracts it. Backspacing right after your own paragraph split undoes that split.',
         ],
       },
       {
-        heading: 'Fixed by the rebuild (BUG-02)',
+        heading: 'Bug Fixes',
         items: [
           'Edits that never showed as edits, accepted edits that failed to persist, flickering deletion markers, and the multi-tab highlight collision are all gone by construction: the diff-and-paint machinery (`EditModePlugin`, `TrackedChangesPlugin`, `TrackedDeletionNode`, the per-keystroke LCS diff, CSS Custom Highlights, and raw DOM overlays) has been deleted. Rejecting all suggestions restores the document byte-for-byte; accepting them produces exactly what typing the same edits directly would.',
         ],
       },
       {
-        heading: 'Known limits (v1)',
+        heading: 'Known Limits',
         items: [
-          'Tracked changes are session-only — resolve them before saving to Heretto (a DITA round-trip carrier is a planned follow-up).',
+          'Tracked changes are session-only. Resolve them before saving to Heretto (a DITA round-trip carrier is a planned follow-up).',
           'In Suggesting mode these are blocked with a toast rather than silently untracked: formatting toggles (Bold/Italic), line breaks, paragraph merges, drag-and-drop, structural inserts, deleting embedded elements (images, ref chips), and IME composition.',
         ],
       },
@@ -67,7 +102,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Under the Hood',
         items: [
           'Per-tab `::highlight()` CSS rules are injected dynamically at mount and cleaned up at unmount, replacing the single document-global `tracked-insert` key.',
-          'Dead `lib/dita-utils.ts` and `types/dita-block.ts` removed — these were only ever imported by their own test file and had no production consumers.',
+          'Dead `lib/dita-utils.ts` and `types/dita-block.ts` removed. They were only ever imported by their own test file and had no production consumers.',
           'v0.4.0 release notes corrected: the `format` and `stats` endpoints listed there were part of the port-3000 tab API that was never functional (ADR-007). The note now describes the native API accurately.',
         ],
       },
@@ -76,19 +111,19 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '0.8.8',
     date: '2026-07-17',
-    title: 'API insertions are now reviewed as a precise Monaco XML diff — reliable, validated, byte-exact.',
+    title: 'API insertions are now reviewed as a precise Monaco XML diff: reliable, validated, byte-exact.',
     sections: [
       {
         heading: 'New',
         items: [
-          'When an AI tool or skill proposes content via the insert-section API, the XML pane now shows a read-only red/green Monaco diff with an Accept/Reject bar — what you review is byte-for-byte what gets committed. No more green-highlight edit mode for API insertions.',
+          'When an AI tool or skill proposes content via the insert-section API, the XML pane now shows a read-only red/green Monaco diff with an Accept/Reject bar. What you review is byte-for-byte what gets committed. No more green-highlight edit mode for API insertions.',
           'The Heretto Replace preview diff now strips Heretto-injected class attributes, so the comparison against the live remote topic shows your actual content changes instead of attribute noise.',
         ],
       },
       {
-        heading: 'Fixes',
+        heading: 'Bug Fixes',
         items: [
-          'API insertions are now reliable with any number of tabs open — the previous implementation silently did nothing when targeting any tab except the most recently opened one.',
+          'API insertions are now reliable with any number of tabs open. The previous implementation silently did nothing when targeting any tab except the most recently opened one.',
           'The API returns success only after the fragment and the resulting document pass validation. Previously it reported success 50 ms before validation ran.',
           'Inserted figures, images, and examples survive accept and save. Previously they could vanish because the accept path re-serialized through the visual editor.',
           'Targeting a replaceId that does not exist is now an explicit error instead of silently appending the content at the end.',
@@ -97,7 +132,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'New lib/xml-insert.ts computes the proposed document by string splicing — untouched content stays byte-identical, so the review diff shows only the actual change (ADR-004 track 1; FR-045). SectionInsertPlugin, the module-level executor slot, and the 50 ms timing race are retired. 19 new tests.',
+          'New lib/xml-insert.ts computes the proposed document by string splicing; untouched content stays byte-identical, so the review diff shows only the actual change (ADR-004 track 1; FR-045). SectionInsertPlugin, the module-level executor slot, and the 50 ms timing race are retired. 19 new tests.',
         ],
       },
     ],
@@ -108,7 +143,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Serializer fixes: formatting-only edits, table row add/delete, inline element stamping.',
     sections: [
       {
-        heading: 'Fixes',
+        heading: 'Bug Fixes',
         items: [
           'Formatting-only edits (bold/italic/codeph toggles) now serialize correctly instead of being silently discarded.',
           'Table row add/delete in the visual editor now reaches the XML (append/remove phases added to CALS and simpletable walkers).',
@@ -122,7 +157,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'Session 4B.3 + 4B.4: five serializer mediums (noteType, inlineAttrs, stripSpuriousXmlns, dl-split, generic inlineTag stamping) plus prototype-chain fix. Byte-stability corpus 9/9, suite green.',
+          'Five serializer mediums (noteType, inlineAttrs, stripSpuriousXmlns, dl-split, generic inlineTag stamping) plus prototype-chain fix. Byte-stability corpus 9/9, suite green.',
           'Technical debt D2 (flushInline consolidation) and D3 (PI-whitespace triplication) identified and filed for future cleanup.',
         ],
       },
@@ -134,9 +169,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Save API now correctly reports failure when a Heretto save fails.',
     sections: [
       {
-        heading: 'Fixes',
+        heading: 'Bug Fixes',
         items: [
-          'POST /api/tabs/:id/save no longer returns {success:true} when the Heretto PUT fails (HTTP 500, network error, etc.). The error is now propagated to callers so the altitude-release-notes workflow and other API consumers can detect and handle save failures correctly.',
+          '`POST /api/tabs/:id/save` no longer returns `{success: true}` when the Heretto PUT fails (HTTP 500, network error, etc.). The error is now propagated to callers so the altitude-release-notes workflow and other API consumers can detect and handle save failures correctly.',
           'Passing an unknown tab ID to the save API now returns an explicit error instead of silently saving the wrong (active) tab.',
         ],
       },
@@ -150,16 +185,16 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Security',
         items: [
-          'The native app HTTP server now binds to 127.0.0.1 only (loopback), making the API unreachable from the LAN. Removed wildcard CORS header — the API is for local tools only.',
+          'The native app HTTP server now binds to 127.0.0.1 only (loopback), making the API unreachable from the LAN. Removed wildcard CORS header (the API is for local tools only).',
           'The `dita://` static file handler now validates that resolved paths stay inside the `dist/` directory, blocking `../../../etc/passwd` traversal attempts.',
-          'Credentials endpoints (native and dev server) no longer return the Heretto API token. They return only `{email, hasCredentials}` so the token never travels over the network. The Settings modal token field starts blank — users must re-enter their token to save, which is correct security practice for any credential.',
+          'Credentials endpoints (native and dev server) no longer return the Heretto API token. They return only `{email, hasCredentials}` so the token never travels over the network. The Settings modal token field starts blank. Users must re-enter their token to save, which is correct security practice for any credential.',
           'Added a 10 MB request size cap to the native HTTP server to prevent resource exhaustion.',
         ],
       },
       {
-        heading: 'Fixes',
+        heading: 'Under the Hood',
         items: [
-          'Synced Info.plist `CFBundleShortVersionString` to match the actual app version (was stuck at retired 0.9.6).',
+          'Synced `Info.plist` `CFBundleShortVersionString` to match the actual app version (was stuck at a retired version number).',
         ],
       },
     ],
@@ -172,13 +207,13 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Improvements',
         items: [
-          'When a procedure step carries supplementary `<info>` content — a code sample, a note, an extra explanation — the visual editor previously showed only a small placeholder chip like `[codeblock]` or `[info: 2 elements]`. That content now renders as a read-only preview nested beneath the step, so you can see the code, note, or paragraph in context without switching to the XML pane. Editing the info content still happens in the XML pane; the preview is display-only and never alters your saved file.',
+          'When a procedure step carries supplementary `<info>` content (a code sample, a note, or an extra explanation), the visual editor previously showed only a small placeholder chip like `[codeblock]` or `[info: 2 elements]`. That content now renders as a read-only preview nested beneath the step, so you can see the code, note, or paragraph in context without switching to the XML pane. Editing the info content still happens in the XML pane; the preview is display-only and never alters your saved file.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
-          'The info preview serializes to nothing — the original `<info>` element is left byte-for-byte untouched on save. Two new round-trip tests confirm a step with `<info>` (codeblock + note) is byte-stable and that editing a step command leaves the sibling `<info>` undisturbed (P2-26 Phase 2).',
+          'The info preview serializes to nothing. The original `<info>` element is left byte-for-byte untouched on save. Two new round-trip tests confirm a step with `<info>` (codeblock + note) is byte-stable and that editing a step command leaves the sibling `<info>` undisturbed (P2-26 Phase 2).',
         ],
       },
     ],
@@ -191,15 +226,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Bug Fixes',
         items: [
-          'Definition lists (`<dl>`) were invisible in the visual editor. When you opened a topic that used a definition list — a list of terms each paired with a definition — the terms and definitions collapsed into one undifferentiated run of prose, and anything nested inside a definition (a table, a note, extra paragraphs) was dragged into that same flattened text. The XML pane showed the structure correctly, but the visual side was unreadable. Definition lists now render with each term emphasized and its definition indented beneath it, and block content inside a definition (tables, notes, paragraphs) renders normally. The non-standard `<p><dl>…</dl></p>` wrapper that Heretto authors is handled transparently.',
-          'While fixing the above, two related content-loss bugs surfaced and were also fixed. An inline element such as `<ph conkeyref>` or `<uicontrol>` was silently dropped when it sat in the same paragraph as a block element — on save, the conkeyref simply vanished. And an `<image>` placed inside a paragraph could knock the following paragraph out of the saved output entirely. Inline images are now treated as inline content (so they round-trip in place), and inline references and controls are preserved regardless of what else shares their paragraph.',
+          'Definition lists (`<dl>`) were invisible in the visual editor. When you opened a topic that used a definition list (a list of terms, each paired with a definition); the terms and definitions collapsed into one undifferentiated run of prose, and anything nested inside a definition (a table, a note, extra paragraphs) was dragged into that same flattened text. The XML pane showed the structure correctly, but the visual side was unreadable. Definition lists now render with each term emphasized and its definition indented beneath it, and block content inside a definition (tables, notes, paragraphs) renders normally. The non-standard `<p><dl>…</dl></p>` wrapper that Heretto authors is handled transparently.',
+          'While fixing the above, two related content-loss bugs surfaced and were also fixed. An inline element such as `<ph conkeyref>` or `<uicontrol>` was silently dropped when it sat in the same paragraph as a block element. On save, the conkeyref vanished. And an `<image>` placed inside a paragraph could knock the following paragraph out of the saved output entirely. Inline images are now treated as inline content (so they round-trip in place), and inline references and controls are preserved regardless of what else shares their paragraph.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
           'Five new round-trip tests covering definition lists: bare `<dl>`, the `<p>`-wrapped form, a definition containing a nested table and note, editing a term in place, and a definition paragraph mixing a conkeyref, a uicontrol, and an inline image followed by sibling content (BUG-01).',
-          'Verified end-to-end against the real Journey Definition topic from Heretto — the `<dl>` structure, conkeyrefs, uicontrols, the six-row table, the note, and the inline image all round-trip without data loss or a stray XHTML namespace.',
+          'Verified end-to-end against the real Journey Definition topic from Heretto. The `<dl>` structure, conkeyrefs, uicontrols, the six-row table, the note, and the inline image all round-trip without data loss or a stray XHTML namespace.',
         ],
       },
     ],
@@ -212,9 +247,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Bug Fixes',
         items: [
-          'When you inserted a paragraph, note, code block, or image using the + hover button, accepted the tracked change, and then saved to Heretto, the topic sometimes came back with a stray XHTML namespace (`xmlns="http://www.w3.org/1999/xhtml"`) attached to the inserted elements. Heretto rejected those saves with an HTTP 500. The same corruption could happen when you pushed updated XML through the `PUT /api/tabs/:id/content` endpoint and a freshly introduced element — such as a note that wasn\'t in the topic before — went through a Lexical round-trip before being serialized. Both are fixed: the serializer now strips the XHTML namespace unconditionally (it should never appear in DITA output), and the + tool now stamps each inserted block with its correct DITA identity so the serializer produces clean output from the start.',
-          'When you opened a Heretto topic that had an `<xref>` inside a `<note><p>` — the common authoring pattern — the link silently disappeared. The visual editor showed the note\'s text with the link text flattened in, but with no underline and no href. The parser was treating the `<p>` inside a note as an unrecognised inline element and collapsing its content to plain text. The xref is now preserved as a proper clickable link.',
-          'When you pushed replacement XML through `PUT /api/tabs/:id/content` where the new content had fewer body elements than the original — for example, replacing three paragraphs with a single note — the extra paragraphs from the old version remained in the output alongside the new note. The serializer\'s DOM walk was exiting early once all the new Lexical nodes were matched and leaving the leftover elements in place. Unmatched recognized body elements are now removed after the walk, so the PUT result contains only the new content.',
+          'When you inserted a paragraph, note, code block, or image using the + hover button, accepted the tracked change, and then saved to Heretto, the topic sometimes came back with a stray XHTML namespace (`xmlns="http://www.w3.org/1999/xhtml"`) attached to the inserted elements. Heretto rejected those saves with an HTTP 500. The same corruption could happen when you pushed updated XML through the `PUT /api/tabs/:id/content` endpoint and a freshly introduced element (such as a note that wasn\'t in the topic before) went through a Lexical round-trip before being serialized. Both are fixed: the serializer now strips the XHTML namespace unconditionally (it should never appear in DITA output), and the + tool now stamps each inserted block with its correct DITA identity so the serializer produces clean output from the start.',
+          'When you opened a Heretto topic that had an `<xref>` inside a `<note><p>` (the common authoring pattern), the link silently disappeared. The visual editor showed the note\'s text with the link text flattened in, but with no underline and no href. The parser was treating the `<p>` inside a note as an unrecognised inline element and collapsing its content to plain text. The xref is now preserved as a proper clickable link.',
+          'When you pushed replacement XML through `PUT /api/tabs/:id/content` where the new content had fewer body elements than the original (for example, replacing three paragraphs with a single note), the extra paragraphs from the old version remained in the output alongside the new note. The serializer\'s DOM walk was exiting early once all the new Lexical nodes were matched and leaving the leftover elements in place. Unmatched recognized body elements are now removed after the walk, so the PUT result contains only the new content.',
         ],
       },
       {
@@ -266,16 +301,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'AI tools can now propose a new section directly into your live document. You see it highlighted as a tracked change, and you decide whether to keep it.',
     sections: [
       {
-        heading: 'New API Endpoint',
+        heading: 'New',
         items: [
           '`POST /api/tabs/:id/insert-section` lets an AI tool send a `<section>` fragment to one of your open tabs. The new content appears right where you are working, highlighted in green as a tracked insertion. The tab drops into Edit Mode automatically so the only thing left for you to do is click `Accept` to keep the section or `Reject` to throw it away. This is built for AI tools that want to suggest a chunk of new content without overwriting your whole topic.',
+          'When the request comes in, the editor validates the XML, captures a snapshot of your current document, and appends the new section into the live tree. Because the snapshot did not include the new nodes, the tracked-changes system marks them with the same green styling you already see when you make manual tracked edits. Nothing else in your document moves or changes color. Only the newly added section is highlighted.',
         ],
       },
       {
-        heading: 'How it works',
+        heading: 'API',
         items: [
-          'When the request comes in, the editor validates the XML, captures a snapshot of your current document, and appends the new section into the live tree. Because the snapshot did not include the new nodes, the tracked-changes system marks them with the same green styling you already see when you make manual tracked edits.',
-          'Nothing else in your document moves or changes color. Only the newly added section is highlighted.',
           'The request body is `{ "xml": "<section><title>...</title><p>...</p></section>" }`. On success you get `{ "success": true, "status": "inserting" }`. Invalid XML or an unknown tab ID returns a descriptive error so the calling tool can react.',
         ],
       },
@@ -287,15 +321,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'A discoverability sweep: a keyboard shortcut cheat sheet, a version browser for past release notes, a first-run hint, and clearer placeholder copy.',
     sections: [
       {
-        heading: 'Discoverability',
+        heading: 'New',
         items: [
           'Press `?` (or `Cmd+/` on Mac, `Ctrl+/` on Windows and Linux) to open a cheat sheet that lists every keyboard shortcut grouped by category: Sync, XML editor, Modals. You can also reach it from `File Options` then `Keyboard shortcuts` if you prefer the mouse. The shortcuts have been there for a while, but they were essentially invisible unless you read the source code.',
           'The release notes window now has a version selector along the left side so you can flip through every shipped release, not just the latest one. When the window opens it still lands on the newest version, and the existing one-shot "show on version bump" behavior is unchanged.',
-          'The first time you open a tab, a small hint appears over the editor split: `Edit here or in the XML pane — press Ctrl+Enter to sync`. It goes away the moment you sync successfully or close it, and you never see it again. New writers no longer have to guess at the two-pane model.',
+          'The first time you open a tab, a small hint appears over the editor split: `Edit here or in the XML pane. Press Ctrl+Enter to sync`. It goes away the moment you sync successfully or close it, and you never see it again. New writers no longer have to guess at the two-pane model.',
         ],
       },
       {
-        heading: 'Copy & Polish',
+        heading: 'Polish',
         items: [
           'Placeholder titles now tell you to do something. `Task title`, `Concept title`, and `Reference title` are now `Enter your task title`, and so on. They render in muted italic and vanish the moment you start typing. The old copy looked too much like real content you were supposed to keep.',
           'Toolbar tooltip font size bumped from 10px to 11px. Tiny change, noticeably easier to read at a glance.',
@@ -307,7 +341,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         items: [
           'The visual editor parser now recognizes template placeholder strings on import (`Enter your task title`, `Short description of the task.`, and the older variants) and applies italic plus muted color so the styling survives a round trip. Backward-compatible: existing topics with the older `Task title` or `Concept title` placeholders still render styled.',
           'New `constants/keyboard-shortcuts.ts` gives shortcuts one place to live. The cheat sheet reads directly from this registry, so future shortcuts only need to be registered once.',
-          'Backlog reconciliation: four P3 items (table context menu ARIA, Insert Table modal ARIA plus aria-labels, colspan/rowspan tests) were confirmed shipped untracked and moved to Completed. Four others (LLM-dependent items, conditional text, map discovery) were explicitly parked with unblock conditions so they stop surfacing as actionable.',
+          'Keyboard shortcuts are now registered in a single source of truth (`constants/keyboard-shortcuts.ts`). Future shortcuts only need to be added once; the cheat sheet reads directly from the registry.',
         ],
       },
     ],
@@ -318,21 +352,16 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'The editor finally feels like a document. A real page canvas, redesigned body element indicators, and a + button to insert blocks without touching XML.',
     sections: [
       {
-        heading: 'Visual Editor',
+        heading: 'New',
         items: [
           'Your content now sits on a visible "page" that floats on a contrasting "canvas" background, just like every modern writing tool. Light theme gets a soft drop shadow, the dark themes get a clean border. The two surfaces are tuned per theme so they always read clearly against each other.',
           'Prereq, context, result, and postreq sections now render as fully bordered boxes that are always visible. Hovering one lights up the left border in its accent color and fades in a small label chip at the top left. Because the border space is always reserved, the layout no longer jumps when you hover over a section. The old hover-reveal treatment had a small but irritating shift.',
           'The floating `SHORT DESCRIPTION` label is gone. When the short description is empty, a soft italic placeholder now appears right where you would start typing, and disappears the moment you do. Standard placeholder behavior, finally on the field that needed it most.',
-        ],
-      },
-      {
-        heading: 'Content Insertion',
-        items: [
           'Hover any block in the visual editor and a + button appears in the left margin, in the canvas gutter just outside the page. Click it to open a searchable menu: Paragraph, Bulleted list, Numbered list, Note, Code block, Table, Image, and Link. Type to filter, press Enter or click to insert, and the new block drops in right after the one you hovered. Table and Link open their usual dialogs. The rest insert in place.',
         ],
       },
       {
-        heading: 'Theme',
+        heading: 'Improvements',
         items: [
           'Dark theme page and canvas backgrounds were only five lightness steps apart, barely enough to tell them apart. Both values are recalibrated so the separation matches the other dark themes.',
           'Geotab theme canvas was near pure black, which made the page look disconnected from the rest of the app. Both values are now anchored in the blue-navy palette the theme is built around.',
@@ -346,10 +375,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'A resizable split, word wrap in the XML pane, and a sync hint that knows when to be quiet. Five small things that make long sessions much nicer.',
     sections: [
       {
-        heading: 'Polish',
+        heading: 'New',
         items: [
           'Drag the handle between the visual editor and the XML pane to set the split to whatever ratio your current task needs. It is clamped between 20% and 80% so neither side can disappear, and your chosen width is remembered across sessions. The old 50/50 split was fixed.',
           'A new word wrap button in the XML toolbar wraps long lines to the pane width instead of letting them run off the right edge. Toggling is immediate and your preference sticks. Deeply nested or attribute-heavy elements no longer require horizontal scrolling just to read a single tag.',
+        ],
+      },
+      {
+        heading: 'Polish',
+        items: [
           'The hint `Press Ctrl+Enter to sync between editors` now appears only after an edit creates a real divergence between the two panes, and disappears the moment you sync. It used to live there permanently, which trained you to ignore it.',
           'The Heretto folder browser now tells you what it is doing. Instead of a bare spinner you see `Loading your Heretto folders…`, and during search you see live progress like `Searching… 12 / 34 folders.`. If loading hangs for more than three seconds, a retry option appears.',
           'Hover the readability score in the status bar to see what the number actually means. The tooltip explains the human label and notes that 60 to 70 is the right range for technical documentation. The number was always there. The interpretation was not.',
@@ -363,11 +397,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Print and export to PDF. Your topics finally leave the editor as clean, readable documents instead of giant browser screenshots.',
     sections: [
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           '`File Options` now has a `Print / Export PDF` item. Click it and your topic opens in a clean print window with proper A4 layout, ready for the browser print dialog. Save as PDF from there. The output is a real document: Inter for body text, JetBrains Mono for code, colored note borders for Warning, Caution, Danger, and Tip, prereq/context/result blocks with their labeled left bars, and bordered tables. Steps render as a numbered list with substeps as a lettered sub-list. Before this, printing meant using the browser`s File then Print on the live editor, which rasterized fonts, Monaco internals, and the whole Lexical DOM into a 10MB+ file for a single page of text.',
           'The print serializer now handles the full DITA element set: CALS tables (`<tgroup>`, `<thead>`, `<tbody>`, `<row>`, `<entry>`), simple tables, definition lists, figures with captions, inline elements (`<uicontrol>` as `<kbd>`, `<filepath>`, `<varname>`, `<cmdname>` as monospace, `<xref>` as linked text), footnotes, and every note type. Unknown elements pass their children through transparently instead of dropping content silently.',
-          'If your browser blocks the pop-up, you now see `Print blocked — allow pop-ups for this site` instead of a silent failure.',
+          'If your browser blocks the pop-up, you now see `Print blocked. Allow pop-ups for this site` instead of a silent failure.',
         ],
       },
       {
@@ -384,7 +418,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Cross-references finally look like links, placeholder text reads as editable, and the Heretto connected indicator stops lying.',
     sections: [
       {
-        heading: 'Visual Editor',
+        heading: 'New',
         items: [
           '`<xref>` elements now render with an underline in the visual editor so they actually look like the cross-references they are. This sounds like a small CSS tweak, but it unblocked the whole validation layer. The broken-xref red wavy underline and the unresolved-keyref highlight both assumed you could already see where your cross-references were. You could not. The alarm system was built before the house.',
           'The default `Task title` and `Short description of the task.` text now renders muted and italic so it looks like a placeholder, not real content. Until now there was no visual cue that the field needed your attention.',
@@ -392,10 +426,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
       {
-        heading: 'Reliability',
+        heading: 'Bug Fixes',
         items: [
           'The Heretto connected indicator was lying when your `~/heretto.json` was missing at startup. The Vite proxy never registered, so any request to `/heretto-api/…` quietly returned the SPA `index.html` at HTTP 200. The old check saw a 200 and lit the green dot. The new check also verifies the response carries an `application/xml` content-type, because an HTML body is never a valid Heretto reply. This was the first lie in a two-step failure: the status said `Connected`, and then the save fell apart.',
-          'When a save failed and the server returned an HTML page, the toast used to read `Failed to save to Heretto: Failed to save (HTTP 500) <!DOCTYPE html>…`. You now see `Heretto returned an unexpected response — if you just added credentials, restart the dev server and try again.` That is the second lie fixed.',
+          'When a save failed and the server returned an HTML page, the toast used to read `Failed to save to Heretto: Failed to save (HTTP 500) <!DOCTYPE html>…`. You now see `Heretto returned an unexpected response. If you just added credentials, restart the dev server and try again.` That is the second lie fixed.',
         ],
       },
     ],
@@ -406,7 +440,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Broken cross-references surface immediately. An `<xref>` with no `href` now shows a red wavy underline the moment you write it, not after a build.',
     sections: [
       {
-        heading: 'Visual Editor',
+        heading: 'New',
         items: [
           '`<xref>` elements with an empty or missing `href` now show a red wavy underline in the visual editor. The indicator appears the instant the XML syncs and clears as soon as you add a valid href. You no longer need to build to find a cross-reference that points nowhere.',
         ],
@@ -427,7 +461,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Note types, section bars, and a polish sweep. `<note type="warning">` finally gets a color and a label, hidden step content surfaces, and copy gets clearer across the board.',
     sections: [
       {
-        heading: 'Visual Editor',
+        heading: 'New',
         items: [
           '`<note type="warning">` now renders with a colored left bar and a `WARNING` label above the content. Caution, Tip, Danger, and Note types each get their own color, and all of them adapt to every theme. You can tell what kind of note you are looking at without checking the XML.',
           '`<title>` elements inside `<section>` elements now have a left border, so section boundaries are easy to scan in long topics. The bar color follows the active theme.',
@@ -469,7 +503,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Polish',
         items: [
-          'Links in the visual editor now show a tooltip on hover: `Links open in published output — not in the editor.` so you understand why clicking a link in edit mode does not navigate. The pointer cursor was already telling you it was interactive. The reason it did not respond was missing.',
+          'Links in the visual editor now show a tooltip on hover: `Links open in published output, not in the editor.` so you understand why clicking a link in edit mode does not navigate. The pointer cursor was already telling you it was interactive. The reason it did not respond was missing.',
           'When the `Replace` modal`s verification step finds a difference, that row now shows an amber warning instead of a contradictory green checkmark followed by a red error. Amber means `upload succeeded, but Heretto reformatted the content. Go verify.`',
           'The `Replace` modal error copy is now honest: `Verification failed - remote content differs from uploaded content` is now `Upload succeeded, but Heretto reformatted the content. Check the topic in Heretto to confirm your changes are there.` The `Retry` button is now `Done`, because retrying cannot fix a reformatting difference.',
         ],
@@ -488,7 +522,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Heretto images, inline validation, and clearer status bar copy. Images render in the editor, broken xrefs get wavy underlines, and the status bar speaks like a writer.',
     sections: [
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Images referenced with relative paths (like `../images/diagram.png`) now resolve and display as real images in the visual editor. You see a shimmer placeholder while the image loads, and the original relative href is preserved in the XML on save.',
           'Broken `<xref>` targets show a red wavy underline, and unresolved keyrefs get a yellow highlight. Validation runs automatically after each sync and updates in real time as you edit. Errors are tracked per tab with no impact on the XML source.',
@@ -498,7 +532,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Bug Fixes',
         items: [
           'Freshly opened topics used to show a false `Updated in Heretto` conflict warning that was actually just whitespace differences between your local beautified XML and the raw XML from Heretto. The check now normalizes whitespace before comparing.',
-          'The status bar label `Conflict — updated in Heretto` now reads `Changes in both locations`, matching the writer-friendly vocabulary used elsewhere in the UI.',
+          'The status bar label `Conflict: updated in Heretto` now reads `Changes in both locations`, matching the writer-friendly vocabulary used elsewhere in the UI.',
         ],
       },
       {
@@ -520,7 +554,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Insert Table, write API, and a critical parser fix. Tables come from a dialog now, AI tools can edit your content, and task topics with sections finally render correctly.',
     sections: [
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Click the table icon in the toolbar to create a new DITA table. Pick rows (up to 50), columns (up to 10), and whether you want a header row. The output is valid DITA CALS with proper colspec elements.',
           'AI tools like Claude Code can now edit your content and trigger saves through the native API: `PUT /api/tabs/:id/content` (update the XML) and `POST /api/tabs/:id/save` (save to Heretto). This closes the read-write loop the read endpoints started.',
@@ -555,7 +589,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Table editing in place. Right-click any cell to insert or delete rows and columns, plus a batch of bug fixes and accessibility improvements.',
     sections: [
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Right-click any table cell in the visual editor to insert rows above or below, insert columns left or right, or delete rows and columns. Works for both CALS `<table>` and `<simpletable>` formats. You no longer have to switch to XML to restructure a table.',
           'All three items in the XML toolbar (syntax theme, `Format XML`, collapse) now show tooltips on hover. The `Format XML` tooltip includes its keyboard shortcut: `Format XML (Shift+Alt+F)`.',
@@ -592,7 +626,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Heretto integration. Draft a topic, preview the diff, and replace the live document without leaving the editor.',
     sections: [
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Draft a topic, preview the diff against the live version in Heretto, and replace it directly from the editor. The three-step wizard shows you exactly what will change before you commit. After replacing, the tab becomes a real Heretto-backed document with full save, refresh, and change detection.',
           'External tools can now load DITA content into the editor through a stable HTTP endpoint. Content is validated and beautified automatically. This replaces the older browser-automation approach.',
@@ -628,14 +662,14 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Prereq, context, result, and postreq blocks now have color bars on the left edge and hover labels. You can tell which DITA element you are in without switching to the XML pane.',
           'The Light theme shifted from cool Slate to warmer Stone tones. Same clarity, easier on the eyes for long sessions.',
         ],
       },
       {
-        heading: 'Terminology',
+        heading: 'Polish',
         items: [
           'The `Post-Requisite` label is now `Postrequisites`, matching standard DITA terminology.',
         ],
@@ -661,7 +695,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         ],
       },
       {
-        heading: 'New Features',
+        heading: 'New',
         items: [
           'Unresolved `<conkeyref>`, `<keyref>`, and `<conref>` references now show as visible chips like `[conkeyref: glossary/term]` instead of blank space. You can see where your unresolved references are.',
           'Table columns now auto-size proportionally based on content length, with a 10% minimum so words do not get broken.',
@@ -684,38 +718,18 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Stability and usability release. Focused on making the editing experience feel reliable and polished.',
     sections: [
       {
-        heading: 'Sync & Data Integrity',
+        heading: 'New',
         items: [
-          'Round-trip fidelity. Edits in the visual editor no longer silently drop attributes, processing instructions, or comments.',
-          'Fixed the savedXmlRef mutation bug that caused false `unsaved changes` warnings.',
+          'Edits in the visual editor no longer silently drop attributes, processing instructions, or comments. Round-trip fidelity is now guaranteed.',
+          'Fixed a bug that caused false `unsaved changes` warnings after a successful save.',
           'Heretto saves preserve the remote formatting instead of re-serializing the topic from scratch.',
           'Import now does an integrity check. Topics are fetched twice and compared before opening so you do not start work on a corrupted load.',
-        ],
-      },
-      {
-        heading: 'Edit Mode & Tracked Changes',
-        items: [
-          'A new Edit Mode. Click the pencil icon to isolate your changes before committing them to the document.',
-          'Word-level tracked insertions, highlighted via the CSS Custom Highlight API.',
-          'Tracked deletions render inline with strikethrough styling so you can see what you removed.',
-          'Accept merges your changes into the XML source. Reject restores the snapshot from before you started editing.',
-        ],
-      },
-      {
-        heading: 'Editor Polish',
-        items: [
-          'Full keyboard navigation across every dropdown menu: arrow keys, Escape, and proper focus management.',
-          'All modals trap focus, respond to Escape, and carry the right aria-modal attributes.',
+          'A new Edit Mode. Click the pencil icon to isolate your changes before committing them to the document. Typed insertions are highlighted word-level, and deletions render inline with strikethrough so you can see exactly what you removed. Accept merges your changes into the XML source. Reject restores the snapshot from before you started editing.',
+          'Full keyboard navigation across every dropdown menu: arrow keys, Escape, and proper focus management. All modals trap focus, respond to Escape, and carry the right aria-modal attributes.',
           'Multi-tab support. Open several topics side by side, each with its own undo history and sync state.',
           'The status bar shows word count, character count, readability score, encoding, and DITA version.',
-        ],
-      },
-      {
-        heading: 'Heretto CMS Integration',
-        items: [
-          'File browser with breadcrumb navigation, folder-scoped search, and progress indicators.',
-          'Save new topics to any Heretto folder, or overwrite existing files.',
-          'Background polling detects remote changes and shows you a change indicator.',
+          'File browser with breadcrumb navigation, folder-scoped search, and progress indicators. Save new topics to any Heretto folder, or overwrite existing files.',
+          'Background polling detects remote changes and shows a change indicator.',
           'Credentials live locally in `~/heretto.json` and are never sent to the browser.',
         ],
       },
