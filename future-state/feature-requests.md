@@ -2,49 +2,85 @@
 
 Feature requests are differentiated from action items and bugs. Items here are considered for future work based on priority and impact.
 
-Each FR opens with a **problem-first header** so the *why* is legible before the *how*. The fields:
+Each open FR opens with a **problem-first header** so the *why* is legible before the *how*:
 
 - **Problem:** what's missing/wrong for the writer (not the solution)
 - **Signal:** evidence it matters — who hit it, when, how often
 - **Smallest slice:** the minimum shippable cut that relieves the Problem
 - **Serves:** which acceptance criterion it advances (top criterion: WYSIWYG/DITA parity; writer experience over developer convenience)
 
-The existing body (Description / Value Proposition / Suggested Approach / Prior Art / Risks / What Not to Change) follows unchanged. See GOVERNANCE.md, Stage 1.
+Detailed sections below exist only for open items. Shipped items are fully recorded in the table.
 
 ---
 
-## FR-001: Add "Beautify" button to XML toolbar
+## All Feature Requests
 
-**Requested:** 2026-03-10
-**Status:** Shipped (v0.6.1, 2026-03-13)
-**Priority:** P2-3
-**Impact:** Medium
-
-**Problem:** Writers in the XML source pane face inconsistently formatted markup (pasted from Heretto, hand-edited, conkeyref-injected) that is slow and error-prone to read.
-**Signal:** Maya Chen's UX advisory notes the recurring manual workaround of copying to an external formatter and pasting back, and cites today's deeply nested Altitude API tables.
-**Smallest slice:** A single-click toolbar Beautify action that pretty-prints the raw DITA XML to 2-space indentation without altering semantic content.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-Add a "Beautify" (format/pretty-print) button to the Monaco XML source editor toolbar. When clicked, it should reformat the raw DITA XML with consistent indentation, line breaks, and attribute alignment without altering the semantic content.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Writers working in the XML source pane encounter inconsistently formatted markup constantly — pasted content from Heretto, hand-edited sections, content injected via conkeyrefs or sync operations. The cognitive cost of parsing poorly formatted XML is real: mismatched nesting becomes harder to spot, attribute-heavy elements blur into walls of text, and even experienced DITA authors lose time re-reading structure that clean indentation would make obvious at a glance.
-
-A single-click Beautify action directly addresses this. It removes a repetitive manual task (selecting all, copying to an external formatter, pasting back) and keeps the author inside their editing flow. For a split-pane editor like DITA Architect — where the XML source is always visible alongside the WYSIWYG view — source readability is not a convenience feature; it is a primary interface quality. If the right pane is hard to read, half the editor's value is diminished.
-
-This also has a downstream quality benefit: well-formatted XML surfaces structural errors faster. A misplaced `</entry>` or unclosed `<li>` is far easier to catch in properly indented source than in a compressed block. For a team producing API reference documentation with deeply nested tables (like the Altitude content reviewed today), this is especially relevant.
-
-The interaction should be low-friction: a toolbar icon (consistent with the existing Monaco toolbar style), a keyboard shortcut (e.g., Shift+Alt+F, matching VS Code convention), and no confirmation dialog. The formatter should preserve `<codeblock>` and `<pre>` content verbatim, respect `xml:space="preserve"` attributes, and normalize to 2-space indentation to match the project's existing XML style.
+|     | ID                                                                                              | Title                                                                             | Requested  | Status                    |
+| --- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------- | ------------------------- |
+| 🟢  | FR-001                                                                                          | Add "Beautify" button to XML toolbar                                              | 2026-03-10 | Shipped v0.6.1            |
+| 🔴  | [FR-002](##fr-002-release-notes-version-browser-in-whats-new-modal)                             | Release notes version browser in What's New modal                                 | 2026-03-12 | Open                      |
+| 🟢  | FR-003                                                                                          | Empty states for Heretto file browser                                             | 2026-03-12 | Shipped v0.6.2            |
+| 🟢  | FR-004                                                                                          | Inline validation hints in the visual editor                                      | 2026-03-12 | Shipped v0.9.0            |
+| 🔴  | [FR-005](#fr-005-keyboard-shortcut-cheat-sheet)                                                 | Keyboard shortcut cheat sheet                                                     | 2026-03-12 | Open                      |
+| 🟢  | FR-006                                                                                          | Hover element labels in visual editor                                             | 2026-03-13 | Shipped v0.6.0            |
+| 🟢  | FR-007                                                                                          | Structural color bars for DITA body elements                                      | 2026-03-13 | Shipped v0.6.0            |
+| 🟢  | FR-008                                                                                          | Light theme warmth refinement                                                     | 2026-03-13 | Shipped v0.6.0            |
+| 🟢  | FR-009                                                                                          | Add aria-label to Format XML button                                               | 2026-03-13 | Shipped v0.6.2            |
+| 🟢  | FR-010                                                                                          | Improve Format XML error toast specificity                                        | 2026-03-13 | Shipped v0.6.2            |
+| 🟢  | FR-011                                                                                          | Refine external load toast copy                                                   | 2026-03-13 | Shipped v0.7.1            |
+| 🟢  | FR-012                                                                                          | Improve HerettoReplaceModal recovery text                                         | 2026-03-13 | Shipped v0.7.2            |
+| 🟢  | FR-013                                                                                          | Improve DiffViewer empty state copy                                               | 2026-03-13 | Shipped v0.7.2            |
+| 🟢  | FR-014                                                                                          | Use contextual placeholder in HerettoStatusModal                                  | 2026-03-13 | Shipped v0.7.2            |
+| 🟢  | FR-015                                                                                          | Rename `Commit` button to `Save to Heretto`                                       | 2026-03-13 | Shipped v0.9.1.1          |
+| 🟢  | FR-016                                                                                          | Use writer-friendly vocabulary in Heretto status bar                              | 2026-03-13 | Shipped v0.9.1.1          |
+| 🟢  | FR-017                                                                                          | Editor status API endpoint                                                        | 2026-03-16 | Shipped v0.7.3            |
+| 🟢  | FR-018                                                                                          | List open tabs API endpoint                                                       | 2026-03-16 | Shipped v0.7.3            |
+| 🟢  | FR-019                                                                                          | Read tab content API endpoint                                                     | 2026-03-16 | Shipped v0.7.3            |
+| 🟢  | FR-020                                                                                          | Update tab content API endpoint                                                   | 2026-03-16 | Shipped v0.8.0            |
+| 🟢  | FR-021                                                                                          | Save tab to Heretto API endpoint                                                  | 2026-03-16 | Shipped v0.8.0            |
+| 🟢  | FR-022                                                                                          | Format tab XML API endpoint                                                       | 2026-03-16 | Shipped v0.8.0            |
+| 🟢  | FR-023                                                                                          | Tab content statistics API endpoint                                               | 2026-03-16 | Shipped v0.8.0            |
+| 🟢  | FR-024                                                                                          | Table context menu (insert/delete rows and columns)                               | 2026-03-16 | Shipped v0.7.2            |
+| 🟢  | FR-025                                                                                          | Insert Table toolbar action                                                       | 2026-03-16 | Shipped v0.8.0            |
+| 🔴  | [FR-026](#fr-026-table-context-menu-accessibility-aria-roles-and-keyboard-navigation)           | Table context menu accessibility (ARIA roles and keyboard navigation)             | 2026-03-16 | Open                      |
+| 🟢  | FR-027                                                                                          | User feedback for prevented table operations                                      | 2026-03-16 | Shipped v0.9.1.1          |
+| ⚫   | FR-028                                                                                          | Polish body element hover frame interaction                                       | 2026-03-16 | Superseded by FR-032      |
+| 🟢  | FR-029                                                                                          | Page-view layout for the visual editor                                            | 2026-03-16 | Shipped v0.9.5            |
+| 🟢  | FR-030                                                                                          | Render Heretto images in the visual editor                                        | 2026-03-27 | Shipped                   |
+| 🟢  | FR-031                                                                                          | "Loaded from Heretto" status state for freshly opened topics                      | 2026-03-27 | Shipped                   |
+| 🟢  | FR-032                                                                                          | Extend body element indicators to non-task topic types                            | 2026-03-27 | Shipped (P2-32/33/34/35)  |
+| 🟢  | FR-033                                                                                          | Normalize separators in "Open from Heretto" search                                | 2026-03-30 | Shipped v0.9.1.1          |
+| 🟢  | FR-034                                                                                          | Larger Replace in Heretto preview modal with fluid diff height                    | 2026-04-06 | Shipped v0.9.1.1          |
+| 🔴  | [FR-035](#fr-035-connect-a-map--key-registry-keyref-validation-and-cross-file-xref-validation)  | "Connect a Map" — key registry, keyref validation, and cross-file xref validation | 2026-04-10 | Open                      |
+| 🔴  | [FR-036](#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic)              | Map discovery — surface ditamaps that reference the current topic                 | 2026-04-10 | Open                      |
+| 🔴  | [FR-037](#fr-037-general-discoverability--empty-states-onboarding-hints-and-feature-surfacing)  | General discoverability — empty states, onboarding hints, and feature surfacing   | 2026-04-13 | Open                      |
+| 🟢  | FR-038                                                                                          | Base visual styling for xrefs in the visual editor                                | 2026-04-14 | Shipped v0.9.3            |
+| 🔴  | [FR-039](#fr-039-macos-native-app--menu-bar-structure-and-item-placement-policy)                | macOS native app — menu bar structure and item placement policy                   | 2026-05-25 | Open                      |
+| 🔴  | [FR-040](#fr-040-element-insertion-mode--before-after-wrap-in-the--menu)                        | Element insertion mode — Before, After, Wrap in the `+` menu                      | 2026-05-25 | Open                      |
+| 🟢  | FR-041                                                                                          | `POST /api/load-content` should accept an optional Heretto UUID                   | 2026-05-27 | Shipped v0.9.6.1          |
+| 🟢  | FR-042                                                                                          | `insert-section` tracked changes must serialize back to DITA XML on accept        | 2026-05-27 | Shipped v0.9.6.1          |
+| 🟢  | FR-043                                                                                          | `insert-section` should support block-level elements into flat `<conbody>` topics | 2026-05-27 | Shipped v0.9.6.1          |
+| ⏸️  | [FR-044](#fr-044-altitude-by-geotab-theme)                                                      | Altitude by Geotab theme                                                          | 2026-06-02 | Parked — Rolled back 2026-07-20 |
+| 🟢  | FR-045                                                                                          | Monaco-diff review surface for API insertions                                     | 2026-06-04 | Shipped v0.8.8            |
+| 🟢  | FR-046                                                                                          | Marks-as-data tracked changes in Lexical (suggesting mode)                        | 2026-06-04 | Shipped v0.9.0            |
+| 🔴  | [FR-047](#fr-047-byte-stability-test-corpus--shared-test-editor-factory)                        | Byte-stability test corpus + shared test editor factory                           | 2026-07-17 | Open (P1 — blocks BUG-04) |
+| 🔴  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Open                      |
+| 🔴  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Open                      |
+| 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
+| 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Open                      |
+| 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
+| 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
+| 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
+| 🔴  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Open                      |
 
 ---
+
+## Open Feature Requests
 
 ## FR-002: Release notes version browser in What's New modal
 
 **Requested:** 2026-03-12
-**Status:** Proposed
+**Status:** Open
 **Priority:** Low
 **Impact:** Low–Medium
 
@@ -64,60 +100,12 @@ The What's New modal currently displays only the latest release notes entry (`RE
 - Selecting a past version renders that entry's sections in the existing right-side layout.
 - No backend changes needed — the `RELEASE_NOTES` array already contains all entries.
 
-### Value Proposition (Maya Chen, UX Advisor)
-
-Right now with two versions this isn't urgent, but every release adds another entry that becomes invisible. A version browser turns the modal from a one-time notification into a lightweight changelog — useful for users returning after multiple updates, onboarding new team members, or simply answering "when did we add conkeyref chips?" without leaving the app.
-
----
-
-## FR-003: Empty states for Heretto file browser
-
-**Requested:** 2026-03-12
-**Status:** Shipped (v0.6.2, 2026-03-13)
-**Priority:** P2-5
-**Impact:** Medium
-
-**Problem:** An empty Heretto folder shows blank space with no message, leaving the author unsure whether the folder is empty, loading, or broken.
-**Signal:** Maya Chen flagged this on 2026-03-12 as a dead-end state with no feedback.
-**Smallest slice:** An empty state with a `No topics in this folder` message and a `Create new topic` action button.
-**Serves:** discoverability
-
-### Description
-
-When a Heretto CMS folder contains no topics, the file browser shows nothing — no message, no affordance, just blank space. Add an empty state with a message like `No topics in this folder` and a `Create new topic` action button.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-An empty folder with no feedback is a dead end. The author doesn't know if the folder is genuinely empty, still loading, or broken. A clear empty state with a `No topics in this folder` message answers the question instantly, and a `Create new topic` call-to-action turns a dead end into a starting point. This is low-effort, high-trust UX — it tells the user "we anticipated this state and we've got you covered."
-
----
-
-## FR-004: Inline validation hints in the visual editor
-
-**Requested:** 2026-03-12
-**Status:** Shipped (v0.9.0, 2026-03-27)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** Authors can write an entire topic with broken `xref` targets and unresolved keyrefs/conkeyrefs without knowing until the output is built — a long feedback loop.
-**Signal:** Maya Chen's 2026-03-12 advisory describes catching problems three steps later in a build log instead of at the authoring moment.
-**Smallest slice:** Inline indicators in the Lexical editor — a red underline on a dead `xref`, a yellow highlight on an unresolved keyref.
-**Serves:** authoring-time validation
-
-### Description
-
-Add inline visual indicators in the Lexical WYSIWYG editor for content issues that are currently invisible until publish time. Examples include red underlines for broken `xref` targets, yellow highlights for unresolved keyrefs/conkeyrefs, and subtle markers for missing required elements.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Right now, an author can write an entire topic with broken cross-references and not know until the output is built. That's a long feedback loop. Inline hints — a red underline on a dead `xref`, a yellow squiggle on an unresolved keyref — bring validation into the authoring moment. Authors catch problems while they still remember the context, not three steps later in a build log. This borrows a pattern every developer already knows from their code editor, applied to the content side of the split pane.
-
 ---
 
 ## FR-005: Keyboard shortcut cheat sheet
 
 **Requested:** 2026-03-12
-**Status:** Proposed
+**Status:** Open
 **Priority:** Low
 **Impact:** Medium
 
@@ -130,703 +118,13 @@ Right now, an author can write an entire topic with broken cross-references and 
 
 Add a discoverable keyboard shortcut overlay that displays all available shortcuts. Trigger via `?` or `Cmd+/` (when not focused in an editor). Show grouped shortcuts for formatting, navigation, file operations, and edit mode actions.
 
-### Value Proposition (Maya Chen, UX Advisor)
-
-We've built good keyboard shortcuts — bold, italic, save, edit mode toggle — but there's no way to discover them without reading source code. A shortcut overlay (like GitHub's `?` or Figma's `Ctrl+Shift+?`) gives power users a reference and new users a learning path. Discoverability is the difference between "this app has shortcuts" and "this app taught me its shortcuts." It's a small surface that signals the app respects keyboard-driven workflows.
-
----
-
-## FR-006: Hover element labels in visual editor
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.6.0, 2026-03-13)
-**Priority:** P2-7
-**Impact:** High
-
-**Problem:** Only the shortdesc identifies itself structurally in the Lexical pane; every other DITA body element renders as an identical paragraph, so an author can't tell where `context` ends and `result` begins without switching to XML.
-**Signal:** Maya Chen's advisory notes DITA structure has semantic meaning that affects output, and content typed into the wrong element isn't caught until build; DITA Doer 3.0 was reviewed 2026-03-13 as prior art.
-**Smallest slice:** Hover-only uppercase semantic labels (`CONTEXT`, `RESULT`, `PREREQUISITE`) on block elements, reusing the existing shortdesc `::after` CSS pattern.
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-Add hover-triggered structural labels to DITA body elements in the Lexical visual editor. When an author hovers over a block element — `context`, `result`, `prereq`, `postreq`, `steps`, `section` — a small uppercase label appears indicating the element's DITA role (e.g., `CONTEXT`, `RESULT`, `PREREQUISITE`). Labels should be hover-only to avoid visual clutter during active writing.
-
-### Suggested Approach
-
-The pattern already exists in the codebase. The `SHORT DESCRIPTION` label on shortdesc elements (`index.css:440-451`) uses a `::after` pseudo-element with `position: absolute`, `text-transform: uppercase`, and `opacity: 0.5`. This same CSS pattern can be extended to other DITA body elements:
-
-- In `parseXmlToLexical.ts`, the elements `context`, `result`, `prereq`, `postreq` already map to `$createParagraphNode()` (lines ~130-170). Apply distinguishing CSS classes — `dita-editor-context`, `dita-editor-result`, etc. — to these paragraph nodes via the Lexical theme or inline class assignment.
-- Add corresponding `::after` rules in `index.css` for each class, using the same positioning as `.dita-editor-shortdesc::after` but triggered on `:hover` instead of always-visible.
-- No new Lexical node types required. No React components. CSS classes on existing paragraph nodes and a few lines in the parser.
-
-Labels should use **semantic DITA names** — `CONTEXT`, `RESULT`, `PREREQUISITE`, `POST-REQUISITE` — not generic labels like `PARAGRAPH`. The value is in surfacing structural meaning, not node type.
-
-Move/reorder arrows (as seen in DITA Doer) are explicitly out of scope. In a split-pane editor where the XML source is visible, structural reorganization belongs in the source pane.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Right now, the only element in the Lexical pane that identifies itself structurally is the shortdesc — that small `SHORT DESCRIPTION` watermark. Every other DITA body element renders as an identical paragraph. An author editing a task topic can't tell where `context` ends and `result` begins without switching to the XML source pane.
-
-This matters because DITA structure isn't decoration — `context` and `result` have semantic meaning in task topics that affects how content is rendered in output. When an author accidentally types result content inside the `context` element, they won't know until the output is built. A hover label makes the structure legible at the moment of editing, without making the default view noisy.
-
-This also pairs well with FR-004 (inline validation hints). Once authors can see which element they're in, showing validation state on that element becomes natural — a broken `xref` inside a `CONTEXT` block is more actionable when you can see both the element label and the validation indicator.
-
-### Prior Art
-
-- **DITA Doer 3.0:** Shows element labels with move arrows on hover (screenshot reviewed 2026-03-13). Labels use generic names like `PARAGRAPH`.
-- **Heretto CMS:** Shows always-visible element tags as inline chips (e.g., `context`, `result`, `step`, `cmd`). Comprehensive but visually dense.
-- **DITA Architect (current):** Only `.dita-editor-shortdesc::after` provides a structural label. All other body elements are visually undifferentiated.
-
----
-
-## FR-007: Structural color bars for DITA body elements
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.6.0, 2026-03-13)
-**Priority:** P2-8
-**Impact:** Medium
-
-**Problem:** In longer task topics that scroll for several screens, authors have no peripheral signal of where one structural section ends and another begins without reading labels or switching to XML.
-**Signal:** Maya Chen's advisory notes authors already recognize the existing `<note>` left-edge border pattern and asks how this helps orient in an 8-step topic.
-**Smallest slice:** A 3px theme-aware left-edge color bar per element type (`context`, `result`, `prereq`, `postreq`) reusing the FR-006 CSS classes.
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-Add subtle left-edge color bars to DITA body element blocks (`context`, `result`, `prereq`, `postreq`) in the Lexical visual editor. Each element type gets a distinct color — a 3px vertical stripe on the left margin — so authors can see where one structural section ends and another begins without reading labels or switching to the XML source.
-
-### Suggested Approach
-
-- Use `border-left` on the same CSS classes introduced for FR-006 (`dita-editor-context`, `dita-editor-result`, etc.).
-- Define theme-aware CSS variables for each element type's bar color (e.g., `--editor-context-bar`, `--editor-result-bar`), following the existing pattern for `--editor-quote-border`.
-- Add corresponding values in each theme block in `index.css` (dark, light, claude, nord, solarized, geotab).
-- The color bars are always visible (unlike the hover labels from FR-006), providing a persistent but low-weight structural signal.
-
-This is a lighter alternative to the full bordered section boxes seen in Heretto CMS. Full dashed-border boxes with headers work well in Heretto's single-pane, full-width editor, but would feel cramped in our split-pane layout where the Lexical pane shares horizontal space with Monaco. A left-edge bar provides the structural distinction with less visual weight — the hover labels (FR-006) tell you *what* the element is, the color bars tell you *where one ends and another begins*.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-The existing visual editor already uses a left-edge color pattern for one element: `<note>` elements render with `border-left: 4px solid var(--editor-quote-border)` and a tinted background. Authors have learned to recognize that visual pattern as "this is a note." Extending the same idea — left-edge color, no background tint — to `context`, `result`, `prereq`, and `postreq` builds on a visual language the editor already speaks.
-
-Have you considered how this helps with longer task topics? In a topic with 8 steps, a context block, prerequisite, and result, the content can run to several screens of scrolling. Without structural markers, the only way to orient yourself is to scroll up to the heading or check the XML. A colored left bar gives you a peripheral signal — "I'm in the result section" — without interrupting your reading flow. It's the same principle as syntax highlighting in code editors, applied to content structure.
-
-### Prior Art
-
-- **Heretto CMS:** Full dashed-border section boxes with element headers. Effective in a full-width single-pane editor but visually heavy.
-- **DITA Architect (current):** `<note>` elements already use `border-left: 4px solid` with a tinted background (`index.css:405-412`). This FR extends that pattern without the background tint.
-
----
-
-## FR-008: Light theme warmth refinement
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.6.0, 2026-03-13)
-**Priority:** P2-9
-**Impact:** Medium
-
-**Problem:** The Light theme's cool blue-gray (Slate) palette and tight spacing make the editor feel like a clinical application rather than a warm, spacious page.
-**Signal:** Maya Chen's side-by-side screenshot comparison with DITA Doer's paper-like light theme on 2026-03-13.
-**Smallest slice:** Retune the Light theme CSS variables from Slate to Stone at the same luminance, plus optional wider content padding on large viewports.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-Adjust the Light theme's color palette from its current cool blue-gray (Slate) family to warmer neutral tones, and increase content area breathing room. The goal is to shift the editor feel from "application" to "page" — closer to the warmth and spaciousness seen in DITA Doer's light theme.
-
-### Suggested Changes
-
-Current values and proposed replacements (all in `index.css`, `[data-theme="light"]` block, lines 75-124):
-
-| Variable | Current (Slate) | Proposed (Stone/Warm) | Rationale |
-|---|---|---|---|
-| `--app-bg` | `#f1f5f9` (slate-100) | `#f5f5f4` (stone-100) | Shift chrome from blue-gray to warm neutral |
-| `--app-surface-raised` | `#f1f5f9` | `#f5f5f4` | Match chrome warmth |
-| `--app-border` | `#e2e8f0` (slate-200) | `#e7e5e4` (stone-200) | Soften border tone |
-| `--app-border-subtle` | `#cbd5e1` (slate-300) | `#d6d3d1` (stone-300) | Consistent warm shift |
-| `--app-hover` | `#e2e8f0` | `#e7e5e4` | Consistent warm shift |
-| `--app-btn-bg` | `#f1f5f9` | `#f5f5f4` | Consistent warm shift |
-| `--app-btn-hover` | `#e2e8f0` | `#e7e5e4` | Consistent warm shift |
-| `--app-btn-border` | `#cbd5e1` | `#d6d3d1` | Consistent warm shift |
-| `--editor-toolbar-bg` | `#f8fafc` (slate-50) | `#fafaf9` (stone-50) | Bring toolbar closer to content white |
-| `--editor-toolbar-border` | `#e2e8f0` | `#e7e5e4` | Soften toolbar divider |
-| `--editor-code-bg` | `#f1f5f9` | `#f5f5f4` | Consistent warm shift |
-
-Additionally, consider increasing the `ContentEditable` horizontal padding from `px-8` (2rem) to `px-12` (3rem) on wider viewports to enhance the "page" feel (in `dita-architect.tsx`, line ~758).
-
-No structural changes. Same CSS variable tuning pattern used for the Geotab theme (P1-7, shipped v0.5.1).
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Compare the screenshots side by side. DITA Doer's light theme feels like paper — warm whites, generous margins, the toolbar barely distinguished from content. Our light theme feels like an application — the three-tier separation (chrome at `#f1f5f9`, toolbar at `#f8fafc`, content at `#ffffff`) is organized but clinical. The blue-gray undertone in every surface reinforces "software" rather than "document."
-
-The proposed shift is subtle — same luminance values, just moving from the Tailwind Slate scale to Stone. The editor still has clear visual hierarchy, but the warmth makes long editing sessions more comfortable and the overall feel more inviting. This is the kind of refinement that authors notice as "it just feels nicer" without being able to articulate exactly why.
-
----
-
-## FR-009: Add aria-label to Format XML button
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.6.2, 2026-03-13)
-**Priority:** P2-12
-**Impact:** Low
-
-**Problem:** The Format XML button works correctly but is missing an `aria-label`, making it invisible to screen readers while every other toolbar button has one.
-**Signal:** Maya Chen flagged the inconsistency on 2026-03-13 against the established toolbar accessibility standard.
-**Smallest slice:** Add `aria-label="Format XML"` to the button — a one-line fix in `MonacoDitaEditor.tsx`.
-**Serves:** accessibility
-
-### Description
-
-The Format XML button added in v0.6.1 is missing an `aria-label="Format XML"` attribute. All other toolbar buttons have appropriate aria-labels for screen reader consistency. One-line fix in `MonacoDitaEditor.tsx`.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Every other button in both toolbars has a matching aria-label. The format button works correctly but is invisible to screen readers. Adding the attribute maintains the accessibility standard established across the rest of the toolbar surface.
-
----
-
-## FR-010: Improve Format XML error toast specificity
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.6.2, 2026-03-13)
-**Priority:** P2-13
-**Impact:** Low
-
-**Problem:** When Format XML hits malformed markup, the generic failure toast leaves the author guessing what went wrong.
-**Signal:** Maya Chen flagged the generic message on 2026-03-13 as failing to close the feedback loop.
-**Smallest slice:** Change the toast to "Failed to format XML: Check for syntax errors" to point authors at the source pane's validation.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-When the Format XML button encounters malformed XML, the error toast shows a generic failure message. Update it to say "Failed to format XML: Check for syntax errors" to give authors actionable guidance.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-A generic "format failed" message leaves the author guessing. Adding "Check for syntax errors" points them toward the XML source pane where Monaco's built-in validation will highlight the problem. It closes the feedback loop — the toast tells them *what* went wrong, and the source pane shows them *where*.
-
----
-
-## FR-011: Refine external load toast copy
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.7.1, 2026-03-13)
-**Priority:** P2-14
-**Impact:** Low
-
-**Problem:** The external-load success toast reads "Loaded {fileName} from external tool" — developer-centric jargon that describes the mechanism, not the outcome a writer cares about.
-**Signal:** Maya Chen flagged "external tool" on 2026-03-13 as language writers don't think in.
-**Smallest slice:** Change the copy to "Imported {fileName}" — a one-line change in `hooks/useExternalLoad.ts`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The success toast when content is loaded via the external API (`POST /api/load-content`) currently reads `"Loaded {fileName} from external tool"`. The phrase "external tool" is developer-centric jargon that may not resonate with technical writers. Change to `"Imported {fileName}"` or `"Opened {fileName}"`.
-
-One-line change in `hooks/useExternalLoad.ts`.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-"From external tool" describes the mechanism, not the outcome. Writers don't think in terms of "external tools" — they think "I asked the system to load my draft and it did." A simpler `"Imported {fileName}"` communicates the result without exposing the plumbing. Error messages should be specific (and they are); success messages should be brief.
-
----
-
-## FR-012: Improve HerettoReplaceModal recovery text
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.7.2, 2026-03-16)
-**Priority:** P2-15
-**Impact:** Low
-
-**Problem:** The HerettoReplaceModal tells authors recovery is possible via Heretto version history but not how to reach it, leaving them to search Heretto's docs.
-**Signal:** Maya Chen flagged the vague recovery copy on 2026-03-13, noting destructive-action warnings should be as concrete as the warning itself.
-**Smallest slice:** Change the copy to "To recover, use Heretto's version history (topic → History tab)." — a one-line change in `components/HerettoReplaceModal.tsx`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The HerettoReplaceModal confirmation step mentions that the action "cannot be undone from DITA Architect" and references Heretto's version history, but the recovery path could be more specific and actionable.
-
-- **Current:** `You can restore previous versions from Heretto's version history if needed.`
-- **Suggested:** `To recover, use Heretto's version history (topic → History tab).`
-
-One-line change in `components/HerettoReplaceModal.tsx`.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-The current copy tells authors recovery is possible but not how. Adding the specific navigation path ("topic → History tab") reduces anxiety and eliminates the need to search Heretto's docs. When warning about a destructive action, the recovery path should be as concrete as the warning itself.
-
----
-
-## FR-013: Improve DiffViewer empty state copy
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.7.2, 2026-03-16)
-**Priority:** P2-16
-**Impact:** Low
-
-**Problem:** When the DiffViewer finds no changes it shows the bare `No changes detected`, which is accurate but leaves ambiguity about whether the comparison actually worked.
-**Signal:** Maya Chen flagged the uninformative copy on 2026-03-13 as answering "what happened?" but not "what does this mean?".
-**Smallest slice:** Append context: `No changes detected — your content matches the version in Heretto` — a one-line change in `components/DiffViewer.tsx`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-When the DiffViewer detects no changes between the editor content and Heretto content, it currently shows `No changes detected`. This is accurate but not informative.
-
-- **Current:** `No changes detected`
-- **Suggested:** `No changes detected — your content matches the version in Heretto`
-
-One-line change in `components/DiffViewer.tsx`.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-"No changes detected" answers "what happened?" but not "what does this mean?" Adding "your content matches the version in Heretto" confirms the comparison was successful and the content is identical. It reassures the author that the diff worked correctly rather than leaving ambiguity about whether something went wrong.
-
----
-
-## FR-014: Use contextual placeholder in HerettoStatusModal
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.7.2, 2026-03-16)
-**Priority:** P2-17
-**Impact:** Low
-
-**Problem:** The HerettoStatusModal email field uses the developer-convention placeholder `user@example.com`, which signals nothing about needing a work email for CMS authentication.
-**Signal:** Maya Chen flagged the generic placeholder on 2026-03-13 as a missed micro-affordance.
-**Smallest slice:** Change the placeholder to `your.name@company.com` — a one-line change in `components/HerettoStatusModal.tsx`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The email input field in HerettoStatusModal uses the generic placeholder `user@example.com`. A more contextual placeholder would better communicate that this is a work email for Heretto CMS authentication.
-
-- **Current:** `user@example.com`
-- **Suggested:** `your.name@company.com`
-
-One-line change in `components/HerettoStatusModal.tsx`.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Placeholder text is a micro-affordance — it answers "what goes here?" at a glance. `user@example.com` is a developer convention that signals nothing about the context. `your.name@company.com` subtly communicates "use your work email" without needing a label change. Small touch, professional signal.
-
----
-
-## FR-015: Rename `Commit` button to `Save to Heretto`
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.9.1.1, 2026-04-07)
-**Priority:** Low
-**Impact:** Medium
-
-**Problem:** The status bar's `Commit` button uses Git vocabulary that doesn't match a writer's mental model, and it coexists with a `Save` option in the Heretto dropdown, creating ambiguity about which action actually saves.
-**Signal:** During her authoring session Maya Chen clicked `Commit` expecting it to save, it didn't, and she couldn't tell whether `Heretto > Save` worked either.
-**Smallest slice:** Use a single `Save to Heretto` label for the primary save action, consistent across both locations.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The Heretto-connected status bar shows a `Commit` button alongside status text like `Unsaved changes` or `Conflict — updated in Heretto`. The `Commit` label is developer/Git vocabulary that doesn't match a technical writer's mental model. Additionally, there is both a `Commit` button in the status bar and a `Save` option in the Heretto dropdown menu, creating ambiguity about which action actually saves to Heretto.
-
-- **Current:** `Commit` button in status bar + `Save` in Heretto dropdown
-- **Suggested:** Single `Save to Heretto` label for the primary save action, consistent across both locations
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-During my authoring session, I clicked `Commit` expecting it to save my changes to Heretto. It resolved the conflict state but didn't save. Then I tried `Heretto > Save` and couldn't tell if it worked either. Two buttons that sound like they do similar things but behave differently is a recipe for confusion.
-
-Authors think in terms of "save my work." They don't think in terms of "commit." The label should match the action and the audience. `Save to Heretto` is unambiguous — it tells you *what* will happen and *where*. If `Commit` is doing something different from `Save` (like resolving a conflict vs. pushing content), those should be visually and verbally distinct — not two buttons that look interchangeable but aren't.
-
----
-
-## FR-016: Use writer-friendly vocabulary in Heretto status bar
-
-**Requested:** 2026-03-13
-**Status:** Shipped (v0.9.1.1, 2026-04-07)
-**Priority:** Low
-**Impact:** Medium
-
-**Problem:** The Heretto status bar's terms (`Unsaved changes` + `Commit`, `Conflict`) read like a Git staging area rather than a document editor, requiring a mental model the audience doesn't have.
-**Signal:** Maya Chen's 2026-03-13 advisory notes the same author confused by `Commit` would instantly understand `Save to Heretto`.
-**Smallest slice:** Reword the states to writer-friendly phrasing — `Edited — not saved`, `Someone else edited this in Heretto`, `Saved to Heretto`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The Heretto status bar uses developer-centric terms that don't align with a technical writer's workflow vocabulary. The combination of `Unsaved changes` + `Commit` reads like a Git staging area, not a document editor.
-
-- **Current status states:** `Unsaved changes`, `Conflict — updated in Heretto`, `Saved just now`
-- **Current action:** `Commit`
-- **Suggested states:** `Edited — not saved`, `Someone else edited this in Heretto`, `Saved to Heretto`
-- **Suggested action:** `Save to Heretto` (see FR-015)
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-The status bar is the author's primary feedback channel for document state. Every word in it should be immediately parseable by someone who has never used Git. `Unsaved changes` is borderline fine, but paired with `Commit` it creates a Git mental model that doesn't serve the audience. `Conflict` is technical jargon — "Someone else edited this in Heretto" tells the author exactly what happened in language they understand.
-
-This isn't about dumbing things down — it's about matching the language to the user. The same author who would be confused by `Commit` would instantly understand `Save to Heretto`. The status bar should speak the author's language, not the developer's.
-
----
-
-## FR-017: Editor status API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.7.3, 2026-03-16)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** Claude Code skills have no way to confirm the editor is running before acting, so they fail silently or throw opaque connection-refused errors.
-**Signal:** Maya Chen's 2026-03-16 advisory describes skills leaving users to debug network errors instead of a clear "DITA Architect is not running" message.
-**Smallest slice:** A `GET /api/status` handshake endpoint returning version, Heretto connection status, tab count, active tab, and theme.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `GET /api/status` endpoint that returns the editor's current state: version, Heretto connection status, number of open tabs, active theme. This is the handshake endpoint — any Claude Code skill that integrates with DITA Architect should start here to confirm the editor is running and ready.
-
-### Suggested Response
-
-```json
-{
-  "version": "0.7.2",
-  "herettoConnected": true,
-  "tabCount": 3,
-  "activeTabId": "tab-2",
-  "theme": "dark"
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Every Claude Code skill that talks to DITA Architect needs a way to answer one question first: "is the editor running?" Without this, skills fail silently or throw opaque network errors. A status endpoint lets a skill say `"DITA Architect is not running on localhost:3000 — start it with npm run dev"` instead of leaving the user to debug a connection refused error. It's the difference between a tool that assumes everything is fine and one that checks before acting.
-
----
-
-## FR-018: List open tabs API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.7.3, 2026-03-16)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** Skills that want to work with the editor have no way to know which tabs are open or which one the author is currently in, so they either ask the user (friction) or assume a single tab (wrong).
-**Signal:** Maya Chen's 2026-03-16 advisory cites needs like "review the current topic" and "check all open tabs for broken xrefs" that both require this list.
-**Smallest slice:** A `GET /api/tabs` endpoint returning each tab's metadata plus a top-level `activeTabId`.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `GET /api/tabs` endpoint that returns all open tabs with their metadata: id, file name, Heretto file info, dirty state, and XML error count. Include the `activeTabId` at the top level so callers know which tab the author is currently working in.
-
-### Suggested Response
-
-```json
-{
-  "activeTabId": "tab-2",
-  "tabs": [
-    {
-      "id": "tab-2",
-      "fileName": "setting-up-traffic-analysis.dita",
-      "herettoFile": { "uuid": "abc-123", "name": "Setting up a Traffic Analysis" },
-      "dirty": true,
-      "xmlErrorCount": 0
-    },
-    {
-      "id": "tab-3",
-      "fileName": "new-topic.dita",
-      "herettoFile": null,
-      "dirty": false,
-      "xmlErrorCount": 1
-    }
-  ]
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-This is the foundation for any Claude Code skill that wants to work *with* the editor rather than just pushing content *at* it. A skill that says "review the current topic for DITA best practices" needs to know which topic is active. A skill that says "check all open tabs for broken cross-references" needs the full list. Without this endpoint, every skill has to guess — and guessing means either asking the user to specify (friction) or assuming there's only one tab (wrong). The `activeTabId` field is the key detail: it answers "what is the author looking at right now?" without requiring them to say so.
-
----
-
-## FR-019: Read tab content API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.7.3, 2026-03-16)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** The only way to get content out of the editor is copy-paste from the XML pane or a save-then-fetch round trip, neither of which works for a skill that wants to read and analyze the author's live work.
-**Signal:** Maya Chen's 2026-03-16 advisory describes copilot workflows (check every `<step>` has a `<cmd>`, count words per section) that all need live read access.
-**Smallest slice:** A `GET /api/tabs/:id/content` endpoint returning the full XML plus `xmlErrors` and `dirty` state.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `GET /api/tabs/:id/content` endpoint that returns the full XML content of a specific tab along with relevant metadata. This enables the "copilot" pattern — Claude Code reads the author's current work, analyzes it, and provides suggestions.
-
-### Suggested Response
-
-```json
-{
-  "id": "tab-2",
-  "fileName": "setting-up-traffic-analysis.dita",
-  "herettoFile": { "uuid": "abc-123", "name": "Setting up a Traffic Analysis" },
-  "dirty": true,
-  "xmlErrors": [],
-  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE task ...>..."
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-This is the endpoint that makes DITA Architect a *collaborative* tool rather than a closed editor. Right now, the only way to get content out of the editor is to copy-paste from the XML pane or save to Heretto and fetch via API. Neither of those works for a Claude Code skill that wants to read, analyze, and respond in real time.
-
-Have you considered the workflows this unlocks? A skill reads the XML, checks that every `<step>` has a `<cmd>`, flags any `<xref>` without an `href`, counts words per section, or suggests where to split a 3,000-word topic. All from the terminal, while the author keeps writing. The response includes `xmlErrors` and `dirty` state so the skill has full context — it knows whether the content has unsaved changes and whether there are validation issues before it starts its analysis.
-
----
-
-## FR-020: Update tab content API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.8.0, 2026-03-17)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** A skill can read content but cannot write it back, so it can't reformat XML, add missing `<shortdesc>` elements, or apply terminology corrections in place.
-**Signal:** Maya Chen's 2026-03-16 advisory frames this as the step that takes the integration from read-only to useful, and flags that silent edits need author-visible feedback.
-**Smallest slice:** A `PUT /api/tabs/:id/content` endpoint that updates a tab's XML, syncs the visual pane, and surfaces a "Content updated from terminal" toast.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `PUT /api/tabs/:id/content` endpoint that updates the XML content of an existing tab. This completes the read-write loop — Claude Code can read content via FR-019, transform it, and push the result back into the same tab.
-
-### Suggested Request Body
-
-```json
-{
-  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE task ...>..."
-}
-```
-
-### Suggested Response
-
-```json
-{
-  "id": "tab-2",
-  "status": "updated"
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-This is where the integration goes from "read-only" to "useful." A skill that can read content and write it back can do real work: reformat XML, add missing `<shortdesc>` elements, normalize `<uicontrol>` usage, or apply terminology corrections across a topic. The key UX consideration is feedback — when content changes in the editor because a skill updated it, the author should see a toast like `"Content updated from terminal"` so the change isn't invisible. Without feedback, the XML pane silently changes and the author might not notice, especially if they're focused on the visual pane.
-
-The `PUT` should also trigger a sync to the visual editor so the author sees the updated content in both panes immediately, matching the behavior of typing directly in the XML editor.
-
----
-
-## FR-021: Save tab to Heretto API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.8.0, 2026-03-17)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** A skill can push edited content into a tab but the author still has to manually click `Save to Heretto` in the browser, breaking the terminal workflow.
-**Signal:** Maya Chen's 2026-03-16 advisory calls this the endpoint that closes the loop and names the error cases (not connected, tab not linked, conflict) that should flow into skill output.
-**Smallest slice:** A `POST /api/tabs/:id/save` endpoint that saves a tab to Heretto using the existing verification pattern and returns a clear result or error.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `POST /api/tabs/:id/save` endpoint that triggers a save to Heretto for a specific tab. This completes the full lifecycle: a Claude Code skill can read a topic, edit it, and save it back to Heretto without the author touching the browser.
-
-### Suggested Response
-
-```json
-{
-  "id": "tab-2",
-  "status": "saved",
-  "herettoFile": { "uuid": "abc-123", "name": "Setting up a Traffic Analysis" }
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-This is the endpoint that closes the loop. Without it, a Claude Code skill can push edited content into the editor but the author still has to manually click `Save to Heretto` in the browser. That breaks the terminal workflow — the whole point of CLI integration is that the author can stay in their terminal.
-
-The save should follow the same verification pattern we already use (`PUT` → fetch-back → compare) and return the result. If the save fails (not connected to Heretto, tab not linked to a Heretto file, conflict state), the response should include a clear error: `"Tab is not connected to Heretto"` or `"Conflict — resolve in the editor first"`. Those error messages can flow directly into the Claude Code skill's output to the user.
-
----
-
-## FR-022: Format tab XML API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.8.0, 2026-03-17)
-**Priority:** Low
-**Impact:** Medium
-
-**Problem:** Skills that generate or transform XML don't always produce cleanly indented output, and there's no shared way to clean it up without each skill implementing its own formatter.
-**Signal:** Maya Chen's 2026-03-16 advisory frames this as the API equivalent of the author clicking the toolbar Format button, removing a burden from skill authors.
-**Smallest slice:** A `POST /api/tabs/:id/format` endpoint that triggers pretty-print on a specific tab.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `POST /api/tabs/:id/format` endpoint that triggers XML formatting (pretty-print) on a specific tab. Useful for Claude Code skills that generate or transform XML and want to ensure the result is cleanly formatted before the author sees it.
-
-### Suggested Response
-
-```json
-{
-  "id": "tab-2",
-  "status": "formatted"
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Skills that generate XML — whether from scratch or by transforming existing content — don't always produce cleanly indented output. Rather than requiring every skill to implement its own XML formatter, this endpoint lets them push content via FR-020 and then call format to clean it up. It's the API equivalent of the author clicking the Format button in the toolbar. One less thing for skill authors to worry about, and consistent formatting regardless of where the XML came from.
-
----
-
-## FR-023: Tab content statistics API endpoint
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.8.0, 2026-03-17)
-**Priority:** Low
-**Impact:** Medium
-
-**Problem:** Word count, readability, and grade level are already computed in the editor but aren't exposed to external tools, so skills can't use readability as a decision input.
-**Signal:** Maya Chen's 2026-03-16 advisory imagines a skill suggesting a 2,400-word topic be split, and notes the data already exists in `BottomToolbar` via `analyzeText()`.
-**Smallest slice:** A `GET /api/tabs/:id/stats` endpoint exposing the already-computed statistics for a tab.
-**Serves:** Claude Code integration surface
-
-### Description
-
-Add a `GET /api/tabs/:id/stats` endpoint that returns the word count, character count, readability score, and grade level for a specific tab. These statistics are already computed by `analyzeText()` in `textAnalysis.ts` and displayed in the `BottomToolbar` — this endpoint exposes them to external tools.
-
-### Suggested Response
-
-```json
-{
-  "id": "tab-2",
-  "wordCount": 487,
-  "characterCount": 2841,
-  "readabilityScore": 42.3,
-  "gradeLevel": "12th",
-  "readingLevel": "College",
-  "sentenceCount": 31
-}
-```
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Imagine a Claude Code skill that says: "This topic is 2,400 words at a 12th-grade reading level — have you considered splitting the procedure section into two topics?" That's the kind of feedback that helps writers produce better content without leaving their terminal. We already compute all of this data in `BottomToolbar` via `analyzeText()`. Exposing it via API means skills can use readability as a decision input — flag topics that exceed a word count threshold, track reading level trends across a documentation set, or suggest simplification when the Flesch-Kincaid score drops too low. The data is already there; this endpoint just makes it accessible.
-
----
-
-## FR-024: Table context menu (insert/delete rows and columns)
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.7.2, 2026-03-16)
-**Priority:** Medium
-**Impact:** High
-
-**Problem:** Authors can edit text within table cells but cannot add or remove rows, columns, or tables from the visual pane — they must drop into the XML editor and hand-write DITA markup for the most common structural edit in API docs.
-**Signal:** Maya Chen's 2026-03-16 advisory describes adding a `format` parameter to a Parameters table requiring five nested elements by hand instead of a right-click.
-**Smallest slice:** Port the Lexical playground's `TableActionMenuPlugin` subset (insert/delete row and column, delete table, toggle header, merge/unmerge) as a right-click context menu.
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-Add a right-click context menu on table cells in the Lexical visual editor. Currently, authors can edit content *within* existing table cells, but cannot add or remove rows, columns, or tables from the visual pane — they must switch to the XML editor and manually write DITA markup.
-
-The Lexical playground ships a [`TableActionMenuPlugin`](https://github.com/facebook/lexical/tree/main/packages/lexical-playground/src/plugins/TableActionMenuPlugin) that provides 16 table operations. Port the relevant subset to DITA Architect.
-
-### Operations to Include
-
-| Operation | Menu Label | Notes |
-|---|---|---|
-| Insert row above | `Insert row above` | Explicit direction eliminates ambiguity |
-| Insert row below | `Insert row below` | |
-| Insert column left | `Insert column left` | |
-| Insert column right | `Insert column right` | |
-| Delete row | `Delete row` | |
-| Delete column | `Delete column` | |
-| Delete table | `Delete table` | Confirmation dialog before destructive action |
-| Toggle header row | `Toggle header row` | Maps to DITA `<thead>` vs `<tbody>` |
-| Merge cells | `Merge cells` | Only show when multiple cells selected |
-| Unmerge cells | `Unmerge cells` | Only show on merged cells |
-
-### Operations to Defer
-
-Background color, vertical alignment, row striping, and column/row freeze are presentation-layer features that don't map to DITA semantics. Defer until there's demand.
-
-### Suggested Approach
-
-- Port `TableActionMenuPlugin` from the [Lexical playground source](https://github.com/facebook/lexical/tree/main/packages/lexical-playground/src/plugins/TableActionMenuPlugin). The underlying commands (`INSERT_TABLE_ROW_COMMAND`, `INSERT_TABLE_COLUMN_COMMAND`, etc.) already exist in `@lexical/table`, which is already in our dependency tree.
-- Style the context menu to match the existing dropdown pattern: `bg-[var(--app-surface-raised)]`, `border-[var(--app-border-subtle)]`, `text-xs` sizing — consistent with the syntax theme dropdown.
-- Ensure Tab/Shift+Tab navigation between cells works (Tab in the last cell should create a new row).
-- Serializer impact: `createTableFromLexical` in `serializeLexicalToXml.ts` already handles CALS table output. New rows/columns created via the context menu will serialize correctly without changes.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-If I'm editing the Parameters table in a concept topic and I need to add a new `format` parameter, my only option today is to switch to the XML pane, find the right `<tbody>`, write `<row><entry>format</entry><entry>...</entry><entry>STRING</entry><entry>-</entry><entry>N</entry></row>`, and sync back. That's five nested elements for what should be a right-click and `"Insert row below"`.
-
-This is the single most common structural editing operation in DITA API documentation. Every concept topic with a parameters table, every reference topic with a properties table, every task topic with a troubleshooting table — they all need row insertion during the writing process. The gap between "I can edit cell text visually" and "I can't add a row visually" is the gap between a viewer and an editor.
-
-The good news is that Lexical has already solved this problem. The `@lexical/table` package provides the commands, and the playground provides a reference implementation of the context menu UI. We're porting proven code, not inventing new interactions.
-
----
-
-## FR-025: Insert Table toolbar action
-
-**Requested:** 2026-03-16
-**Status:** Shipped (v0.8.0, 2026-03-17)
-**Priority:** Medium
-**Impact:** Medium
-
-**Problem:** The only way to create a table is to hand-type the full CALS XML (`<table>`, `<tgroup>`, `<colspec>`, `<thead>`, rows, entries) in the source pane — a lot of markup for "I want a 3×3 table."
-**Signal:** Maya Chen's 2026-03-16 advisory notes virtually every DITA table needs a header row and that missing `<thead>` is a common quality issue reviewers flag.
-**Smallest slice:** An "Insert Table" toolbar action with a rows × columns popover (header row checked by default) using `INSERT_TABLE_COMMAND`, serializing to CALS.
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-Add an "Insert Table" action to the WYSIWYG toolbar that opens a small dialog for specifying table dimensions (rows × columns), then inserts a new DITA table at the cursor position. This complements FR-024 (context menu for existing tables) by enabling table *creation* from the visual pane.
-
-### Suggested Interaction
-
-1. Author clicks the table icon in the toolbar (or selects `Insert > Table` from a dropdown).
-2. A small popover appears with two number inputs: `Rows` (default: 3) and `Columns` (default: 3), plus a `"Include header row"` checkbox (checked by default).
-3. Author adjusts values and clicks `Insert`.
-4. A new table appears at the cursor position with the specified dimensions. The first row is marked as a header row if the checkbox was checked.
-
-### Suggested Implementation
-
-- Use `INSERT_TABLE_COMMAND` from `@lexical/table`, which is already in our dependency tree.
-- The serializer should output CALS `<table>` format (with `<tgroup>`, `<colspec>`, `<thead>`, `<tbody>`) as the default for new tables. CALS supports column spans, row spans, and column width specifications — it's the standard format Heretto uses and what our parser/serializer already handles.
-- Toolbar button: use the Lucide `Table` icon, with `<Tooltip content="Insert table">` and `aria-label="Insert a new table"`.
-- The popover should match the existing toolbar dropdown styling.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Right now, the only way to create a table in DITA Architect is to type the XML manually in the source pane — `<table>`, `<tgroup cols="3">`, `<colspec>` for each column, `<thead>`, `<row>`, `<entry>` for each header cell, `<tbody>`, more `<row>` and `<entry>` elements. That's a lot of markup for "I want a 3×3 table." A toolbar button with a rows-and-columns dialog reduces that to two clicks and two numbers.
-
-Have you considered defaulting to `"Include header row"` checked? In my experience reviewing DITA content, virtually every table has a header row. Starting with one saves authors from remembering to add it, and producing tables without `<thead>` is a common DITA quality issue that reviewers flag. A sensible default prevents a common mistake.
-
-For the toolbar placement, I'd suggest grouping it with the list buttons (ordered list, unordered list) since tables are structural elements in the same category. The tooltip `"Insert table"` is concise and matches the pattern of our other toolbar tooltips.
-
 ---
 
 ## FR-026: Table context menu accessibility (ARIA roles and keyboard navigation)
 
 **Requested:** 2026-03-16
 **Source:** Maya Chen UX review of FR-024 implementation
-**Status:** Proposed
+**Status:** Open
 **Priority:** Medium
 **Impact:** Medium
 
@@ -847,483 +145,13 @@ The table context menu shipped in FR-024 lacks proper accessibility attributes a
 4. Move focus to the first menu item when the menu opens.
 5. Add screen reader announcements when table operations complete (e.g., "Row inserted below").
 
-### Value Proposition (Maya Chen, UX Advisor)
-
-The context menu works correctly for mouse users but is invisible to screen readers and inaccessible via keyboard beyond ESC to dismiss. Adding `role="menu"` and `role="menuitem"` makes the menu discoverable by assistive technology. Arrow key navigation is the expected interaction pattern for menus — without it, keyboard users can see the menu but can't operate it. Focus management on open ensures the menu is immediately actionable without requiring a Tab keypress to reach it. Screen reader announcements confirm that the action completed, which is especially important since table structure changes may not be visually obvious to users relying on assistive technology.
-
----
-
-## FR-027: User feedback for prevented table operations
-
-**Requested:** 2026-03-16
-**Source:** Maya Chen UX review of FR-024 implementation
-**Status:** Shipped (v0.9.1.1, 2026-04-07)
-**Priority:** Medium
-**Impact:** Medium
-
-**Problem:** Deleting the last remaining row or column silently fails, leaving the author guessing whether the click registered, there's a bug, or they did something wrong.
-**Signal:** Maya Chen's UX review of the FR-024 implementation (2026-03-16) cites silent failure as violating the reduce-cognitive-load principle.
-**Smallest slice:** Show toasts explaining why the action was prevented ("Cannot delete the last row…") plus explanatory tooltips on the delete menu items.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-When a user attempts to delete the last remaining row or column in a table, the operation silently fails. Add toast notifications explaining why the action was prevented, and add explanatory tooltips to the delete menu items.
-
-### Required Changes
-
-1. When last-row deletion is prevented, show a toast: `"Cannot delete the last row — tables must have at least one row"`
-2. When last-column deletion is prevented, show a toast: `"Cannot delete the last column — tables must have at least one column"`
-3. Add tooltips on hover for delete menu items:
-   - Delete row: `"Remove this row (at least one row must remain)"`
-   - Delete column: `"Remove this column (at least one column must remain)"`
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Silent failure when trying to delete the last row or column violates the principle of reducing cognitive load — users shouldn't have to guess why an action didn't work. The author clicks "Delete row," nothing happens, and they're left wondering if the click didn't register, if there's a bug, or if they're doing something wrong. A toast notification immediately closes the feedback loop: the action was received, understood, and intentionally prevented, with a clear explanation of why. The tooltips provide proactive guidance so users understand the constraint before they encounter it.
-
----
-
-## FR-028: Polish body element hover frame interaction
-
-**Requested:** 2026-03-16
-**Source:** Maya Chen UX review of body element indicators (FR-006/FR-007)
-**Status:** Superseded — replaced by FR-032 (always-visible border box, shipped v0.9.5). The three issues targeted here (layout shift, missing transition, label offset) are all resolved as a side effect of the always-visible treatment. Do not implement separately.
-**Priority:** Medium
-**Impact:** Medium
-
-**Problem:** The hover frame on body elements feels unpolished — content jitters from layout shift on hover, the border snaps in with no easing, and the label is pressed against the frame edge.
-**Signal:** Maya Chen's UX review of the FR-006/FR-007 body element indicators (2026-03-16).
-**Smallest slice:** Render the border transparent in the resting state, add a `border-color` transition to match the label fade, and inset the label to `right: 0.5rem`.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The hover frame on body elements (`prereq`, `context`, `result`, `postreq`) has three visual issues that make the interaction feel unpolished:
-
-1. **Layout shift on hover.** The border and padding are added on `:hover` rather than being present in the resting state. This changes the element's box model dimensions, causing content below to shift down by a few pixels on mouse enter and snap back on mouse leave. The result is visible jitter.
-
-2. **No easing on the border transition.** The frame appears and disappears instantly because there is no `transition` on the border properties. The `::after` label already uses `transition: opacity 0.15s` for a smooth fade — the border should match.
-
-3. **Label too close to the frame edge.** The element label (`Context`, `Result`, etc.) sits at `right: 0` with no inset, so it appears pressed against the right border of the hover frame. It needs a small offset (e.g., `right: 0.5rem`) to breathe.
-
-### Required Changes
-
-1. Move `border` and `padding` to the resting state with `border-color: transparent`. On `:hover`, change only `border-color` to `var(--app-border-subtle)`.
-2. Add `transition: border-color 0.15s` to the base rule to match the existing label opacity transition.
-3. Change the `::after` label position from `right: 0` to `right: 0.5rem` to add spacing between the label and the frame edge.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Layout shift on hover is one of those things users feel before they can name — the content jumps, the eye loses its place, and the interaction feels fragile. The fix is a well-known CSS pattern: render the border in the resting state with `transparent` color so the box dimensions are stable, then transition just the color on hover. Same technique used in button hover states across most design systems.
-
-The missing easing compounds the problem. The label fades in smoothly over 150ms, but the border snaps on instantly — two elements of the same interaction moving at different speeds. Matching the `transition` timing creates a single, cohesive reveal.
-
-The label spacing is smaller but worth fixing at the same time. When the label reads `Context` and it's flush against a 1px border, the two elements visually merge. A half-rem inset gives the label room to be read as a label rather than part of the border decoration.
-
----
-
-## FR-029: Page-view layout for the visual editor
-
-**Requested:** 2026-03-16
-**Source:** Kiryl Rusetski, with reference to Heretto CMS's author view
-**Status:** Shipped (v0.9.5, 2026-05-21)
-**Priority:** P3
-**Impact:** Medium
-
-**Problem:** The visual editor's content bleeds edge-to-edge against the same background as the chrome, giving an application-panel feel rather than a document-on-a-surface feel.
-**Signal:** Raised by Kiryl Rusetski on 2026-03-16, referencing Heretto CMS's bounded author view (second reference screenshot).
-**Smallest slice:** Wrap the `ContentEditable` in a bounded "page" surface with a distinct background, subtle shadow (light) or border (dark), and a contrasting canvas behind it.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The visual editor's content area currently fills its full pane — the `ContentEditable` has `max-w-6xl mx-auto px-12` which constrains and centers the text, but the background (`--editor-bg`) extends edge-to-edge with no visual boundary between "document" and "chrome." The result is an application-panel feel rather than a document-on-a-surface feel.
-
-Add a page-view layout that renders the content region as a distinct, bounded surface — a visible "page" sitting on the editor background. This is the pattern used by Google Docs, Notion, and Heretto CMS (visible in the second reference screenshot: content sits inside a bordered region with element labels, on a distinct background surface).
-
-### Current State (dita-architect.tsx, line ~857)
-
-```tsx
-<ContentEditable className="outline-none max-w-6xl mx-auto px-12 min-h-[500px]" />
-```
-
-The `ContentEditable` is constrained and centered, but shares the same `--editor-bg` background as the surrounding pane. There is no box-shadow, border, or background differentiation to separate the content region from the editor chrome.
-
-### Suggested Changes
-
-1. **Wrapper element.** Wrap the `ContentEditable` (and its placeholder) in a container `div` that acts as the "page." Apply `max-w-6xl mx-auto` to this wrapper instead of the `ContentEditable` itself.
-
-2. **Page surface.** Give the wrapper a distinct background, subtle shadow, and vertical margin:
-   - Background: a new CSS variable `--editor-page-bg` (set per theme — typically the same as `--editor-bg` or slightly lighter/warmer)
-   - Shadow: theme-dependent (see below)
-   - Vertical margin/padding: `py-12` or similar to create visible space above and below the page region
-   - Border-radius: `rounded-lg` for a soft edge
-
-3. **Surrounding canvas.** The `flex-1 overflow-y-auto` container behind the page should use `--app-bg` or a new `--editor-canvas-bg` variable instead of `--editor-bg`, creating a visible contrast between the "desk" surface and the "page" surface.
-
-4. **Theme-aware treatment.** Each theme needs an appropriate page elevation:
-
-   | Theme | Page background | Canvas background | Elevation |
-   |-------|----------------|-------------------|-----------|
-   | Light | `#ffffff` | `#f5f5f4` (stone-100) | `box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)` |
-   | Dark | `#161616` | `#111111` | `border: 1px solid var(--app-border)` |
-   | Claude | `#2d2019` | `#1f150f` | `border: 1px solid var(--app-border)` |
-   | Nord | `#2e3440` | `#242933` | `border: 1px solid var(--app-border)` |
-   | Solarized | `#002b36` | `#001e28` | `border: 1px solid var(--app-border)` |
-   | Geotab | `#252d3d` | `#0f1419` | `border: 1px solid var(--app-border)` |
-
-   The Light theme gets a drop shadow because shadows read naturally on light surfaces. Dark themes use a subtle border instead — shadows on dark backgrounds tend to disappear or look muddy.
-
-5. **Placeholder alignment.** The placeholder (`Start typing your DITA content here...`) is absolutely positioned and independently constrained with `max-w-6xl mx-auto px-12`. Move it inside the page wrapper so it inherits the same layout without duplicating constraints.
-
-### What Not to Change
-
-- **Content width.** Keep `max-w-6xl` — don't reduce the writing surface. The page metaphor is about visual containment, not reducing available space.
-- **Split-pane ratio.** The Monaco/Lexical split is unchanged. The page treatment applies only to the Lexical pane's content area.
-- **Body element indicators.** The color bars (FR-007) and hover labels (FR-006) continue to work inside the page container. No changes needed.
-- **Toolbar placement.** The visual editor toolbar stays pinned at the top of the Lexical pane, outside the page wrapper.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-There's a reason every modern writing tool — Google Docs, Notion, Dropbox Paper, Heretto CMS — renders content on a bounded surface rather than letting it bleed to the edges. The page metaphor creates a psychological frame: this is a *document*, not a text field. It tells the author "you're writing something that has boundaries and structure" in a way that edge-to-edge content simply doesn't.
-
-We're already 80% of the way there. The `max-w-6xl mx-auto px-12` constrains the content and creates generous side margins. The body element color bars (FR-007) and hover labels (FR-006) give structural signals. The Light theme warmth refinement (FR-008) shifted the palette toward "paper." What's missing is the last visual cue: the page surface itself — a background boundary that says "this is where your document lives."
-
-The implementation is almost entirely CSS. A wrapper `div`, two new CSS variables per theme (`--editor-page-bg`, `--editor-canvas-bg`), and a theme-conditional `box-shadow` vs `border`. No behavioral changes, no new state, no Lexical API work. The hardest part is picking shadow values that look right across all six themes — and the table above is a starting point, not a prescription.
-
-One thing to watch: the page wrapper should not interfere with the body element hover frames (FR-028). The hover border uses `border-color: transparent` in its resting state, and the page wrapper's own border is on a parent container, so there shouldn't be a conflict — but it's worth verifying visually once both are implemented.
-
----
-
-## FR-030: Render Heretto images in the visual editor
-
-**Requested:** 2026-03-27
-**Source:** Product question session (Rafael Santos + Maya Chen)
-**Status:** Shipped (v0.9.0 + patches — all four root-cause bugs resolved; see `bugreports/BUG-heretto-image-resolution-fails.md`)
-**Priority:** P2
-**Impact:** High
-
-**Problem:** `<image>` elements with relative `href` paths render as placeholder chips instead of actual images, so for image-heavy topics the visual editor becomes a code view with better fonts and writers can't see screenshots in context.
-**Signal:** Surfaced in the 2026-03-27 product question session (Rafael Santos + Maya Chen), citing Altitude FAQ guides as the affected example.
-**Smallest slice:** Add a Vite image proxy and a path resolver that rewrites resolved relative hrefs to a local proxy route so real `<img>` tags render (display-only).
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-When a DITA topic opened from Heretto contains `<image>` elements with relative `href` paths (e.g., `../Altitude_FAQ_Images/image1.png`), the visual editor renders them as placeholder chips showing the raw file path, a mountain SVG icon, and an `IMAGE` label. This is because no code exists to resolve relative DITA image paths to fetchable Heretto URLs — the `href` is passed verbatim into `DitaImageNode`, and only absolute `https://` URLs render as actual `<img>` tags.
-
-For image-heavy topics (e.g., Altitude FAQ guides), the visual editor stops feeling like a preview and becomes a code view with better fonts. Writers cannot see screenshots or diagrams in context.
-
-### Current State
-
-**Parsing** (`sync/parseXmlToLexical.ts`):
-- Block-level `<image>` (line ~477): `$createDitaImageNode(href, alt, '', false)` — `href` taken verbatim
-- `<fig><image>` (line ~464): `$createDitaImageNode(href, alt, figTitle, true)` — `href` taken verbatim
-- Inline `<image>` in `<p>` (line ~83): `$createDitaPhRefNode('image', href, alt)` — renders as a monospace code chip
-
-**Rendering** (`components/DitaImageNode.tsx`):
-- If `href` starts with `http://` or `https://` → real `<img>` tag with `maxWidth: 100%`
-- Otherwise → placeholder chip with raw path, alt text, and type label
-
-**Heretto API proxy** (`vite.config.ts`, lines ~163–176):
-- Proxies `/heretto-api/*` to `https://geotab.heretto.com/rest/*` with Basic Auth
-- No image/binary asset endpoints are proxied
-
-### Suggested Approach
-
-1. **Add a Vite proxy route for images.** A new proxy path (e.g., `/heretto-images/{uuid}/content`) that fetches binary content from Heretto's file API using the existing Basic Auth credentials. Keeps credentials server-side.
-
-2. **Build a path resolver.** When a topic is opened from Heretto, resolve relative `href` paths against the topic's known folder location in the CMS. Walk the relative path segments (`../`) via Heretto API folder listings to find the target image's UUID.
-
-3. **Update `DitaImageNode` rendering.** When a Heretto-connected topic has resolved image UUIDs, rewrite the `href` to point at the local proxy route instead of rendering the placeholder.
-
-4. **Loading states.** Show a shimmer placeholder while images resolve asynchronously. Fall back to the existing placeholder chip for unresolvable paths with an updated label: `Image not available` instead of `IMAGE`.
-
-5. **Consider an opt-in toggle.** A `Show images` toggle in the toolbar or status bar so writers on slow connections or working with text-only topics aren't waiting for image fetches they don't need.
-
-### UX Considerations (Maya Chen)
-
-- `<fig>` titles should move below the image when rendered (matching most publishing pipelines)
-- Alt text should remain visible as a caption: `Alt: Description of the screenshot`
-- Inline `<image>` in `<p>` should render at constrained height (~1.5em) to avoid breaking paragraph flow
-- The existing placeholder chip is fine as a permanent fallback — just update the label from `IMAGE` to `Image not available`
-
-### Risks (Rafael Santos)
-
-- **Path resolution complexity.** DITA relative paths like `../../images/foo.png` need the topic's parent folder UUID and API calls to walk the path. This is the bulk of the engineering work.
-- **Performance.** Topics with many images will trigger multiple proxy fetches on open. Lazy-loading and capped display dimensions are needed.
-- **Serialization safety.** `DitaImageNode` is currently skipped during serialization back to XML (line ~901 in `serializeLexicalToXml.ts`). Image resolution must not alter the serialized `href` — the original relative path must be preserved.
-
-### What Not to Change
-
-- **Serialized `href` values.** The XML output must preserve the original relative paths exactly. Resolution is display-only.
-- **Existing absolute URL rendering.** Images with `https://` hrefs already work and should remain unchanged.
-- **`DitaPhRefNode` for non-image refs.** Only the `refType='image'` case should be affected; conkeyref/keyref chips stay as-is.
-
----
-
-## FR-031: "Loaded from Heretto" status state for freshly opened topics
-
-**Requested:** 2026-03-27
-**Source:** Kiryl Rusetski, with input from Rafael Santos and Maya Chen
-**Status:** Shipped (`herettoJustLoaded` field added to Tab type; `compareXml` used in polling to eliminate false positives)
-**Priority:** P3
-**Impact:** Medium
-
-**Problem:** Opening a topic from Heretto immediately shows the red 🔴 `Updated in Heretto` conflict treatment because import-time formatting creates whitespace differences against the polled remote, training writers to ignore the red dot.
-**Signal:** Raised 2026-03-27 by Kiryl Rusetski with Rafael Santos and Maya Chen; root-caused to the strict string comparison at `useHerettoCms.ts:172`.
-**Smallest slice:** Use whitespace-insensitive `compareXml` in the poll, and add a `herettoJustLoaded` green "Loaded from Heretto" state cleared on first edit or save.
-**Serves:** authoring-time validation
-
-### Description
-
-When a topic is opened from Heretto for the first time, the status bar immediately shows 🔴 `Updated in Heretto` — the same red-dot treatment used for genuine remote conflicts. This happens because the polling effect (`useHerettoCms.ts:147–186`) compares the remote content against `savedXmlRef.current`, and the `formatXml()` beautification applied at import time (`useHerettoCms.ts:397`) introduces whitespace differences that make the strict string comparison (`remote !== t.savedXmlRef.current` at line 172) return `true`.
-
-The result: writers see a red warning the moment they open a topic, even though nothing is wrong. This trains them to ignore the red dot, undermining the status bar's value as a trust signal.
-
-### Root Cause
-
-Two issues compound:
-
-1. **False positive from formatting.** `handleImportContinue` runs `formatXml(firstContent)` before storing the content. The `savedXmlRef` gets the beautified version, but the remote poll fetches the raw Heretto version. Whitespace differences trigger `herettoRemoteChanged: true`.
-
-2. **Missing state distinction.** The status bar has no concept of "just loaded" — it only knows `herettoRemoteChanged` (red), `herettoDirty` (amber), and the default saved state (green). A freshly loaded topic with formatting differences falls into the red branch even though no one edited it.
-
-### Suggested Changes
-
-**Fix 1 — Semantic XML comparison (root cause):**
-
-Replace the strict string comparison at `useHerettoCms.ts:172`:
-
-```ts
-// Before
-return { ...t, herettoRemoteChanged: remote !== t.savedXmlRef.current };
-
-// After
-return { ...t, herettoRemoteChanged: !compareXml(remote, t.savedXmlRef.current) };
-```
-
-`compareXml` is already imported in the file — it performs whitespace-insensitive XML comparison. This prevents formatting-only differences from triggering the remote change flag.
-
-**Fix 2 — "Loaded from Heretto" status state:**
-
-Add a `herettoJustLoaded` flag to the `Tab` type:
-
-```ts
-// types/tab.ts
-herettoJustLoaded: boolean;  // true after opening from Heretto, cleared on first edit or save
-```
-
-Set it in `handleImportContinue` (`useHerettoCms.ts:398–402`):
-
-```ts
-newTab.herettoFile = { uuid: item.uuid, name: item.name, path: pathStr };
-newTab.herettoLastSaved = new Date();
-newTab.herettoJustLoaded = true;  // NEW
-```
-
-Clear it on first edit (when `herettoDirty` becomes true) and on first save (in `handleHerettoSave` success path).
-
-Add a new branch in the status bar conditional (`dita-architect.tsx:891`), before the `herettoRemoteChanged` check:
-
-```tsx
-) : tab.herettoJustLoaded && !tab.herettoDirty ? (
-  <>
-    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-    <span>Loaded from Heretto</span>
-  </>
-) : tab.herettoRemoteChanged ? (
-```
-
-### Status Bar States (Updated)
-
-| State | Dot | Text | When |
-|-------|-----|------|------|
-| Saving | 🟡 | `Saving to Heretto...` | Save in progress |
-| Verifying | 🟡 | `Verifying save...` | Post-save verification |
-| Just loaded | 🟢 | `Loaded from Heretto` | Topic just opened, no local edits yet |
-| Remote changed | 🔴 | `Updated in Heretto` | Remote content changed after initial load |
-| Conflict | 🔴 | `Changes in both locations` | Remote changed + local edits |
-| Local edits | 🟡 | `Edited — not yet saved` | Local changes, no remote changes |
-| Saved | 🟢 | `Saved to Heretto {time}` | Successfully saved, in sync |
-
-### What Not to Change
-
-- **`herettoRemoteChanged` semantics for real conflicts.** The red dot must still appear when someone else genuinely edits the remote topic after the initial load.
-- **Polling behavior.** The 30-second poll cycle is fine — the fix is in the comparison logic, not the frequency.
-- **Internal variable names.** `herettoRemoteChanged`, `herettoDirty`, etc. are code, not UI.
-
----
-
-## FR-032: Extend body element indicators to non-task topic types
-
-**Requested:** 2026-03-27
-**Source:** Maya Chen (UX Engineer), based on observation by Kiryl Rusetski
-**Status:** Shipped — scoped and broken into four discrete items, all delivered: P2-32 (shortdesc divider, v0.9.1.1), P2-33 (note type labels, v0.9.1.1), P2-34 (section left bar, v0.9.1.1), P2-35 (always-visible border box with label chips, v0.9.5)
-**Priority:** Unassigned — needs scoping before committing to a tier
-**Impact:** Medium
-
-**Problem:** The body element indicator system covers only the five `<taskbody>` children, so concept, reference, and troubleshooting topics show no structural indicators beyond the shortdesc label.
-**Signal:** Kiryl Rusetski noticed the inconsistency switching between a task topic with `CONTEXT`/`RESULT` bars and a concept topic with none; reported via Maya Chen on 2026-03-27.
-**Smallest slice:** Extend indicators to the high-value non-task elements (starting with `<section>` and `<note>` type labels), reusing the existing parser/plugin/CSS layers.
-**Serves:** WYSIWYG/DITA parity
-
-### Observation
-
-The body element indicator system — color bars (FR-007) and hover labels (FR-006) — currently covers only five elements: `shortdesc`, `prereq`, `context`, `result`, and `postreq`. These are all `<taskbody>` children. When a writer opens a concept, reference, or troubleshooting topic, the visual editor shows no structural indicators at all beyond the shortdesc label.
-
-Kiryl noticed this when switching between a task topic (which had the purple `CONTEXT` bar and green `RESULT` bar) and a concept topic from Heretto (which had no bars despite having structured content like `<note>`, `<section>`, and `<conbody>` paragraphs). The visual editor goes from "I can see the structure" to "it's just paragraphs" depending on the topic type.
-
-This isn't a bug — the system was intentionally scoped to task body children, which have strong semantic roles. But the inconsistency is noticeable, and it reduces the visual editor's value for non-task content.
-
-### Why this needs design thought
-
-Task body children are easy to indicate because they map 1:1 to distinct semantic roles (`prereq` = "do this first", `context` = "background", `result` = "expected outcome"). Concept and reference topics are structurally flatter — a `<conbody>` is mostly `<p>` elements with occasional `<section>` and `<note>` wrappers. Labeling every `<p>` with a bar would be noise, not signal.
-
-The question isn't "can we add more bars?" — the infrastructure is all there in `ShortdescPlugin.tsx` and `index.css`. The question is: **which elements, across which topic types, actually benefit from visual indicators?** And what's the right visual treatment for each?
-
-### Elements worth considering
-
-| Element | Topic types | Current rendering | Potential indicator value |
-|---------|------------|-------------------|-------------------------|
-| `<section>` | concept, reference, task | Children render normally; `<title>` renders as H2 | **High.** Section boundaries are invisible — writers can't tell where one section ends and another begins. A subtle separator or label would help. |
-| `<note>` | all | Orange left border + italic text | **Medium.** The note *type* (`note`, `caution`, `warning`, `tip`, `danger`) isn't surfaced. A hover label showing the type would complete the pattern. |
-| `<conbody>` `<p>` | concept | Plain paragraph | **Low.** No semantic role — labeling would be noise. |
-| `<stepsection>` | task | Renders like a paragraph between steps | **Medium.** Writers may not realize these exist in the visual view. |
-| `<info>` | task | Currently invisible in the visual editor | **High** (but separate issue — these elements don't render at all yet). |
-| `<substeps>` | task | Currently invisible in the visual editor | **High** (same — not rendered). |
-| `<cause>`, `<remedy>` | troubleshooting | Untested | **High** if troubleshooting topics are authored in the editor. |
-| `<refsyn>`, `<properties>` | reference | Untested | **Medium.** Reference topics have their own structural elements that could benefit from labels. |
-
-### Current implementation scope
-
-For reference, the indicator system has three layers:
-
-1. **Parser** (`sync/parseXmlToLexical.ts:215–221`): stamps `originMap` entries for recognized tags. Currently only `shortdesc`, `prereq`, `context`, `result`, `postreq` get entries unconditionally. `<p>` elements only get entries when a `bodyIndex` is passed (which doesn't happen for direct body children).
-
-2. **Plugin** (`components/ShortdescPlugin.tsx:16–23`): the `BODY_TAG_CLASSES` map determines which tags get CSS classes applied. Only five entries today.
-
-3. **CSS** (`index.css:489–567`): color bar borders, `::after` hover labels, and theme-aware color variables. Each new element needs a CSS variable, a border rule, and a `::after` content rule.
-
-Adding new elements is mechanically straightforward — it's a map entry, a CSS class, and a color variable per theme. The hard part is making good design decisions about *which* elements deserve visual weight and *what* visual treatment matches their role.
-
-### Open questions
-
-- Should `<section>` indicators be color bars (same as task elements), or a different visual treatment — like a horizontal rule with a faded label?
-- Should `<note>` types get hover labels, or is the existing orange border sufficient?
-- Are troubleshooting and reference topics used enough in the editor to warrant coverage now?
-- Should this be one feature request or broken into per-topic-type items?
-- Does extending indicators to more elements risk making the visual editor feel cluttered?
-
-### What not to change
-
-- **Task body indicators.** The existing `prereq`/`context`/`result`/`postreq` bars and labels are working well. Don't alter them.
-- **`<p>` elements in `<conbody>`.** These have no semantic role worth labeling. Adding bars to every paragraph would be noise.
-- **`shortdesc` treatment.** Already works across all topic types via a separate code path. Leave as-is.
-
----
-
-## FR-033: Normalize separators in "Open from Heretto" search
-
-**Requested:** 2026-03-30
-**Source:** Kiryl Rusetski, with UX notes from Maya Chen (UX Engineer)
-**Status:** Shipped (v0.9.1.1, 2026-04-07 — `useHerettoCms.ts:255` normalizes with `.replace(/[\s_-]+/g, ' ')`)
-**Priority:** P2
-**Impact:** High — directly affects discoverability of files in the Heretto browser
-
-**Problem:** The "Open from Heretto" search treats spaces, underscores, and hyphens as distinct, so a natural query like `how can i export` returns `No results found` against an underscore- or hyphen-named file.
-**Signal:** Raised by Kiryl Rusetski with UX notes from Maya Chen on 2026-03-30; the match at `useHerettoCms.ts:250` was a raw `.includes()` with no normalization.
-**Smallest slice:** Normalize spaces, underscores, and hyphens to a common form on both the query and the file name before matching — a single-line change.
-**Serves:** discoverability
-
-### Description
-
-The "Open from Heretto" search treats spaces, underscores, and hyphens as distinct literal characters. Heretto file names use underscores (`How_can_I_export_Altitude_data_for_usage_elsewhere.dita`) or hyphens (`setting-up-traffic-analysis.dita`), but writers naturally search using spaces (`how can i export` or `traffic analysis`). The result is `No results found` for queries that should obviously match.
-
-The search match in `useHerettoCms.ts:250` is a raw `.includes()` with no normalization:
-
-```ts
-item.name.toLowerCase().includes(lowerQuery)
-```
-
-### Proposed fix
-
-Normalize both the query and the file name before comparison by collapsing spaces, underscores, and hyphens to a common character:
-
-```ts
-const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, ' ');
-// ...
-normalize(item.name).includes(normalize(query))
-```
-
-This is a single-line change in the match condition. No API changes, no schema changes, no new dependencies. The normalization is purely cosmetic at match time — it does not alter file names or search results beyond making them findable.
-
-### Scope
-
-- Normalize underscores, hyphens, and spaces to a common form before matching
-- Apply to both the query string and the `item.name` from Heretto
-- No changes to how results are displayed — file names still show their original form
-
-### Value Proposition (Maya Chen, UX Engineer)
-
-This is a classic case of the tool asking the writer to think like a file system. A writer types what they're *thinking* — `how can i` — and gets `No results found`. Then they have to mentally translate into the CMS's file naming convention (`how_can_i`) to find anything. That's exactly backwards. The tool should meet the writer where they are.
-
-The fix should cover all three separators — spaces, underscores, and hyphens — because Heretto teams use different naming conventions. A file like `setting-up-traffic-analysis.dita` won't match `setting up traffic analysis` either, and there's no reason a writer should need to know which convention their CMS admin chose.
-
-One more thing worth pairing with this: the `No results found` empty state currently offers no guidance. When someone searches with spaces and gets nothing, they have no idea *why*. Even after this fix ships, a general improvement to the empty state — something like `No results found — try different keywords` instead of the bare `No results found` — would close the feedback loop. When the UI shows "nothing," it should always suggest a next step. This connects to FR-003 (empty states for the Heretto file browser) — same principle, different surface.
-
----
-
-## FR-034: Larger Replace in Heretto preview modal with fluid diff height
-
-**Requested:** 2026-04-06
-**Source:** Kiryl Rusetski, with UX notes from Maya Chen (UX Engineer)
-**Status:** Shipped (v0.9.1.1, 2026-04-07)
-**Priority:** P3
-**Impact:** Medium — improves readability of the diff preview step without changing any behaviour
-
-**Problem:** At 600px wide with a fixed 400px diff, the Replace in Heretto preview is hard to read — XML lines wrap or scroll in both directions, so the review-before-replace step is more formality than real check.
-**Signal:** Raised by Kiryl Rusetski with UX notes from Maya Chen on 2026-04-06; the diff is the whole reason the preview step exists.
-**Smallest slice:** Widen the modal to `w-[900px] max-w-[90vw]` and make the DiffViewer flex-fill the available height instead of a fixed 400px.
-**Serves:** writer experience over developer convenience
-
-### Description
-
-The Replace in Heretto modal is currently `w-[600px] max-h-[90vh]` (`HerettoReplaceModal.tsx:147`), and the DiffViewer is rendered at a fixed `height={400}` (`HerettoReplaceModal.tsx:232`, `DiffViewer.tsx:141`). At 600px wide the side-by-side diff is difficult to read — XML lines wrap or require horizontal scrolling, and authors cannot comfortably review their changes before confirming.
-
-### Proposed changes
-
-Two targeted changes with no structural impact:
-
-1. **Modal width:** Change `w-[600px]` to `w-[900px] max-w-[90vw]` so the modal grows on larger screens and scales down gracefully on smaller ones. The existing `max-h-[90vh]` constraint is unchanged.
-
-2. **DiffViewer height:** Replace the fixed `height={400}` prop with a flex-fill approach. The modal wrapper is already `flex flex-col`, so passing `className="flex-1 min-h-0"` to `DiffViewer` and removing the fixed `height` prop allows the diff pane to fill all available vertical space between the header and the footer buttons. The `height` prop on `DiffViewer` can remain as an optional fallback for other call sites.
-
-### Scope
-
-- `HerettoReplaceModal.tsx`: update modal width class; remove `height={400}` from `DiffViewer` and add `className="flex-1 min-h-0"`
-- `DiffViewer.tsx`: make `height` prop optional (already is — default is `400`); when not provided, the container div should use `height: 100%` to fill its flex parent instead of the fixed pixel value
-
-No behaviour changes, no new dependencies, no other surfaces affected.
-
-### Value Proposition (Maya Chen, UX Engineer)
-
-The diff view is the whole reason the preview step exists. Authors are supposed to review what's about to change before committing to an irreversible replace. But at 600px wide with a 400px-tall diff box, that review is more of a formality than a real check — lines wrap, you're scrolling in both directions inside a modal, and it's genuinely hard to read.
-
-Making the modal wider addresses the most immediate pain. The flex-fill height change is the more valuable of the two, though. Right now the modal can be tall (it's `max-h-[90vh]`) but the diff is always a fixed 400px regardless — so you get empty modal chrome above and below the diff on larger screens, while the diff itself is still cramped. Letting the diff fill the available height means the modal space is actually *used*.
-
-The `"No changes detected — your content matches the version in Heretto"` status line at the bottom of the diff viewer also benefits — at 400px it can get pushed below the fold on content-heavy diffs, so authors sometimes miss it entirely. With flex-fill it stays visible relative to the content height.
-
----
-
 ## FR-035: "Connect a Map" — key registry, keyref validation, and cross-file xref validation
 
 **Requested:** 2026-04-10
 **Source:** Kiryl Rusetski, with engineering scoping by Rafael Santos and UX scoping by Maya Chen
 **Status:** Open
 **Priority:** P2 (tracked as P2-27 in BACKLOG.md)
-**Impact:** High — closes the validation gap on keyref chips and cross-file xrefs; brings authoring-time signal to content that previously failed silently at build time
+**Impact:** High
 
 **Problem:** Keyref chips all show in a neutral state with no indication of whether the key resolves, and cross-file xref targets (`href="other-file.dita#id"`) are unvalidated, so this content fails silently at build time.
 **Signal:** Raised by Kiryl Rusetski with a formal 2026-04-10 scoping session (Rafael Santos engineering, Maya Chen UX); the Altitude User Guide has 18 keys across 2 ditamap levels.
@@ -1335,8 +163,6 @@ The `"No changes detected — your content matches the version in Heretto"` stat
 Writers currently see all keyref chips in a neutral state with no indication of whether the key resolves. Cross-file xref targets (`href="other-file.dita#id"`) are also unvalidated. This feature delivers the full ditamap-aware validation layer.
 
 ### Scoping decisions (2026-04-10)
-
-All decisions from the formal scoping session are preserved here:
 
 **Entry point and naming**
 - Action label: `"Connect a Map"` (not `"Load ditamap"` — too jargon-heavy for writers who don't think in maps)
@@ -1384,7 +210,7 @@ All three states are visually distinct:
 **Source:** Kiryl Rusetski (emerged from FR-035 scoping session)
 **Status:** Open
 **Priority:** P3
-**Impact:** Medium — reduces friction for new writers who don't know which map to connect
+**Impact:** Medium
 
 **Problem:** To use "Connect a Map" (FR-035) a writer must already know which ditamap defines their keys; new writers unfamiliar with the publication structure don't, and must navigate the CMS manually.
 **Signal:** Emerged from the 2026-04-10 FR-035 scoping session (Kiryl Rusetski); explicitly deferred from that item.
@@ -1393,11 +219,9 @@ All three states are visually distinct:
 
 ### Description
 
-When a writer opens a topic from Heretto and wants to use "Connect a Map" (FR-035), they need to know which ditamap to point the tool at. Experienced writers know this. New writers or writers unfamiliar with the publication structure may not.
+When a writer opens a topic from Heretto and wants to use "Connect a Map" (FR-035), they need to know which ditamap to point the tool at. A discovery tool would surface ditamaps that include the currently open topic in their `<topicref>` hierarchy.
 
-A discovery tool would surface ditamaps that include the currently open topic in their `<topicref>` hierarchy — giving writers an informed starting point rather than requiring them to navigate the CMS manually.
-
-### Proposed approach (for scoping)
+### Proposed approach
 
 On open or on demand, query Heretto for all ditamap files accessible to the user. For each map, check whether the current topic's UUID appears as a `<topicref href>` at any depth. Surface matching maps in a `"Connect a Map"` picker panel with the map name, folder path, and a connect button.
 
@@ -1409,7 +233,7 @@ On open or on demand, query Heretto for all ditamap files accessible to the user
 
 ### Notes
 
-This is explicitly deferred from FR-035. Writers know which map to connect in the current workflow. Discovery becomes more valuable as the tool is adopted by writers less familiar with the publication structure.
+Explicitly deferred from FR-035. Writers know which map to connect in the current workflow. Discovery becomes more valuable as the tool is adopted by writers less familiar with the publication structure.
 
 ---
 
@@ -1419,7 +243,7 @@ This is explicitly deferred from FR-035. Writers know which map to connect in th
 **Source:** Maya Chen (UX Engineer, product review session)
 **Status:** Open
 **Priority:** P3
-**Impact:** High for new users, low for experienced users — reduces learning curve without changing functionality
+**Impact:** High for new users, low for experienced users
 
 **Problem:** Nothing in the editor explains itself to new writers — they don't know `Ctrl+Enter` syncs the panes, what toolbar buttons do beyond their icons, or that the inline-element `+` menu exists.
 **Signal:** Raised by Maya Chen in the 2026-04-13 product review session; she frames discoverability as a perspective, not one feature.
@@ -1428,129 +252,46 @@ This is explicitly deferred from FR-035. Writers know which map to connect in th
 
 ### Description
 
-New writers open DITA Architect and see a visual editor on the right and XML on the left, but there's no moment where the tool explains itself. They don't know that `Ctrl+Enter` syncs the two panes, what the toolbar buttons do beyond their icons, or that a `+` menu for inline elements exists (once shipped).
+New writers open DITA Architect and see a visual editor on the right and XML on the left, but there's no moment where the tool explains itself.
 
 ### Proposed improvements
 
 1. **Empty state coach mark** — First time a new tab opens, show a one-time hint: `"This editor has two views — edit here or in the XML pane on the left, then press Ctrl+Enter to sync"`. Dismiss after first sync or manual close. Persist in `localStorage`.
-
-2. **Better placeholder copy** — `"Task title"` looks like real content. `"Click to add title"` or `"Enter your task title"` signal the action more clearly. (Visual treatment addressed by P3-25 + P3-41; this covers the copy itself.)
-
-3. **Tooltip coverage audit** — Full toolbar pass to ensure every interactive element explains itself on hover. The topic type badge (`TASK`) has no tooltip (Maya, 2026-03-16); add `"Topic type: task"`.
-
-4. **Out-of-sync banner** (P3-26) — When XML diverges without `Ctrl+Enter`, show: `"Visual editor is out of sync — press Ctrl+Enter to refresh"`. Surfaces the sync gesture in context.
-
+2. **Better placeholder copy** — `"Task title"` looks like real content. `"Click to add title"` or `"Enter your task title"` signal the action more clearly.
+3. **Tooltip coverage audit** — Full toolbar pass to ensure every interactive element explains itself on hover. The topic type badge (`TASK`) has no tooltip; add `"Topic type: task"`.
+4. **Out-of-sync banner** (P3-26) — When XML diverges without `Ctrl+Enter`, show: `"Visual editor is out of sync — press Ctrl+Enter to refresh"`.
 5. **Success feedback for Connect a Map** (P2-27) — Toast: `"Connected [MapName.ditamap] — N key definitions loaded"`. Already scoped in P2-27; flagged here as a discoverability principle.
-
-6. **Keyboard shortcut cheat sheet** (P3-9) — Overlay via `?` or `Cmd+/`. Already backlogged; included here as part of the discoverability theme.
+6. **Keyboard shortcut cheat sheet** (P3-9) — Overlay via `?` or `Cmd+/`. Already backlogged as FR-005.
 
 ### Notes (Maya Chen, 2026-04-13)
 
-Discoverability isn't one feature — it's a perspective. Each new feature should ship with its success feedback, its tooltip, and its empty state built in — not as follow-on items. The gap between "works" and "feels right" is this work.
-
----
-
-## FR-038: Base visual styling for xrefs in the visual editor
-
-**Requested:** 2026-04-14
-**Source:** Kiryl Rusetski, with UX notes from Maya Chen
-**Status:** Shipped (v0.9.3, 2026-04-14 — underline styling added; `InlineValidationPlugin` stamps `title` attributes on all `LinkNode` DOM elements)
-**Priority:** P2 (tracked as P2-30 in BACKLOG.md)
-**Impact:** High — without base xref styling, the broken-xref validation layer (v0.9.0/v0.9.2) is functionally invisible to authors
-
-**Problem:** Valid `<xref>` elements render as `<a>` tags with no base styling, so they look identical to plain text — and the broken-xref wavy underline only makes sense if the author already knows the text is a link.
-**Signal:** Raised by Kiryl Rusetski with Maya Chen's 2026-04-14 note that "we built the alarm system before we built the house."
-**Smallest slice:** Add one scoped CSS rule giving `.dita-editor-content a` the `--color-dita-500` color and an underline, verified across all six themes.
-**Serves:** WYSIWYG/DITA parity
-
-### Description
-
-`<xref>` elements are correctly parsed into Lexical `LinkNode` objects (`parseXmlToLexical.ts:92`) and render as `<a>` tags in the DOM. However, `index.css` has no base styling for `a` elements inside the editor content area — so valid xrefs are visually identical to plain text. Authors have no way to know a cross-reference exists unless they switch to the XML pane.
-
-The broken-xref validation (`.dita-validation-broken-xref`, red wavy underline) and unresolved-keyref highlight shipped in v0.9.0 and v0.9.2, but those features assume authors can already distinguish xrefs from surrounding text. Without the base styling, the alarm works but the house is invisible.
-
-### Fix
-
-Add a scoped CSS rule to the editor content area:
-
-```css
-.dita-editor-content a {
-  color: var(--color-dita-500);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-```
-
-Verify the color resolves correctly across all six themes (dark, light, claude, nord, solarized, geotab). The `--color-dita-500` token is already defined globally.
-
-### UX notes (Maya Chen, 2026-04-14)
-
-The sequencing here is backwards — we built the alarm system before we built the house. The broken-xref wavy underline only lands if the author already knows `"beginner guide"` is an xref. If they don't — and why would they, it looks like a sentence — they see a red squiggle under what looks like plain text and assume they misspelled something.
-
-**Three-state model** — once base styling is in, xref visual states become legible as a system:
-- **Styled, unvalidated** (cross-file xref, no map loaded) — blue underline, no squiggle. Author sees it's a link; validation is deferred to P2-27.
-- **Styled, broken** — blue underline + red wavy overlay. Clearly a link, clearly wrong.
-- **Styled, resolved** — blue underline, clean. Confirmed by P2-27 "Connect a Map".
-
-**Inline icon** — have you considered a small `↗` or chain-link glyph after the link text, like Notion's external link indicator? It would make xrefs visually distinct from `<codeph>` and `<term>`, which otherwise compete with link styling.
-
-**Hover title** — show the href on hover via a `title` attribute: `"Linked to: _Calls.dita#getting_started_altitude_api"`. Authors can verify the target without switching to XML. This can be wired through `InlineValidationPlugin`'s `applyValidationStyles` pattern, extended to cover all `LinkNode`s — not just broken ones.
-
-### Implementation notes
-
-- **CSS** — one scoped rule; verify across all six themes. Sonnet-sized.
-- **Hover title** — extend `InlineValidationPlugin` to set `title` attribute on all `LinkNode` DOM elements (not just broken ones). Add alongside CSS in the same pass.
-- **Inline icon** — optional polish; can ship independently or bundle with P2-27.
-
----
+Discoverability isn't one feature — it's a perspective. Each new feature should ship with its success feedback, its tooltip, and its empty state built in — not as follow-on items.
 
 ## FR-039: macOS native app — menu bar structure and item placement policy
 
 **Requested:** 2026-05-25
 **Status:** Open
 **Priority:** P2
-**Impact:** High — establishes the correct native macOS UX pattern for all future feature work on the native app
+**Impact:** High
 
 **Problem:** The native macOS app has a minimal menu bar and buries document actions in in-app dropdowns, so `⌘N`/`⌘O`/`⌘S`/`⌘W` don't work and document-level commands are undiscoverable to keyboard users.
 **Signal:** Raised 2026-05-25; as the native app grows there's a real risk of duplicating commands inconsistently and breaking macOS conventions.
 **Smallest slice:** Establish the menu bar structure and placement policy — add File and View menus (with `⌘` shortcuts via the JS bridge) and a rule for where future items go.
 **Serves:** discoverability
 
-### Description
-
-The native macOS app (`macos/`) currently has a minimal menu bar (DITA Architect → Quit; Edit → Cut/Copy/Paste/Undo/Redo; Window → Minimise/Zoom) and an in-app header with a "File Options" dropdown and a "Heretto" dropdown. As the native app grows, there is a risk of duplicating commands in inconsistent places, confusing users who expect macOS conventions, and making actions undiscoverable to keyboard users.
-
-This feature request establishes the correct structure and a placement policy for all future items.
-
-### Current State
-
-**macOS menu bar (AppDelegate.swift):**
-- DITA Architect: Quit `⌘Q`
-- Edit: Cut `⌘X`, Copy `⌘C`, Paste `⌘V`, Select All `⌘A`, Undo `⌘Z`, Redo `⇧⌘Z`
-- Window: Minimise `⌘M`, Zoom
-
-**In-app header bar (web UI):**
-- File Options dropdown — New Topic (Task/Concept/Reference), Open Local File, Save Locally, Export PDF, What's New, Keyboard Shortcuts
-- Heretto dropdown — Connect/Disconnect, Open from Heretto, Browse, Replace in Heretto, Reload Map, Connect a Map
-
-**In-app formatting toolbar (web UI):**
-- Theme selector, Undo/Redo, H1/H2, Bold/Italic, Lists, Table, Note, Link, Edit mode, Delete
-- XML theme selector, Format XML, Word wrap, View toggle, Topic type badge
-
 ### Placement Principle
 
-macOS has two layers with distinct jobs:
+| Layer | Job |
+|---|---|
+| **macOS menu bar** | App-wide commands, document lifecycle, keyboard shortcuts |
+| **In-app toolbar/header** | Active editing controls, view state, connection status |
 
-| Layer | Job | User mental model |
-|---|---|---|
-| **macOS menu bar** | App-wide commands, document lifecycle, keyboard shortcuts | "How do I do X to this document?" |
-| **In-app toolbar/header** | Active editing controls, view state, connection status | "I need this while I'm writing" |
-
-**Decision rule:** If an action deserves a `⌘` shortcut or applies to the document as a whole, it belongs in the menu bar (or both). If it is a formatting control used mid-sentence or a view toggle, it belongs in the toolbar. If it shows connection status as much as it provides actions, it belongs in the header.
+**Decision rule:** If an action deserves a `⌘` shortcut or applies to the document as a whole → menu bar (or both). If it is a formatting control used mid-sentence or a view toggle → toolbar. If it shows connection status as much as it provides actions → header.
 
 ### Recommended Menu Bar Structure
 
 **DITA Architect menu (expand from current)**
+
 | Item | Shortcut | Action |
 |---|---|---|
 | About DITA Architect | — | Info panel (version, build) |
@@ -1559,7 +300,8 @@ macOS has two layers with distinct jobs:
 | *(separator)* | | |
 | Quit DITA Architect | `⌘Q` | Existing |
 
-**File menu (new — does not exist yet)**
+**File menu (new)**
+
 | Item | Shortcut | Action |
 |---|---|---|
 | New Task | `⌘N` | Opens new task topic via JS bridge |
@@ -1576,10 +318,8 @@ macOS has two layers with distinct jobs:
 | Connect to Heretto... | — | Opens Heretto connection modal via JS bridge |
 | Open from Heretto... | — | Opens Heretto browser modal via JS bridge |
 
-**Edit menu (no changes needed)**
-Existing items (Cut, Copy, Paste, Select All, Undo, Redo) are correct.
+**View menu (new)**
 
-**View menu (new — does not exist yet)**
 | Item | Shortcut | Action |
 |---|---|---|
 | Toggle XML Pane | `⌘\` | Show/hide the Monaco XML panel |
@@ -1588,46 +328,17 @@ Existing items (Cut, Copy, Paste, Select All, Undo, Redo) are correct.
 | Theme | submenu | Lists all app themes |
 | XML Syntax Theme | submenu | Lists all XML syntax themes |
 
-**Window menu (no changes needed)**
-
-### In-App Header — Policy Going Forward
-
-- The **Heretto button/dropdown** stays in the header permanently — it is a connection status indicator as much as a menu. Its actions (Connect, Open from Heretto, etc.) should appear in the File menu too (dual-path is acceptable and expected for Mac apps), but the header button is not going away.
-- The **File Options dropdown** should stop growing. Any new document-level action (new export format, history, versioning) should be added to the macOS File menu, not to File Options. File Options may eventually be removed from the native app once the File menu is complete, but that is not required immediately.
-
 ### Technical Approach
 
 Each menu item requires two things:
 
 1. **Swift side (`AppDelegate.swift`):** An `NSMenuItem` with a target/action selector that calls into `jsBridge`.
-2. **Web app side (`dita-architect.tsx` or a new `lib/macos-api.ts`):** A `window.__ditaApi.methodName()` function exposed to the JS context that the bridge can call via `callAsyncJavaScript`.
+2. **Web app side (`dita-architect.tsx`):** A `window.__ditaApi.methodName()` function exposed to the JS context that the bridge can call via `callAsyncJavaScript`.
 
-Existing pattern (from `HttpServer.swift`):
-```swift
-bridge.call("window.__ditaApi.getStatus") { result in ... }
-```
+### In-App Header — Policy Going Forward
 
-New File menu action example:
-```swift
-@objc func newTask(_ sender: Any?) {
-    jsBridge?.call("window.__ditaApi.newTopic", args: ["type": "task"], body: "return window.__ditaApi.newTopic(type)") { _ in }
-}
-```
-
-The `window.__ditaApi` surface in the web app needs new entries for any action not already exposed via the HTTP API.
-
-### Value Proposition
-
-Mac users have 40+ years of muscle memory for `⌘N`, `⌘O`, `⌘S`, `⌘W`. When those shortcuts don't work in a native app, users notice immediately — they either give up on keyboard-driven workflows or feel the app is unfinished. Beyond shortcuts, the macOS menu bar is the universal discoverability surface: new users who don't know what an app can do open the menu and read. "File Options" inside the web UI is invisible to this discovery path.
-
-This is also a prerequisite for future features. Every document-level capability added to the native app — version history, map export, multi-file operations — needs a home in the menu bar before it can have a keyboard shortcut.
-
-### What This Does Not Change
-
-- The formatting toolbar stays exactly as-is. Bold, Italic, lists, tables, undo/redo, theme selectors — all toolbar, all correct.
-- The visual editor vs XML editor split is unchanged.
-- The Heretto status indicator in the header stays.
-- The web app (browser) is unaffected — it has no macOS menu bar.
+- The **Heretto button/dropdown** stays in the header permanently — it is a connection status indicator. Its actions should appear in the File menu too (dual-path is acceptable), but the header button is not going away.
+- The **File Options dropdown** should stop growing. Any new document-level action goes in the macOS File menu, not File Options.
 
 ---
 
@@ -1640,181 +351,57 @@ This is also a prerequisite for future features. Every document-level capability
 **Depends on:** P2-28
 
 **Problem:** The `+` menu inserts at a fixed position relative to the cursor, so "insert paragraph" is ambiguous about before/after and wrapping a selection in `<ph>` is impossible in a single gesture.
-**Signal:** Raised 2026-05-25 referencing Heretto CMS's insertion-mode selector (screenshot, same date).
+**Signal:** Raised 2026-05-25 referencing Heretto CMS's insertion-mode selector.
 **Smallest slice:** Add a four-option mode selector (Intelligently, Before, After, Wrap) above the search field in the `+` menu, persisted in `localStorage`.
 **Serves:** WYSIWYG/DITA parity
 
 ### Description
 
-The `+` menu (P2-28) currently inserts elements at a fixed position relative to the cursor. Heretto's equivalent menu exposes an explicit insertion mode selector at the top of the panel:
+The `+` menu (P2-28) currently inserts elements at a fixed position. Add an explicit insertion mode selector at the top of the panel:
 
 - **Intelligently** — editor decides the best placement based on DITA content model context
-- **Before** — insert the new element immediately before the current block
-- **After** — insert the new element immediately after the current block
+- **Before** — insert immediately before the current block
+- **After** — insert immediately after the current block
 - **Wrap** — wrap the current selection (or current block if nothing is selected) inside the new element
-
-The mode selector sits above the search field, always visible. The selected mode persists for the session so repeated insertions use the same mode without re-selecting.
-
-### Value Proposition
-
-Without an explicit mode, "insert paragraph" is ambiguous — does it go before or after the cursor block? "Wrap selection in `<ph>`" is impossible with a single insertion gesture today. These three modes turn the `+` menu from a creation tool into a structural editing tool. Wrap is especially valuable for inline elements: the author selects text, chooses Wrap, picks `<uicontrol>`, and the selection becomes `<uicontrol>selected text</uicontrol>` in one gesture instead of requiring XML editing.
 
 ### Suggested Approach
 
-- Add a `mode` selector component above the search field in the `+` menu (P2-28 shell). Four options: Intelligently, Before, After, Wrap. Default: Intelligently.
+- Add a `mode` selector above the search field in the `+` menu. Four options: Intelligently, Before, After, Wrap. Default: Intelligently.
 - Persist the selected mode in `localStorage` under `dita-architect-insert-mode`.
-- **Before / After:** use Lexical's `insertBefore` / `insertAfter` on the nearest block ancestor of the current selection.
-- **Wrap:** for block elements, wrap the current block node. For inline elements, wrap the current text selection in the chosen element (use `$wrapNodes` or `$wrapLeafNodesInElements` from `@lexical/selection`).
+- **Before / After:** use Lexical's `insertBefore` / `insertAfter` on the nearest block ancestor.
+- **Wrap:** use `$wrapNodes` or `$wrapLeafNodesInElements` from `@lexical/selection`.
 - **Intelligently:** current default behavior — insert at cursor, let the DITA content model filter (P2-37) handle validity.
-- Disable **Wrap** in the selector when nothing is selected and the insertion target is an inline-only element (wrapping a block in `<codeph>` is invalid).
+- Disable **Wrap** when nothing is selected and the insertion target is an inline-only element.
 
 ### Scope
 
 - Does not change the element catalog (P2-29) or content model filtering (P2-37).
-- Does not affect the block-level `+` hover button (shipped v0.9.5) — that button always inserts after the current block and does not need a mode selector.
-- The mode selector only appears in the modal `+` menu (P2-28), not in the hover button.
-
-### Reference
-
-Heretto CMS (screenshot, 2026-05-25): mode selector positioned as a dropdown at the top of the element insertion panel, above the search field. Options: Intelligently, Before, After, Wrap. Wrap is checkmarked when selected.
-
----
-
-## FR-041: `POST /api/load-content` should accept an optional Heretto UUID
-
-**Requested:** 2026-05-27
-**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Shipped (v0.9.6.1, 2026-05-28)
-**Priority:** P2
-**Impact:** High — without this, content loaded via the API has no path back to Heretto from the editor UI
-
-**Problem:** Content loaded via `POST /api/load-content` always gets `herettoFile: null`, so the editor shows no save button or conflict detection and external tools must push edits back themselves, bypassing the editor's diff/conflict/version flow.
-**Signal:** Observed by Kiryl Rusetski during a Claude Code skill workflow (2026-05-27).
-**Smallest slice:** Add an optional `herettoUuid` field to the load payload that sets `tab.herettoFile`, making the tab behave like one opened from the Heretto browser.
-**Serves:** Claude Code integration surface
-
-### Description
-
-When a topic is loaded into DITA Architect via `POST /api/load-content`, the resulting tab has `herettoFile: null` regardless of whether the content originated from Heretto. The Heretto status bar and push button are absent because the editor has no knowledge of the file's CMS origin.
-
-This forces external tools (Claude Code skills, scripts) to push edits back to Heretto themselves via the REST API, bypassing the editor's built-in save flow entirely — including the diff preview, conflict detection, and version history that the editor provides.
-
-### Proposed Change
-
-Add an optional `herettoUuid` field to the `POST /api/load-content` request body:
-
-```json
-{
-  "xml": "<?xml version=\"1.0\" ...>...",
-  "fileName": "my-topic.dita",
-  "herettoUuid": "eaf9b2ce-a916-46ed-b693-2a68dc43ad2b"
-}
-```
-
-When `herettoUuid` is present, set `tab.herettoFile` to `{ uuid: herettoUuid, name: fileName }` on the new tab. The tab then behaves identically to one opened from the Heretto file browser — the push button appears, conflict detection is active, and the author can save normally.
-
-### Value Proposition
-
-A Claude Code skill that loads a topic for review or editing should be able to hand off the save action to the author in the editor. Today it cannot — the editor has no "Save to Heretto" button for externally loaded content, so the skill must push programmatically or ask the author to copy-paste. Adding `herettoUuid` to the load payload closes the hand-off loop: the skill loads the content, the author reviews and edits, and the editor's normal save flow handles the rest.
-
----
-
-## FR-042: `insert-section` tracked changes must serialize back to DITA XML on accept
-
-**Requested:** 2026-05-27
-**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Shipped (v0.9.6.1, 2026-05-28)
-**Priority:** P1
-**Impact:** Critical — accepted tracked changes currently produce malformed output that cannot be pushed to Heretto
-
-**Problem:** Accepting an `insert-section` tracked change serializes the new content into the XHTML namespace with conkeyrefs stripped and elements downgraded, producing structurally invalid DITA that can't be pushed to Heretto.
-**Signal:** Discovered by Kiryl Rusetski in a real workflow (2026-05-27) where a skill injected three sections, the author accepted them, and `GET /api/tabs/:id/content` returned mixed DITA/XHTML.
-**Smallest slice:** Route accepted tracked changes through the DITA-aware `serializeLexicalToXml` path so conkeyrefs, element types, `class` attributes, and the DITA namespace survive accept.
-**Serves:** Claude Code integration surface
-
-### Description
-
-When a section is injected via `POST /api/tabs/:id/insert-section` and the author accepts the tracked change in Edit Mode, the accepted content is serialized back into the tab XML in the XHTML namespace (`xmlns="http://www.w3.org/1999/xhtml"`) rather than as DITA markup. All DITA-specific elements and attributes in the injected section are lost or downgraded:
-
-- `<keyword conkeyref="..."/>` → empty (conkeyref stripped)
-- `<ph conkeyref="..."/>` → empty (conkeyref stripped)
-- `<uicontrol conkeyref="..."/>` → empty (conkeyref stripped)
-- `<uicontrol>text</uicontrol>` → `<b>text</b>` (element downgraded)
-- `class="..."` attributes removed
-- Namespace of the entire section set to `http://www.w3.org/1999/xhtml`
-
-The result is structurally invalid DITA that cannot be pushed to Heretto and does not round-trip correctly through `GET /api/tabs/:id/content`.
-
-### Root Cause (suspected)
-
-The `TrackedChangesPlugin` stores injected sections as Lexical nodes during Edit Mode. When the author accepts, the plugin likely serializes via the Lexical XHTML path (used for clipboard and export) rather than through the DITA-aware `serializeLexicalToXml` path. DITA-specific node types (`DitaPhRefNode`, `DitaImageNode`, conkeyref nodes) may not survive the round-trip through Lexical's internal representation.
-
-### Expected Behavior
-
-After the author accepts a tracked insertion:
-- The accepted section should appear in the tab XML in the DITA namespace, with all conkeyrefs, element types, and `class` attributes intact.
-- `GET /api/tabs/:id/content` should return valid, publishable DITA.
-- The accepted content should be indistinguishable from content typed directly into the XML source pane.
-
-### Workaround (current)
-
-Build the final XML by hand (combining original unchanged sections with new content) and push directly to Heretto via REST API, bypassing the editor entirely. This defeats the purpose of Edit Mode as a review workflow.
-
-### Notes
-
-This was discovered during a real authoring workflow: a Claude Code skill injected three new sections into a topic using `insert-section`, the author accepted all three, and `GET /api/tabs/:id/content` returned a mix of original DITA sections and XHTML-namespaced accepted sections with stripped conkeyrefs. The content could not be pushed to Heretto without manual reconstruction.
-
----
-
-## FR-043: `insert-section` should support injecting block-level elements into flat `<conbody>` topics
-
-**Requested:** 2026-05-27
-**Source:** Kiryl Rusetski, observed during Claude Code skill workflow
-**Status:** Shipped (v0.9.6.1, 2026-05-28)
-**Priority:** P2
-**Impact:** Medium — concept topics without `<section>` structure cannot use tracked-change injection at all
-
-**Problem:** `insert-section` only accepts `<section>` fragments, so flat `<conbody>` concept topics (`<p>`, `<ul>`, `<note>` directly in the body) can't receive any tracked-change injection, even a one-word edit.
-**Signal:** Observed by Kiryl Rusetski during a Claude Code skill workflow (2026-05-27); many older Geotab concept topics use flat `<conbody>`.
-**Smallest slice:** Extend the endpoint to accept any block-level DITA element (`<p>`, `<ul>`, `<ol>`, `<note>`, `<table>`) as the injection fragment, rendered green in Edit Mode like sections.
-**Serves:** Claude Code integration surface
-
-### Description
-
-`POST /api/tabs/:id/insert-section` only accepts `<section>` fragments. Concept topics that use a flat `<conbody>` structure — `<p>`, `<ul>`, `<note>` elements directly in the body, with no `<section>` wrappers — cannot receive any tracked-change injections via the API, even for targeted edits like inserting or replacing a single paragraph.
-
-### Proposed Change
-
-Extend `insert-section` (or add a companion endpoint, e.g. `insert-block`) to accept any block-level DITA element as the injection fragment: `<p>`, `<ul>`, `<ol>`, `<note>`, `<table>`, in addition to `<section>`. The injected block appears highlighted green in Edit Mode exactly as sections do today.
-
-Optionally, support a `replaceId` parameter that targets an existing element by its `id` attribute, so the tracked change is shown as a replacement (old content struck through in red, new content green) rather than a pure insertion.
-
-### Value Proposition
-
-Many Geotab topics — particularly older concept topics — use flat `<conbody>` structure without sections. A skill that can only inject `<section>` elements cannot offer Edit Mode review for any change in these topics, even a one-word edit. This forces the skill to either bypass the editor entirely (direct REST push, no author review) or ask the author to make the edit manually. Supporting block-level injection would make Edit Mode usable for the full range of DITA topic structures.
+- The mode selector only appears in the modal `+` menu (P2-28), not in the block-level hover button (which always inserts after).
 
 ---
 
 ## FR-044: Altitude by Geotab theme
 
 **Requested:** 2026-06-02
-**Source:** Kiryl Rusetski
-**Status:** Open
+**Status:** ⏸️ Parked — Rolled back 2026-07-20
 **Priority:** P3
-**Impact:** Medium — visual coherence for writers working primarily on Altitude content
+**Impact:** Medium
 
 **Problem:** Writers who author Altitude content all day open a dark or neutral editor that doesn't feel like it belongs to the same visual world as the Altitude docs, decks, and Help Center they work in.
 **Signal:** Raised by Kiryl Rusetski on 2026-06-02; brand colors sourced from `workflow-altitude-docs`.
 **Smallest slice:** Add a light-based `[data-theme="altitude"]` CSS block (~30 variables) using the Altitude red accent, plus a theme-dropdown label and a theme-name constant.
 **Serves:** writer experience over developer convenience
 
-### Description
+### Implementation History
 
-Add an "Altitude" theme to DITA Architect that applies the Altitude by Geotab brand palette. Writers who spend most of their day authoring Altitude documentation would benefit from a working environment that matches the product's visual identity — the same colors they see in Altitude docs, deliverables, and the Help Center.
+**2026-07-20 — Full implementation completed and rolled back (same day):**
+- All 4 files modified: `index.css` (62-variable CSS block), `Toolbar.tsx` (dropdown + description), `useEditorUi.ts` (localStorage validation), `MonacoDitaEditor.tsx` (Monaco theming)
+- Tests: all 16 theme tests passing, TypeScript clean, build successful
+- **Rollback reason:** Product owner visual review — the rendered palette did not meet expectations
+- **Unblock condition:** Explicit re-request with either a revised color palette or approval to re-apply the current implementation
+- **Do not** pick up in future sprints without explicit instruction
 
-The theme is light-based: white content surface, light gray chrome, dark gray text. The Altitude red functions as the accent — toolbar active states, link color, and body element bar highlights.
-
-### Brand Color Reference (from `workflow-altitude-docs`)
+### Brand Color Reference
 
 | Role | Color | Hex |
 |------|-------|-----|
@@ -1824,28 +411,18 @@ The theme is light-based: white content surface, light gray chrome, dark gray te
 | Border / dividers | Medium Gray | `#ACAFB2` |
 | Surface / canvas | Light Gray | `#F2F2F2` |
 | Content background | White | `#FFFFFF` |
-| Contrast (reversed) | Black | `#000000` |
 
-### Suggested CSS Variable Mapping (`index.css`, new `[data-theme="altitude"]` block)
+### Suggested CSS Variable Mapping
 
 | Variable | Value | Notes |
 |---|---|---|
-| `--app-bg` | `#F2F2F2` | Light Gray — chrome / canvas background |
-| `--app-surface-raised` | `#F2F2F2` | Match chrome |
+| `--app-bg` | `#F2F2F2` | Light Gray chrome / canvas |
 | `--app-border` | `#ACAFB2` | Medium Gray |
-| `--app-border-subtle` | `#ACAFB2` | Same at this scale |
-| `--app-hover` | `#e8e8e8` | Slightly darker than Light Gray |
 | `--app-text` | `#3C3C41` | Dark Gray |
 | `--app-text-muted` | `#ACAFB2` | Medium Gray |
-| `--app-btn-bg` | `#F2F2F2` | Matches chrome |
-| `--app-btn-hover` | `#e8e8e8` | Slightly darker |
-| `--app-btn-border` | `#ACAFB2` | Medium Gray |
 | `--editor-bg` | `#FFFFFF` | White content surface |
 | `--editor-page-bg` | `#FFFFFF` | White page |
 | `--editor-canvas-bg` | `#F2F2F2` | Light Gray canvas behind page |
-| `--editor-toolbar-bg` | `#fafafa` | Near-white toolbar |
-| `--editor-toolbar-border` | `#ACAFB2` | Medium Gray divider |
-| `--editor-code-bg` | `#F2F2F2` | Light Gray code backgrounds |
 | `--color-dita-500` | `#DB0000` | Dark Red — xref link color |
 | `--editor-quote-border` | `#FF0000` | Red — note element left border |
 | `--editor-context-bar` | `#DB0000` | Dark Red — context element bar |
@@ -1853,168 +430,18 @@ The theme is light-based: white content surface, light gray chrome, dark gray te
 | `--editor-prereq-bar` | `#ACAFB2` | Medium Gray — prereq bar |
 | `--editor-postreq-bar` | `#ACAFB2` | Medium Gray — postreq bar |
 
-Page elevation follows the light theme pattern: `box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)` on the page wrapper.
-
-### Typography Note
-
-Altitude uses Roboto as its brand font. The editor already uses system fonts — Roboto is not bundled. No font change is required for the initial implementation. If Roboto is added later (e.g., via a Google Fonts import), the Altitude theme would be the natural first target.
+Page elevation follows the light theme pattern: `box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)`.
 
 ### Suggested Approach
 
-Follow the same pattern as the existing Geotab theme (P1-7, shipped v0.5.1): add a `[data-theme="altitude"]` block in `index.css` and add `"altitude"` to the theme selector in the toolbar. No behavioral changes. No new dependencies.
-
-The implementation is pure CSS — one new theme block (~30 variables), a label added to the theme dropdown, and a theme-name constant.
-
-### Value Proposition (Maya Chen, UX Advisor)
-
-Context switching has a visual cost. A writer who spends the morning reviewing Altitude brand guidelines, then opens DITA Architect and sees a dark or neutral editor, experiences a subtle discontinuity — the tool doesn't feel like it belongs to the same world as the content. An Altitude theme closes that gap. The red accent, Light Gray chrome, and dark gray text are the same signals the writer encounters in Altitude decks, the Help Center, and the product UI. The editor becomes part of the Altitude environment rather than a generic tool sitting beside it.
-
-This is also a low-risk, high-signal feature. It costs nothing functionally — it is the same CSS variable pattern used for the Geotab theme — but it signals that DITA Architect is Altitude-aware. For a team whose primary output is Altitude documentation, that matters.
-
----
-
-## FR-045: Monaco-diff review surface for API insertions
-
-**Requested:** 2026-06-04
-**Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
-**Status:** Shipped (v0.8.8, 2026-07-17)
-**Priority:** P1
-**Impact:** High — makes Claude-workflow / API insertions reliable, which is the primary way Edit Mode is used today
-**Model weight:** Fable single-session — re-tagged from Opus/Multi-agent 2026-07-17 (Swift + TypeScript breadth fits one Fable context; keep the pipeline's build/review/test gates as checkpoints)
-
-**Problem:** API insertions route through the Lexical "Edit Mode" diff-and-paint machinery, which is unreliable — a 50 ms race can absorb the insertion into the baseline (no highlight) and Accept re-serializes against a possibly-stale `masterXml`, duplicating content or emitting XHTML-namespaced DITA.
-**Signal:** Kiryl Rusetski's 2026-06-04 edit-mode architecture review (BUG-edit-mode-architecture.md / BUG-02); this is the primary way Edit Mode is used today.
-**Smallest slice:** Compute `proposedXml` deterministically at the XML level and review it in a read-only Monaco diff with whole-change Accept/Reject — no Lexical round-trip.
-**Serves:** Claude Code integration surface
-
-### Problem
-
-Today an API insertion (`insertSection` / `POST /api/.../insert-section`) flips the tab into the Lexical "Edit Mode," which reconstructs the change by diffing a frozen plain-text snapshot against the live tree on every keystroke. This is unreliable for the reasons documented in BUG-02: a 50 ms race that can absorb the insertion into the baseline (so it shows no highlight), and an Accept path that re-serializes and patches against a possibly-stale `masterXml` through an origin-map-dependent serializer (so Accept can duplicate content — P2-45 — or emit XHTML-namespaced DITA — FR-042 / P1-17).
-
-### Core idea
-
-An API insertion is, at its core, a **document-level XML transformation**: `currentXml` → `proposedXml` with a block inserted or a target element replaced. That is a pure text/XML diff — exactly what Monaco's native diff editor (`monaco.editor.createDiffEditor`, the same engine VS Code uses for git diffs) does excellently, and exactly what the Lexical snapshot-diff does badly. Review the change in Monaco; never route it through the diff-and-paint machinery.
-
-### Proposed flow
-
-1. **Receive** the fragment via the existing endpoint (or a renamed `propose-change`): `{ xml, replaceId? }`.
-2. **Compute `proposedXml` deterministically at the XML level** — parse `currentTabXml`, find the insertion point (end of body, or the `replaceId` target), splice in the fragment, re-serialize. **No Lexical round-trip**, so no XHTML corruption, no origin-map dependency, no 50 ms race. This needs a small, well-tested XML-insertion utility (e.g. `lib/xml-insert.ts`, or extend `lib/xml-utils.ts`).
-3. **Enter a "pending review" tab state** holding both `currentXml` and `proposedXml` (new `tab.pendingReview` field).
-4. **Swap the XML pane into Monaco diff mode** — original = `currentXml`, modified = `proposedXml`, read-only, red/green.
-5. **Show a review bar** with Accept / Reject:
-   - **Accept** → `proposedXml` becomes the tab content via the normal `lastUpdatedBy: 'api'` path (which re-parses into Lexical). Clear `pendingReview`. The accepted output is **byte-for-byte the proposedXml that was reviewed** — no serialization surprise.
-   - **Reject** → discard `proposedXml`, restore the normal editor.
-6. **Optional (after FR-046):** also render the pending insertion as green in Lexical using the same tracked-insert mark, so the visual reviewer sees it too. The XML diff remains the source of truth.
-
-### Why this is robust
-
-- **Deterministic.** No timing race; the proposed XML is computed synchronously before review.
-- **What you review is what you get.** Accept commits the exact reviewed text — the serializer is never re-run on accept, so it cannot reintroduce namespace corruption or duplication.
-- **Uses a proven engine.** Monaco diff is mature, structure-agnostic, and free.
-
-### Known limitation
-
-Bare Monaco renders the diff but does **not** provide per-hunk "accept this one" buttons (VS Code adds those on top). For a single injected block, Accept/Reject *as a whole* is the correct granularity, so this does not bite the primary use case. Per-hunk acceptance can be a later enhancement.
-
-### Scope / files (indicative)
-
-- New XML-insertion utility (`lib/xml-insert.ts` or `lib/xml-utils.ts`) with `replaceId` support and tests.
-- `types/tab.ts` — `pendingReview?: { proposedXml: string; sourceLabel?: string }`.
-- XML pane (`MonacoDitaEditor` / `dita-architect.tsx`) — diff-editor mode driven by `pendingReview`.
-- New review-bar component (Accept / Reject).
-- `lib/native-api-bridge.ts` + `macos/Sources/DITAArchitect/HttpServer.swift` — endpoint computes `proposedXml` and sets `pendingReview` instead of triggering edit mode + `scheduleSectionInsert`.
-- Retire the API path's use of `editMode` / `editModeEnterTrigger` / the 50 ms `scheduleSectionInsert` race.
-
-### Heretto-aware review — propose-replace (added 2026-07-17)
-
-When the incoming content targets an **existing Heretto topic** (`herettoTargetUuid` present — the altitude-release-notes skill's exact flow), the review should diff against **what is live in Heretto**, not against an empty tab: fetch the current remote topic, open directly in the Monaco diff (original = live Heretto content, modified = the proposed draft), Accept → the existing Replace-in-Heretto path. This turns DITA Architect from a viewer into the workflow's actual approval step. Implement as a mode of the same review surface (or a `propose-replace` variant of `load-content`); reuses the fetch + class-attribute-strip comparison logic from `handleHerettoReplace`.
-
-**Expanded acceptance criteria (2026-07-17 codebase review + workflow review):** API insertion is reliable with N tabs open (executor slot collision fixed); success is returned only after validation (no 50 ms contract); every allowlisted block element survives accept→save (BUG-04/S5); and a draft targeting a `herettoTargetUuid` is reviewed as a diff against the live remote topic.
-
-### Value proposition
-
-This directly targets the way Edit Mode is actually used — Claude workflows injecting content for author review — and replaces the least reliable path in the app with a deterministic, proven one. It can ship independently of FR-046.
-
----
-
-## FR-046: Marks-as-data tracked changes in Lexical (suggesting mode)
-
-**Requested:** 2026-06-04
-**Source:** Kiryl Rusetski — edit-mode architecture review (see `bugreports/BUG-edit-mode-architecture.md`)
-**Status:** Shipped (v0.9.0, 2026-07-17) — closes BUG-02; ADR-004 promoted to Accepted. Shipped as designed: `documentMode` three-state, `TrackedTextNode` marks `{changeId, kind: insert|delete|split, author, date}`, interception-time recording (CRITICAL-priority commands + capture-phase beforeinput closing Lexical's typing fast path), change-list side panel with per-change accept/reject, atomic changeId-scan mutations, reject-all byte-stable (pinned by test). Session-only marks per the documented interim; v1 exclusions (format marks, block merge, DITA carrier, IME) filed as FR-051.
-**Priority:** P2
-**Impact:** High — replaces the fundamentally broken human-authoring tracked-changes feature with a durable, per-change model
-**Model weight:** Fable — own session(s); re-tagged from Opus/Multi-agent 2026-07-17 (suggesting-mode edit interception without a transaction layer is subtle single-context Lexical work)
-
-**Problem:** Human tracked changes are reconstructed by diff-and-paint and stored as recomputed pixels rather than data, so attribute-only edits show no markup, structural edits misclassify, deletion markers flicker, and Accept can corrupt or duplicate output.
-**Signal:** Kiryl Rusetski's 2026-06-04 edit-mode architecture review (BUG-edit-mode-architecture.md / BUG-02).
-**Smallest slice:** Record each change as durable identity-bearing data in the document model (a `TrackedTextNode` carrying insert/delete attributes), with decorations as a view only and explicit per-change accept/reject mutations.
-**Serves:** WYSIWYG/DITA parity
-
-### Problem
-
-Human tracked changes (typing edits in the visual editor) are reconstructed by diff-and-paint and stored as recomputed pixels, not data — see BUG-02 for the full analysis. The result: attribute-only edits show no markup, structural edits misclassify, deletion markers flicker, and Accept can corrupt or duplicate output.
-
-### Core idea — apply the SuperDoc pattern to Lexical
-
-Record each change as **durable, identity-bearing data in the document model at the moment it happens**, and make accept/reject explicit model mutations. Decorations become only a *view* of that data, never the source of truth. Lexical supplies everything needed: custom node subclasses, per-node attributes / NodeState, decorations, and command interception.
-
-### Design
-
-1. **Three modes, not a boolean.** Replace `tab.editMode` with `documentMode: 'viewing' | 'suggesting' | 'editing'`. `suggesting` = tracking on. (This also resolves the old single-boolean awkwardness behind P2-44.)
-2. **Representation.**
-   - **Insertions:** text carrying a tracked-insert attribute — a custom `TrackedTextNode` subclass (or NodeState on standard text nodes) holding `{ changeId, kind: 'insert', author, date }`. Block-level inserts mark the block node.
-   - **Deletions:** the text is **kept** in the tree, marked tracked-delete, rendered struck-through and non-editable. It is **not removed** — that is how Reject can restore it. (Replaces `TrackedDeletionNode` overlays.)
-3. **Record, don't diff.** In `suggesting` mode, intercept edits as they happen: stamp newly inserted text with a tracked-insert attribute, and intercept Delete/Backspace so deletions become tracked-delete marks instead of true removals. (Lexical has no transaction-rewrite layer like ProseMirror, so this is done via command interception + `registerNodeTransform` + the input/update path. This is the hard part of the rebuild.)
-4. **Identity + change list.** Each change gets `changeId` + author + date. Derive the list of changes by **scanning nodes for tracked attributes** — rebuildable, not snapshot-dependent, never keyed to transient Lexical node IDs. Surface it as a change-list / sidebar.
-5. **Accept / reject — per change and all.** Explicit, atomic model mutations:
-   - Accept insert → strip the attribute (text stays).
-   - Reject insert → remove the text.
-   - Accept delete → remove the struck text.
-   - Reject delete → strip the attribute (text becomes live again).
-   - Accept/Reject All → apply across every change in one transaction.
-6. **DITA round-trip (so changes survive save/reload).** DITA has no native ins/del. Candidate carriers, to be confirmed against how Heretto handles review markup: the Heretto review processing instructions (`<?ezd-review-start?>` / `<?ezd-review-end?>`, which the app **already round-trips**), `<draft-comment>`, or a status attribute + `outputclass`. Until a carrier is chosen, tracked changes are session-only and must be accepted/rejected before save — an acceptable interim, and already better than today (today they are also session-only, but unreliable).
-
-### What it retires
-
-`components/EditModePlugin.tsx`, `components/TrackedChangesPlugin.tsx`, and `components/TrackedDeletionNode.tsx` — the snapshot, the per-keystroke LCS diff, the CSS-highlight painting, and the overlay nodes are all replaced by the marks model. `SyncManager`'s "suspend all sync in edit mode" can be reconsidered: with tracked state expressible in XML, the panes can share one source of truth instead of being frozen apart.
-
-### Scope / files (indicative)
-
-- `nodes/TrackedTextNode.ts` (+ block-level marking or NodeState helpers).
-- `plugins/SuggestionPlugin.tsx` — edit interception in suggesting mode.
-- `lib/tracked-changes/` — change-model scan, per-change accept/reject mutations.
-- Parser/serializer updates for the chosen DITA round-trip carrier.
-- UI — mode selector (replacing the pencil toggle), change-list/sidebar, per-change accept/reject controls.
-- Retire `EditModePlugin`, `TrackedChangesPlugin`, `TrackedDeletionNode`.
-
-### Relationship to FR-045
-
-FR-045 (Monaco-diff API review) ships first and stands alone. Once FR-046 lands, an API insertion can *additionally* be shown as green tracked-insert marks in Lexical using the same model — unifying the two surfaces — while the Monaco XML diff remains available as the precise view.
-
-### Inherited scope from BUG-04/S2 (Session 4B scope check, 2026-07-17)
-
-Session 4B.2 fixed S2 (formatting-only edits discarded) **within** patch-against-master via a format-run signature comparison in `serializeLexicalToXml.ts` (`hasFormattingChange`), deliberately restricted to a provably-safe inline subset: plain text plus attribute-less `<b>`/`<i>`/`<codeph>` with text-only content. Everything outside that subset bails to preserve-untouched, because rewriting it from format flags would lose data. **The residual cases below are this FR's problem — they need inline marks carried as data (an inline analog of `originMap.inlineTag`, with attributes), not a better comparison:**
-
-- Formatting toggles in elements containing `<xref>` (LinkNode serialization hardcodes `format="html"`), refless `<ph>`/`<term>` (parse to transparent plain text — a rewrite drops the wrapper), `<uicontrol>`/`<wintitle>` (attributes not carried — the M3 `inlineAttrs` dead field), inline `<image>`, or Heretto review PIs.
-- Nested inline tags (`<b><i>…</i></b>`): the parser flattens to the outer tag's format only, so flags cannot faithfully express them; they are preserved byte-stable but formatting edits alongside them are dropped.
-- Table entries with pretty-printed (edge-whitespace) direct text: `parseCellContent`'s whitespace rules diverge from `parseTextNodes`, so the signature's concat guard bails.
-
-In all residual cases the failure mode is the *old* one (toggle silently dropped, element preserved) — never corruption. When FR-046's marks model lands, `hasFormattingChange` and its helpers can be retired in favor of serializing marks directly.
-
-### Value proposition
-
-This is the durable fix for the whole class of Edit Mode failures. It turns tracked changes from disposable pixels into real, attributed, reviewable document data — enabling per-change decisions, a change list, and (with a round-trip carrier) changes that survive save and reload. It is the difference between an editor that *looks* like it supports review and one that actually does.
-
----
+Follow the same pattern as the Geotab theme (shipped v0.5.1): add a `[data-theme="altitude"]` block in `index.css` and add `"altitude"` to the theme selector in the toolbar. No behavioral changes. No new dependencies. Pure CSS — one new theme block (~30 variables).
 
 ## FR-047: Byte-stability test corpus + shared test editor factory
 
 **Requested:** 2026-07-17
-**Source:** Full codebase review (six subsystem reviews; remediation plan in Obsidian `geotab-work/DITA Architect/Remediation Plan — Codebase Review v0.8.4 (2026-07-17).md`)
 **Status:** Open
 **Priority:** P1 — blocks BUG-04
-**Impact:** High — makes Gate 1 enforceable; turns six known content-loss bugs into red tests before they're fixed
+**Impact:** High
 **Model weight:** Sonnet
 
 **Problem:** Gate 1's first bullet ("parse→serialize is byte-stable for unedited content") has no enforcement artifact — `tests/sync/round-trip.test.ts` asserts only `toContain`/`toMatch`, never byte-equality, so the serializer can delete ref-carrying notes, destroy section-nested `<dl>`s, and rewrite xref attributes on unedited round-trips while the entire suite stays green.
@@ -2025,37 +452,36 @@ This is the durable fix for the whole class of Edit Mode failures. It turns trac
 ### Deliverables
 
 1. **`tests/sync/fixtures/`** — 8–12 real Heretto topics as fixture files: ref-carrying `<note conkeyref>`, section-nested `<dl>`, tables (CALS + simpletable), xrefs inside notes, a task with substeps and step `<info>`, mixed inline elements (`<filepath>`, `<menucascade>`, nested `<b><i>`). The Journey Definition topic (uuid `f0f00e9c-470d-4413-862a-c46f4680a3c7`) is a proven fixture — start there.
-2. **`tests/sync/byte-stability.test.ts`** — for each fixture: parse → serialize with zero edits → `toBe(original)` modulo *declared* normalizations only (XML declaration, DOCTYPE). Fixtures that currently fail get `test.fails` with the BUG-04 S-ID in the test name, so the debt is visible in the suite and flips loudly (test starts passing → `test.fails` errors) when the bug is fixed.
-3. **`tests/helpers/createTestEditor.ts`** — a single shared factory importing the production node list (export the array from `dita-architect.tsx`). Replaces the 16 hand-rolled `createEditor()` node lists across the suite, none of which register `TrackedDeletionNode`/`ValidationDecoratorNode` and several of which omit `DitaInfoPreviewNode` — drift that makes the Edit Mode serialization path unrepresentable in round-trip tests and silently steers fixtures away from regressing content.
+2. **`tests/sync/byte-stability.test.ts`** — for each fixture: parse → serialize with zero edits → `toBe(original)` modulo *declared* normalizations only (XML declaration, DOCTYPE). Fixtures that currently fail get `test.fails` with the BUG-04 S-ID in the test name.
+3. **`tests/helpers/createTestEditor.ts`** — a single shared factory importing the production node list (export the array from `dita-architect.tsx`). Replaces the 16 hand-rolled `createEditor()` node lists across the suite.
 4. **REVIEW-CRITERIA.md** — amend Gate 1 to name `tests/sync/byte-stability.test.ts` as the enforcement artifact.
 
 ### Sequencing
 
-Must land **before** the BUG-04 sessions (remediation plan Item 4) — the point is that all six S-bugs are red (or `test.fails`-tracked) tests before the serializer is touched. FR-048's `tests/sync/insert-section.test.ts` also depends on deliverable 3.
+Must land **before** the BUG-04 sessions — the point is that all six S-bugs are red (or `test.fails`-tracked) tests before the serializer is touched. FR-048's `tests/sync/insert-section.test.ts` also depends on deliverable 3.
 
 ---
 
 ## FR-048: Test-suite triage — Gate 5 artifacts
 
 **Requested:** 2026-07-17
-**Source:** Full codebase review (remediation plan Item 6)
 **Status:** Open
 **Priority:** P2
-**Impact:** High — a red test currently means nothing (113 failures on legitimate code); the two suites Gate 5 names do not exist
+**Impact:** High
 **Model weight:** Sonnet
 
-**Problem:** The suite fails 113 tests across 18 files on code that is correct — ~21 suites are `readFileSync` source-grep tests asserting stale UI copy, release-note phrasing, and CSS strings, which fail on every legitimate rename and pass on real behavior regressions. Meanwhile the artifacts Gate 5 names (`tests/api/`, `tests/sync/insert-section.test.ts`) were never created, and `hooks/useHerettoCms.ts` — the CMS write path — has zero executed coverage (its "tests" mock the hook itself or test re-implemented copies of its logic).
+**Problem:** The suite fails 113 tests across 18 files on code that is correct — ~21 suites are `readFileSync` source-grep tests asserting stale UI copy, release-note phrasing, and CSS strings. Meanwhile the artifacts Gate 5 names (`tests/api/`, `tests/sync/insert-section.test.ts`) were never created, and `hooks/useHerettoCms.ts` has zero executed coverage.
 **Signal:** 2026-07-17 review test run: 113 failed / 1,266 passed / 3 skipped; CLAUDE.md and REVIEW-CRITERIA.md both cite suites verified not to exist.
 **Smallest slice:** Delete the source-grep suites and add the jsdom `scrollTo` shim — the suite goes green and red regains meaning; the new Gate 5 suites follow.
 **Serves:** Test coverage (Gate 5), run-mode parity (Gate 3), Heretto-safe output (Gate 2)
 
 ### Deliverables
 
-1. **Delete/port the ~21 source-grep suites** (`writer-friendly-terminology`, `css-variable-consistency`, `elena-*`, `jamie-*`, `heretto-save-feedback-loop`, `shortdesc-plugin-body-elements`, etc. — the `readFileSync`-based set). Before deleting each: a 2-minute check for any genuinely behavioral assertion worth porting into a real test.
+1. **Delete/port the ~21 source-grep suites** (`writer-friendly-terminology`, `css-variable-consistency`, `elena-*`, `jamie-*`, `heretto-save-feedback-loop`, `shortdesc-plugin-body-elements`, etc.). Before deleting each: a 2-minute check for any genuinely behavioral assertion worth porting.
 2. **`tests/setup.ts` fixes** — `Element.prototype.scrollTo` shim (unblocks the ReleaseNotesModal failure cascade); replace the stale `__APP_VERSION__ = '0.7.1'` stub with the package.json value.
-3. **`tests/api/`** — real endpoint contract tests: extract the vite middleware handlers into testable functions (this also eliminates the duplicated `validateXmlStructure` copy in `tests/write-api-endpoints.test.ts` whose drift from `vite.config.ts:25` is currently invisible). Cover: PUT 400-on-malformed, load-content/pending-loads queue atomicity, save contract. Scope note: which endpoints exist here depends on the ADR-005 decision (BUG-05) — if the tab API goes native-only, these tests target the surviving surface.
+3. **`tests/api/`** — real endpoint contract tests: extract the vite middleware handlers into testable functions. Cover: PUT 400-on-malformed, load-content/pending-loads queue atomicity, save contract.
 4. **`tests/sync/insert-section.test.ts`** — the full block-injection pipeline: fragment → tracked green addition → Accept and Reject paths → serialize, with `TrackedDeletionNode` registered (needs FR-047's shared factory), including `replaceId` targeting and a `<fig>`/`<image>` fragment marked `test.fails` until BUG-04/S5 lands.
-5. **`useHerettoCms` behavioral suite** — `renderHook` + mocked `fetch`: save → fetch-back → `compareXml` verification path, the connection indicator's `res.ok` + `content-type: application/xml` rule, error paths. BUG-16's three fixes (class-strip on save verification, content-type guard on poll/refresh, external-load poll reschedule) land here with their tests.
+5. **`useHerettoCms` behavioral suite** — `renderHook` + mocked `fetch`: save → fetch-back → `compareXml` verification path, the connection indicator's `res.ok` + `content-type: application/xml` rule, error paths.
 
 ### Exit criteria
 
@@ -2066,45 +492,41 @@ Must land **before** the BUG-04 sessions (remediation plan Item 4) — the point
 ## FR-049: True placeholders for template title/shortdesc (empty node + CSS decoration)
 
 **Requested:** 2026-07-17
-**Source:** Kiryl Rusetski — "qwerty" screenshot report; design chosen from review analysis (Option A over select-all-on-entry)
 **Status:** Open
 **Priority:** P2
-**Impact:** High for first-run UX — the current "placeholder" is the single most confusing authoring behavior in the app, and placeholder prose can silently ship to Heretto
+**Impact:** High for first-run UX
 **Model weight:** Sonnet
 
-**Problem:** The template "placeholder" is real document text wearing a costume. `DITA_TEMPLATES` bakes `<title>Enter your task title</title>` into the topic; the muted-italic look is applied by `ShortdescPlugin` only while the node text *exactly matches* a placeholder string. Clicking and typing appends to the real text ("Enter your task title.qwerty"), the exact-match check fails, the styling drops, and the writer is left editing template prose. There is no clear-on-click or clear-on-type mechanism anywhere — the expected behavior was never implemented. Untouched placeholder text also serializes and saves to Heretto verbatim.
+**Problem:** The template "placeholder" is real document text wearing a costume. `DITA_TEMPLATES` bakes `<title>Enter your task title</title>` into the topic; clicking and typing appends to the real text ("Enter your task title.qwerty"), the exact-match styling check fails, the styling drops, and the writer is left editing template prose. Untouched placeholder text also serializes and saves to Heretto verbatim.
 **Signal:** Kiryl has "never been able to make it work" — 2026-07-17 screenshot showing appended text in both title and shortdesc.
 **Smallest slice:** Empty `<title/>`/`<shortdesc/>` in the templates + `data-placeholder` CSS decoration on empty nodes.
 **Serves:** Writer experience; Heretto-safe output (no template prose in saved topics)
 
 ### Design (Option A — placeholder-ness is a property of emptiness, not of text content)
 
-1. **Templates** (`constants/dita.ts`): `<title></title>` and `<shortdesc></shortdesc>` — genuinely empty. The prompt strings move to display-only constants (`DITA_PLACEHOLDER_TITLES`/`_SHORTDESCS` already exist and stay).
-2. **Decoration** (`ShortdescPlugin.tsx`): the existing mutation listeners already classify the H1 and the shortdesc paragraph. Extend them: when the node's text content is **empty**, set `data-placeholder="Enter your task title"` (topic-type-aware via the existing constants) and keep/add the placeholder CSS class; when non-empty, remove both.
-3. **CSS** (`index.css`): `.dita-editor-placeholder-title::before { content: attr(data-placeholder); }` (and shortdesc equivalent) with the current muted-italic styling. Note Lexical renders a `<br>` inside empty elements — the `::before` approach works regardless (do not rely on `:empty`).
-4. **Behavior achieved:** click into the field → node is actually blank, caret at position 0 → typing inserts real content and the decoration disappears the moment text exists. Delete everything → prompt returns. Exactly the standard placeholder contract.
+1. **Templates** (`constants/dita.ts`): `<title></title>` and `<shortdesc></shortdesc>` — genuinely empty.
+2. **Decoration** (`ShortdescPlugin.tsx`): when the node's text content is **empty**, set `data-placeholder="Enter your task title"` (topic-type-aware) and keep the placeholder CSS class; when non-empty, remove both.
+3. **CSS** (`index.css`): `.dita-editor-placeholder-title::before { content: attr(data-placeholder); }` with the current muted-italic styling. Note Lexical renders a `<br>` inside empty elements — the `::before` approach works regardless (do not rely on `:empty`).
+4. **Behavior achieved:** click into the field → node is actually blank, caret at position 0 → typing inserts real content and the decoration disappears the moment text exists. Delete everything → prompt returns.
 5. **Round-trip safety:** verify empty `<title/>`/`<shortdesc/>` parse→serialize byte-stably (add a round-trip test; coordinate with FR-047's corpus). `<title></title>` is DTD-valid DITA.
-6. **Save guard (small, optional but recommended):** Save to Heretto with an empty title → confirm dialog ("This topic has no title — save anyway?"). Replaces today's silent "Enter your task title" topics in the CMS with a deliberate choice.
-7. **Cleanup riding along:** delete the dead 19-pattern placeholder regex list in `parseXmlToLexical.ts:53-84` (post-P1-15 both branches are near-identical — it runs on every text node for nothing); unify the three drifted placeholder-string locations (`constants/dita.ts`, `ShortdescPlugin`'s legacy set, the parser patterns) into the single constants module. Legacy detection for *existing* topics that still contain old placeholder prose ("Task title", etc.): keep the exact-match CSS treatment as a fallback so old topics don't regress, but new topics never create such text.
-8. **Topic type conversion:** `convertDitaTopic` (`lib/xml-utils.ts`) currently swaps placeholder *text* between types — with empty nodes this simplifies to nothing (empty stays empty; `data-placeholder` follows topic type via the plugin).
+6. **Save guard (optional but recommended):** Save to Heretto with an empty title → confirm dialog ("This topic has no title — save anyway?").
+7. **Cleanup riding along:** delete the dead 19-pattern placeholder regex list in `parseXmlToLexical.ts:53-84`; unify the three drifted placeholder-string locations into the single constants module.
+8. **Topic type conversion:** `convertDitaTopic` (`lib/xml-utils.ts`) currently swaps placeholder *text* between types — with empty nodes this simplifies to nothing.
 
 ### Out of scope
 
-Rebuilding `INITIAL_DITA` (the demo widget topic) — it uses real sample prose, not placeholders. Body-level placeholders ("First step.", "Concept content goes here.") — same disease, but those live inside steps/paragraphs where emptiness has structural implications (`<cmd/>`); file separately if wanted after title/shortdesc proves the pattern.
-
----
+Rebuilding `INITIAL_DITA` (the demo widget topic) — it uses real sample prose, not placeholders. Body-level placeholders ("First step.", "Concept content goes here.") — file separately if wanted after title/shortdesc proves the pattern.
 
 ## FR-050: Native PDF export + print fidelity pass
 
 **Requested:** 2026-07-17
-**Source:** Kiryl Rusetski — print/PDF pipeline investigation (2026-07-17 review session)
 **Status:** Open
 **Priority:** P2
-**Impact:** Medium-high — removes the two-app, three-step manual export flow; fixes content that currently prints wrong or not at all
+**Impact:** Medium-high
 **Model weight:** Sonnet (each slice)
 
-**Problem:** "Export as PDF" never produces a PDF. Both run modes generate an HTML page (via `lib/dita-print.ts`, a second DITA→HTML serializer independent of the editor pipeline) and hand it to a browser print dialog. The native app's `PrintBridge` writes the HTML to a temp file and opens it in the **default browser**, where the user must press ⌘P and choose Save as PDF — the toast admits it. And the print HTML itself has fidelity gaps: conkeyref variables print as literal/empty text, Heretto images emit raw relative hrefs (broken in every mode), block content inside `<note>` and table cells flattens to run-on text, and the `@page @bottom-center` page-number footer is a Paged-Media feature Chrome/Safari never render — it has never appeared.
-**Signal:** WebViewController.swift's own comment records that `WKWebView.printOperation` "consistently produces blank pages when called from inside the app's own WKWebView shell" — but what was tried was printing the *shell* webview; the standard dedicated-print-webview workaround was never attempted. Temp `dita-print-*.html` files also accumulate uncleaned, and a Swift write failure logs to console after the JS side already showed a success toast.
+**Problem:** "Export as PDF" never produces a PDF. Both run modes generate an HTML page (via `lib/dita-print.ts`) and hand it to a browser print dialog. The native app's `PrintBridge` writes the HTML to a temp file and opens it in the **default browser**, where the user must press ⌘P and choose Save as PDF. The print HTML also has fidelity gaps: conkeyref variables print as literal/empty text, Heretto images emit raw relative hrefs, block content inside `<note>` and table cells flattens to run-on text, and the `@page @bottom-center` page-number footer has never appeared (Paged-Media feature Chrome/Safari don't render).
+**Signal:** `WebViewController.swift`'s own comment records that `WKWebView.printOperation` "consistently produces blank pages when called from inside the app's own WKWebView shell" — the standard dedicated-print-webview workaround was never attempted. Temp `dita-print-*.html` files also accumulate uncleaned, and a Swift write failure logs to console after the JS side already showed a success toast.
 **Smallest slice:** Slice 1 alone — replace the temp-file body of `PrintBridge` with a real native render.
 **Serves:** Writer experience; run-mode coherence
 
@@ -2112,25 +534,123 @@ Rebuilding `INITIAL_DITA` (the demo widget topic) — it uses real sample prose,
 
 Replace the body of `PrintBridge.userContentController` (`macos/Sources/DITAArchitect/WebViewController.swift:20-31`) with:
 
-1. A **dedicated hidden print WKWebView** hosted in an off-screen `NSWindow` (this is the fix for the recorded blank-page failure — that failure came from printing the shell webview whose backing store wasn't painted for print; a dedicated webview loaded via `loadHTMLString` and printed from `navigationDelegate.didFinish` after a paint delay is the standard workaround).
-2. `printOperation(with: NSPrintInfo)` — **not** `createPDF()` (which produces one continuous unpaginated page and ignores the page-break CSS `PRINT_CSS` already expresses). `NSPrintInfo` with `jobDisposition = .save` writes the PDF directly via the native save panel; page size/margins come from `NSPrintInfo` instead of the hardcoded CSS `@page`.
+1. A **dedicated hidden print WKWebView** hosted in an off-screen `NSWindow` — the fix for the blank-page failure (that failure came from printing the shell webview; a dedicated webview loaded via `loadHTMLString` and printed from `navigationDelegate.didFinish` after a paint delay is the standard workaround).
+2. `printOperation(with: NSPrintInfo)` — **not** `createPDF()` (which produces one continuous unpaginated page). `NSPrintInfo` with `jobDisposition = .save` writes the PDF directly via the native save panel.
 3. **Page-number header/footer via `NSPrintInfo`** — retiring the dead `@page @bottom-center` counter.
-4. Error propagation: a failed render/save must surface to the JS side (the existing message-handler channel can reply) so the user never sees a false success toast.
+4. Error propagation: a failed render/save must surface to the JS side so the user never sees a false success toast.
 5. Cleanup: no more temp files; delete the `NSWorkspace.open` path.
 
-Keeps unchanged: `generatePrintHtml` + `PRINT_CSS` as the input (the `ditaPrint` message handler already carries the complete self-contained HTML — exactly what the print webview loads), `derivePrintTitle`, and the browser-mode hidden-iframe path (browser mode inherently uses the browser dialog; acceptable Gate 3 asymmetry, document it in API.md/CLAUDE.md). The P2-39 macOS File menu's "Export as PDF…" item calls this same bridge.
+Keeps unchanged: `generatePrintHtml` + `PRINT_CSS` as the input, `derivePrintTitle`, and the browser-mode hidden-iframe path (acceptable Gate 3 asymmetry — document it in API.md/CLAUDE.md).
 
 ### Slice 2 — Print fidelity pass (`lib/dita-print.ts`)
 
-1. **conkeyref/keyref parity:** the editor renders `<ph conkeyref>` as resolved-variable chips; print emits literal text content (empty for self-closing refs). Print should at minimum render the same chip label the editor shows (`[conkeyref: key/path]`), and use resolved values when a map is connected (post-P2-27).
-2. **Heretto images:** print emits the raw relative `href`. In browser mode resolve through the same `/heretto-api/all-files/<uuid>/content` proxy the editor uses (`lib/heretto-image-resolver.ts`); for the native print webview, embed as base64 data URIs at generation time (the `file://`/`dita://` context cannot reach the proxy).
-3. **Block content in `<note>` and table `entry` cells:** `serializeInlineContent` flattens nested `<p>`/lists/codeblocks to run-on text — route through the block serializer like the editor parser does. Same for block content in `<dd>`.
-4. **Fonts:** Google Fonts CDN links are an offline liability (and a first-print race behind the 250 ms iframe timer). Embed the fonts or fall back to system fonts in `PRINT_CSS`.
+1. **conkeyref/keyref parity:** print should at minimum render the chip label the editor shows (`[conkeyref: key/path]`), and use resolved values when a map is connected (post-P2-27).
+2. **Heretto images:** in browser mode resolve through the `/heretto-api/all-files/<uuid>/content` proxy; for the native print webview, embed as base64 data URIs at generation time.
+3. **Block content in `<note>` and table `entry` cells:** `serializeInlineContent` flattens nested `<p>`/lists/codeblocks — route through the block serializer. Same for block content in `<dd>`.
+4. **Fonts:** Google Fonts CDN links are an offline liability. Embed the fonts or fall back to system fonts in `PRINT_CSS`.
 5. **Tests:** first-ever print tests — `generatePrintHtml` unit tests over the FR-047 fixture corpus asserting the gap cases above.
 
 ### Sequencing
 
-Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one-line TS toast change (Sonnet, not Multi-agent). Slice 2 is pure TS (Sonnet). Note for the anti-entropy log: `lib/dita-print.ts` being a second divergent DITA renderer is accepted-for-now debt — full unification with the editor pipeline is out of scope here.
+Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one-line TS toast change. Slice 2 is pure TS.
+
+---
+
+## FR-054: Heretto folder tree view in browser modal
+
+**Requested:** 2026-07-20
+**Source:** Kiryl Rusetski — pain point with existing breadcrumb drill-down navigation
+**Status:** Open
+**Priority:** Medium (navigation polish, not a blocker)
+**Impact:** Medium (touches every "Open from Heretto" session)
+**Model weight:** Sonnet
+
+**Problem:** The Heretto file browser uses a breadcrumb-trail modal with drill-down navigation. This requires many clicks to navigate deeply nested folder structures and makes it hard to see the overall repository shape at a glance.
+**Signal:** Kiryl observed that folder navigation is messy and ungainly; writers spend time drilling and re-drilling to find files.
+**Smallest slice:** Replace the breadcrumb view with a lazy-expanding indented tree (single-disclosure pattern, Finder-style) inside the existing browser modal. Read-only, no drag/drop or file operations.
+**Serves:** Navigation speed and file discovery
+
+### Scope
+
+1. **Tree rendering** — indented disclosure tree (VS Code / Finder list-view pattern) showing folder hierarchy. Each folder has a disclosure chevron; click to expand children (fetches via existing `/heretto-api/all-files/{uuid}` endpoint if not cached). 
+2. **Lazy loading** — fetch folder contents only on expand (not eager full-tree load). Reuse existing `herettoFolderCache` from `useHerettoCms.ts`. 
+3. **File selection** — click a topic in the tree to open it (same behavior as the current breadcrumb modal). The selected file is highlighted.
+4. **Keyboard navigation** — arrow keys traverse tree; Enter opens selected file. Optional `Cmd+K` / `Ctrl+K` filter/search (same live-search progress UI as current modal).
+5. **Read-only** — no drag-to-reorder, no context menus, no file moves. This is navigation only.
+6. **Refresh** — optional "Refresh folders" button (reuses the existing BFS cache-bust path from search retry).
+7. **Location inside the modal** — a toggle (or automatic tab switch) between "Tree" and "Search" views within the same modal. Don't create a separate sidebar; keep it contained.
+
+### Not in scope (phase 2 or later)
+
+- File operations (move, rename, delete)
+- ditamap support — this is a CMS folder tree, not a publication structure tree (see FR-035 for ditamap integration)
+- Drag-and-drop
+- Persistent sidebar (would require layout changes and surface-area ADR review)
+
+### Technical approach
+
+- Extend `hooks/useHerettoCms.ts` with a `buildFolderTree(uuid, cache)` helper that recursively builds a tree node array `{ uuid, name, children: [] }` structure (lazy children populated on expand).
+- New component `components/FolderTreeView.tsx` with recursive node rendering, state management for expanded nodes, and click/keyboard handlers.
+- Wire into `HerettoBrowserModal.tsx` as an alternative view alongside search (or replace breadcrumb view entirely if feedback confirms the tree is strictly better).
+- Reuse `herettoFolderCache` and the existing folder fetch logic; no new API calls.
+
+### Success criteria
+
+- Writers can navigate a 10-folder-deep structure in < 5 clicks (vs current 10+).
+- File discovery (scanning the tree for a topic name) is faster than search for shallow structures.
+- Keyboard nav feels natural (arrow keys, Enter, Escape to close).
+- Search remains available and preferred for named-target discovery.
+
+---
+
+## FR-055: Read active tab content API endpoint
+
+**Requested:** 2026-07-30
+**Source:** Kiryl Rusetski — hit when trying to review in-editor changes via GIA
+**Status:** Open
+**Priority:** P2
+**Impact:** High for AI-assisted workflows
+
+**Problem:** The Swift app API has no endpoint to read the current XML content of an open tab. `POST /api/load-content` and `GET /api/tabs` both work, but there is no way to pull the content back out — making it impossible for an external tool (GIA, a script, a review workflow) to read changes the writer has made in the editor without the writer manually copying and pasting.
+**Signal:** Hit directly on 2026-07-30 while GIA attempted to review formatting changes in a release notes draft loaded via `/api/load-content`. The review had to be abandoned because the edited content could not be retrieved.
+**Smallest slice:** A `GET /api/tab-content?tabId=<id>` endpoint (or `GET /api/tabs/<id>/content`) that returns the current XML string of the specified tab — matching the shape of what was loaded in via `load-content`.
+**Serves:** AI-assisted authoring workflows; round-trip verification
+
+### Description
+
+The existing `GET /api/tabs` endpoint lists open tabs with metadata (`id`, `fileName`, `dirty`, `xmlErrorCount`) but does not include content. The `POST /api/load-content` endpoint can push XML into a tab, but there is no paired read endpoint to pull the current XML back out.
+
+This creates a one-way pipe: GIA can push a draft into DITA Architect, but after the writer edits it, GIA cannot retrieve the updated content for review, diff, or further processing without manual copy-paste.
+
+### Proposed endpoint
+
+```
+GET /api/tab-content?tabId=<id>
+```
+
+Response:
+```json
+{
+  "tabId": "tab-2",
+  "fileName": "Latest_Release_Notes.dita",
+  "xml": "<?xml version=\"1.0\"...>",
+  "dirty": true
+}
+```
+
+Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
+
+### Use cases
+
+1. **GIA formatting review** — load a draft, let the writer edit, then GIA reads back the XML to review for DITA conventions, formatting issues, or variable opportunities without the writer leaving the app.
+2. **Round-trip verification** — confirm that a load-content → edit → save cycle produces the expected XML.
+3. **Diff before save** — compare in-editor XML against the last-saved Heretto version before committing.
+
+### Notes
+
+- Should return the live Monaco/Lexical editor state, not the last-saved Heretto version.
+- If no tab with the given ID exists, return a clear 404.
+- Content does not need to be validated before returning — dirty/invalid XML is a valid response.
 
 ---
 
@@ -2140,7 +660,7 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 **Source:** FR-046 v1 scope decisions (Kiryl) — the deliberate exclusions, filed at ship time
 **Status:** Open
 **Priority:** P3
-**Impact:** Medium — completes suggesting mode; until then the excluded gestures are blocked with honest toasts, and marks are session-only
+**Impact:** Medium
 **Model weight:** Fable (the carrier touches the round-trip contract — Gate 1)
 
 **Problem:** FR-046 v1 blocks formatting toggles, line breaks, block merges, drag-and-drop, decorator deletion, and IME composition in suggesting mode, and marks do not survive save/reload.
@@ -2153,3 +673,32 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 2. **Block-merge tracking** — backspace at a boundary between two original blocks records a merge marker (the inverse of FR-046's split marker); reject re-splits at the recorded position.
 3. **DITA round-trip carrier** — serialize marks into the already-round-tripped Heretto review PIs (`<?ezd-review-start?>` / `<?ezd-review-end?>`) so tracked changes survive save/reload; the `TrackedMark` payload (changeId/author/date) is already shaped for it. This is the piece that makes suggesting mode multi-session and unlocks reviewing in Heretto itself.
 4. **Smaller residuals:** IME composition tracking (currently toast-only), rich multi-block paste (currently flattened inline), bounded `resolvedUrlCache` in the image resolver (BUG-18 residual).
+
+
+---
+
+## FR-056: API content loads flush into suggesting mode without requiring a mode toggle
+
+**Requested:** 2026-08-04
+**Source:** Kiryl — discovered during Heretto workflow (loading a DITA draft via PUT /api/tabs/:id/content while tab was in suggesting mode)
+**Status:** Open
+**Priority:** P2
+**Impact:** High — blocks the intended AI-drafts-human-reviews workflow
+**Model weight:** Sonnet
+
+**Problem:** When a tab is in suggesting mode, `PUT /api/tabs/:id/content` lands (returns 200, "Last update: API" shows in the header) but the content does not render in the visual editor or XML pane. Switching to Editing mode and back to Suggesting does not flush the buffered content — the tab remains blank. The only recovery is to close and re-open the tab in editing mode, then switch to suggesting mode.
+
+**Signal:** Direct reproduction during TECHWR-6335 / TECHWR-6606 Heretto content workflow — the intended pattern was: (1) load blank topic, (2) enable suggesting mode, (3) AI injects draft via API, (4) human reviews tracked changes. Step 3 silently fails.
+
+**Root cause (suspected):** `SyncManager.tsx` suspends the XML→Lexical sync direction while `tab.documentMode === 'suggesting'` (the `suspendSync` flag). A `PUT /api/tabs/:id/content` update arrives with `lastUpdatedBy: 'api'` and `syncTrigger` incremented, but the suspended sync bridge never processes it. When the user toggles back to editing mode, the sync effect fires but the `lastUpdatedBy` source is stale or the trigger has already been consumed, so the flush doesn't happen.
+
+**Smallest slice:** When `lastUpdatedBy === 'api'` and the update source is `PUT /api/tabs/:id/content` (not a human keystroke), the sync bridge should **not** be suspended — it should flush immediately regardless of `documentMode`. Human keystrokes in suggesting mode still go through the mark-recording path; API replacements are whole-document replacements that should reset the base document, not be buffered.
+
+**Serves:** The core AI-drafts-human-reviews workflow. Without this, the only way to use suggesting mode for API-driven content review is the `insert-section` pending-review path, which requires the tab to already have content and cannot be used for initial topic creation.
+
+### Acceptance criteria
+
+1. `PUT /api/tabs/:id/content` while tab is in suggesting mode renders the new XML in both the visual editor and XML pane immediately, without requiring a mode toggle.
+2. The rendered content is treated as the new base document — subsequent human edits in suggesting mode are tracked as changes against it.
+3. Existing suggesting-mode behaviour for human keystrokes is unaffected.
+4. Existing `suspendSync` behaviour (buffering XML-side changes while marks are being resolved) is preserved for all non-API update sources.

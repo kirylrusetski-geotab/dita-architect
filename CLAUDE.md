@@ -98,6 +98,21 @@ Use port **3001** when running the native app, **3000** for dev server.
 
 ---
 
+## Obsidian Notes Folder (out-of-repo planning artifacts)
+
+Longer-form planning and session artifacts live outside the repo in
+`/Users/kirylrusetski/Documents/Obsidian/geotab-work/DITA Architect/`:
+
+- **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline). It supersedes the Roadmap block in the Versioning Policy below; consult it when choosing the next feature session, and update it at milestone boundaries.
+- **`Remediation Plan — Codebase Review v0.8.4 (2026-07-17).md`** — the full 8-item remediation plan (all items executed).
+- **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 session log (v0.8.5 → v0.9.0 arc).
+
+Session logs and plans that need to survive context-window limits are written there, not to the repo. `PROJECT_LOG.md` (in-repo) remains the per-session implementation log.
+
+The Obsidian folder also contains **symlinks** to `future-state/BACKLOG.md` and `future-state/feature-requests.md` (created 2026-07-18) so they're readable from the vault. The repo copies are canonical and git-tracked (ADR-005); the symlinks are views, not duplicates — always edit via the repo paths.
+
+---
+
 ## Multi-Agent Pipeline
 
 A 9-step pipeline built on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). Run it for large or cross-file tasks that benefit from plan → implement → review → verify sequencing.
