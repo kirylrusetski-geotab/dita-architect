@@ -114,14 +114,13 @@ Not scheduled. Each carries an explicit unblock condition — revisit only when 
 
 | ID | Item | Type | Unblock condition |
 |----|------|------|-------------------|
-| P3-1–P3-4 | AI extraction items — diff-review workflow, `geminiService.ts`, ConversionWizard, ChatSidebar. See [acquisition-evaluation-dita-doer.md](acquisition-evaluation-dita-doer.md). | Extraction | **LLM API key access — no timeline.** If feasible, build the backend with the LLM abstraction in place and gate the frontend behind a key-availability check; otherwise defer to a future roadmap. |
-| P3-5 | [Extract `ditaUtils.ts` from V3](acquisition-evaluation-dita-doer.md) | Extraction | Pull only when the current parser/serializer needs an enhancement this file handles. Fix the stateful `g`-flag regex bug at line 188 first (`.test()` inside a loop causes alternating false negatives). |
-| P3-6 | [Extract DownloadWarningModal from V1](acquisition-evaluation-dita-doer.md) | Extraction | When the export flow is built — 51-line validation gate, trivial to port. |
 | P3-18 | API authentication for production | Tech debt | If/when network deployment becomes a goal. Endpoints currently expose full XML with no auth — fine for localhost dev only. |
 | P3-43 | [Map discovery — surface ditamaps referencing the current topic](feature-requests.md#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic) | Feature | After P2-27 ("Connect a Map") ships and writers report not knowing which map to connect. Requires fetching/parsing all maps (Heretto has no reverse-reference API). |
 | P3-42 | Conditional text support (`@audience`, `@platform`, `@product`) | Feature | User demand for multi-variant authoring. Two-phase if prioritized: (1) visual indicator on conditionalized elements; (2) audience-filtered preview. |
 
 *Resolved/retired: P3-30 (superseded by P2-35) and P3-31 (broken out into P2-32–P2-35). Both shipped or retired — see Completed.*
+
+*Retired 2026-10-19 — the DITA Doer extraction items, P3-1 through P3-6.* The March 2026 acquisition evaluation (`acquisition-evaluation-dita-doer.md`) was deleted; the project has moved past it. What each item became: the **AI diff-review workflow** (P3-1) shipped as FR-045/FR-057 on a different foundation (deterministic XML diff, not an in-app LLM); the in-app **Gemini service, ConversionWizard, and ChatSidebar** (P3-2–P3-4) are superseded by the external AI loop (Claude/GIA drafting through the port-3001 API — moat 1 in the roadmap), so no in-app LLM is planned; **`ditaUtils.ts`** (P3-5) was extracted in March as `lib/dita-utils.ts` and then deleted as dead code in v0.8.9; **`DownloadWarningModal`** (P3-6) was extracted in March and still exists in `components/`, but nothing renders it — it is dead code with a test, to be deleted or wired in when FR-050 (native PDF export) decides whether an export gate is wanted. The prototype sources under `future-state/acquired-products/` are unaffected by this retirement; their removal is a separate decision.
 
 ---
 
@@ -577,6 +576,17 @@ Features shipped before the backlog was formalized. Added retroactively for trac
 ## Changelog
 
 Reverse-chronological. Newest day first; within a day, entries read in the order they happened.
+
+### 2026-10-19
+
+- **v0.9.1–v0.9.3 pushed** — they had been local-only since 2026-08-04 (main was at v0.9.0 on GitHub). `main` fast-forwarded over `release/v0.9.1`; tags `v0.9.0`, `v0.9.1`, `v0.9.3` created retroactively.
+- **Repos made public** by Kiryl. All-rights-reserved `LICENSE` added; `package.json` `license: UNLICENSED`. The frozen `dita-architect-stable` repo and its local clone were deleted. Full-history scan of both repos for `~/heretto.json` contents, token-shaped strings, and credential files: nothing found.
+- **ADR-008 promoted to Accepted.** `package-lock.json` version re-synced (had been stuck at 0.9.1 through two releases).
+- **v0.9.4 released** — FR-062 slice 1: Heretto host read from `~/heretto.json` instead of hardcoded in `vite.config.ts` and `DITASchemeHandler.swift`; Settings modal gained a host field. README, macOS README, CLAUDE.md de-tenanted. **FR-060** (Windows/Linux shells), **FR-061** (rename Geotab theme → Navy, incl. the `Geotab brand colors` tooltip), **FR-062** (instance agnosticism) filed; FR index table brought current for FR-056–FR-062.
+- **v0.9.5 released** — bug sweep clearing the whole Sweep-ready lane: BUG-22 (all 8 remaining dialogs on the shared `Modal`, which was hardened: `style` prop, mount-once effect with `onClose` via ref, respects child `autoFocus`), BUG-21 (30 s `NWConnection` idle timeout, verified live at 33 s with raw sockets), BUG-23 (`httpStatus` envelope documented in API.md), BUG-24 (8 `renderHook` regression tests for the v0.9.1 Heretto fixes). Real author email scrubbed from the `journey-definition.dita` fixture.
+- **v0.9.6 released** — FR-062 slice 2: `HERETTO_ROOT_UUID` deleted from `constants/heretto.ts`; `rootUuid` in `~/heretto.json`, held in `useHerettoCms` state, passed to `HerettoBrowserModal` as a prop; third Settings field. Live finding: no folder-independent Heretto probe endpoint exists (six candidates all HTTP 500); folder XML carries `parent-folder-id` and the chain ends at a parentless `master` folder, making slice 3 discovery feasible.
+- **Roadmap re-sequenced** (Obsidian note): v0.9.1/v0.9.2 as planned never shipped; P2-25 slice 1, FR-049, and FR-061 re-slotted as v0.9.7 ahead of v0.10.0. CLAUDE.md's Versioning Policy roadmap block reduced to a pointer.
+- **Acquisition evaluation deleted; P3-1–P3-6 retired** (see Parked). Document review found four shipped `bugreports/` files, two fully-executed July notes, and two FR-057 notes as consolidation candidates — pending Kiryl's call.
 
 ### 2026-08-04
 
