@@ -264,11 +264,7 @@ DITA Architect uses **Semantic Versioning**: `MAJOR.MINOR.PATCH`
 - MINOR: new API endpoint surface, new editor capability (table editing, external load API, print/export, AI insert-section), significant new visual system (body element indicators, page-canvas layout)
 - PATCH: bug fixes, UX copy, accessibility, theme tweaks, polish, extending an existing capability
 
-**Roadmap:**
-- `0.9.0` — **shipped 2026-07-17**: FR-046 marks-as-data tracked changes (suggesting mode)
-- `0.10.0` — inline element insertion (`+` menu, P2-28/29) — the single biggest authoring gap (reassigned from 0.9.0)
-- `0.9.x/0.10.x` — Connect a Map, macOS menu bar, troubleshooting topic support, FR-051 tracked-changes v2
-- `1.0.0` — the shipped game: polished, full authoring workflow
+**Roadmap:** the roadmap of record is the Obsidian note `Roadmap — DITA Architect (2026-07-18).md` (see "Obsidian Notes Folder" above). Summary as of 2026-10-19: `0.9.7` displaced items (P2-25 troubleshooting parser, FR-049 placeholders, FR-061 Navy theme) → `0.10.0` wrap-selection inline authoring → `0.11.0` map-aware authoring → `0.12.0` validation → `0.13.0` review carrier → `0.14.0` native menu bar → `1.0.0` daily driver. Consult the note before choosing a feature session; update it at milestone boundaries.
 
 **Version history mapping** (old → new, for reference):
 
