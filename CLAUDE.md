@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with Heretto CMS (geotab.heretto.com) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.9.0 (2026-07-17)
+**Current version:** 0.9.3 (2026-08-04)
 
 ---
 

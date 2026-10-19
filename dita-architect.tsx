@@ -332,7 +332,7 @@ export default function ProfessionalDitaEditor() {
     setIsHerettoDropdownOpen,
   });
 
-  // FR-045: accept/reject a pendingReview staged by the API insert path.
+  // FR-045/FR-057: accept/reject a pendingReview staged by the API insert or PUT path.
   const handleReviewAccept = useCallback((tabId: string) => {
     const tab = tabs.find(t => t.id === tabId);
     if (!tab?.pendingReview) return;
@@ -340,6 +340,13 @@ export default function ProfessionalDitaEditor() {
       toast.error('Document changed since this proposal was created — review cancelled. Re-send the request.');
       updateTab(tabId, { pendingReview: null });
       return;
+    }
+    // ADR-008 / FR-057: warn when live tracked-change marks are about to be
+    // discarded by the Accept re-parse (the FR-056 SyncManager bypass destroys
+    // TrackedTextNode marks when xmlContent is committed with lastUpdatedBy:'api').
+    // Reachable now that insertSection no longer blocks in suggesting mode.
+    if (tab.documentMode === 'suggesting' && tab.trackedChangeCount > 0) {
+      toast(`Applying this proposal discarded ${tab.trackedChangeCount} unresolved suggestion(s)`);
     }
     updateTab(tabId, {
       xmlContent: tab.pendingReview.proposedXml,

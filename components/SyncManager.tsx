@@ -118,8 +118,18 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   useEffect(() => {
     if ((lastUpdatedBy === 'code' || lastUpdatedBy === 'api') && xmlContent !== lastXmlRef.current) {
       if (suspendSync) {
-        // Buffer the incoming change — it cannot apply while tracked-change marks are live in the tree.
-        // The effect re-runs when suspendSync flips to false (it is in the dep array), which flushes it.
+        if (lastUpdatedBy === 'api') {
+          // FR-056: an API whole-doc replacement becomes the new base document.
+          // Applied immediately regardless of focus — existing tracked-change marks
+          // are discarded by the re-parse (marks are session-only; carrier = FR-051).
+          // Overwrite any stale buffered Monaco edit before flushing so it cannot
+          // clobber the fresh API load.
+          pendingXmlRef.current = xmlContent;
+          applyPendingSync();
+          return;
+        }
+        // Buffer non-API changes while tracked-change marks are live in the tree.
+        // The effect re-runs when suspendSync flips to false (dep array), which flushes it.
         pendingXmlRef.current = xmlContent;
         return;
       }
@@ -136,6 +146,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
           if (success) {
             lastXmlRef.current = xmlContent;
             masterXmlRef.current = xmlContent;
+            pendingXmlRef.current = null; // discard any stale buffered content (Change 2)
             onValidationTrigger?.();
           }
           clearSyncFlagAfterUpdate();

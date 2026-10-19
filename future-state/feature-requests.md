@@ -612,7 +612,7 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 **Impact:** High for AI-assisted workflows
 
 **Problem:** The Swift app API has no endpoint to read the current XML content of an open tab. `POST /api/load-content` and `GET /api/tabs` both work, but there is no way to pull the content back out — making it impossible for an external tool (GIA, a script, a review workflow) to read changes the writer has made in the editor without the writer manually copying and pasting.
-**Signal:** Hit directly on 2026-07-30 while GIA attempted to review formatting changes in a release notes draft loaded via `/api/load-content`. The review had to be abandoned because the edited content could not be retrieved.
+**Signal:** Hit directly on 2026-07-30 while GIA attempted to review formatting changes in a release notes draft loaded via `/api/load-content`. The review had to be abandoned because the edited content could not be retrieved. **Recurred 2026-08-27** during the Altitude release notes workflow: GIA loaded an Aug 27 release draft into `Latest_Release_Notes.dita` (`tab-3`), the writer edited it in the visual editor (removed several bullet sections, reworded others), and `GET /api/tabs` confirmed `"dirty": true` on that tab — but GIA had no way to retrieve the edited XML to sync its own copy, verify the change, or proceed with downstream steps (archiving prior content, drafting the tracking ticket). The writer had to describe the changes via a screenshot instead.
 **Smallest slice:** A `GET /api/tab-content?tabId=<id>` endpoint (or `GET /api/tabs/<id>/content`) that returns the current XML string of the specified tab — matching the shape of what was loaded in via `load-content`.
 **Serves:** AI-assisted authoring workflows; round-trip verification
 
@@ -681,7 +681,7 @@ Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
 
 **Requested:** 2026-08-04
 **Source:** Kiryl — discovered during Heretto workflow (loading a DITA draft via PUT /api/tabs/:id/content while tab was in suggesting mode)
-**Status:** Open
+**Status:** Shipped (v0.9.2, 2026-08-04)
 **Priority:** P2
 **Impact:** High — blocks the intended AI-drafts-human-reviews workflow
 **Model weight:** Sonnet
@@ -702,3 +702,130 @@ Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
 2. The rendered content is treated as the new base document — subsequent human edits in suggesting mode are tracked as changes against it.
 3. Existing suggesting-mode behaviour for human keystrokes is unaffected.
 4. Existing `suspendSync` behaviour (buffering XML-side changes while marks are being resolved) is preserved for all non-API update sources.
+
+---
+
+## FR-057: API whole-document replace rendered as a reviewable diff
+
+**Requested:** 2026-08-04
+**Source:** Kiryl — follow-on to FR-056; discovered that PUT gives no diff surface for reviewing AI edits
+**Status:** Shipped (v0.9.3, 2026-08-04)
+**Priority:** P2
+**Impact:** High — "Claude rewrites a Heretto topic, human reviews the changes" is the core intended workflow; FR-056 unblocks the delivery but not the review
+**Model weight:** Sonnet (Option 1 only)
+
+**Problem:** After FR-056, `PUT /api/tabs/:id/content` in suggesting mode renders the new document as the base — `trackedChangeCount` goes to 0, the ChangeListPanel is empty, and there is no indication of what the AI changed. The intended workflow ("AI drafts, human reviews each change") requires a diff surface, not a silent replace.
+
+The `insert-section` / `pendingReview` path (FR-045, v0.8.8) already has exactly this: a red/green Monaco diff in the XML pane with an Accept/Reject bar. But it explicitly refuses to run while the tab is in suggesting mode (`native-api-bridge.ts:114-116`), and it operates on fragments, not whole documents.
+
+**Smallest slice — Option 1 (recommended):** Extend the existing `pendingReview` surface to whole-document PUTs.
+
+Instead of `PUT /api/tabs/:id/content` replacing `tab.xmlContent` immediately, it populates `tab.pendingReview` (the same `{ proposedXml, baseXml, sourceLabel? }` shape already on `Tab`). The existing `ReviewBar` and `DiffViewer` machinery renders in the XML pane. Accept commits the proposed XML; Reject discards it. `computeProposedXml` in `lib/xml-insert.ts` already produces a byte-exact proposed document — the PUT can reuse it directly.
+
+Side benefit: once a PUT populates `pendingReview` rather than overwriting, the `insert-section` guard that refuses suggesting mode becomes moot — both routes go through the same review surface, so there is nothing to guard against.
+
+**Option 2 (richer, more expensive):** Diff old vs new XML and synthesise `TrackedTextNode` marks so the AI's changes appear inline in the visual editor with the full suggesting-mode change list. Depends on FR-051's carrier work and requires a reliable XML diff algorithm. Not the first slice.
+
+**Serves:** The core Heretto-AI-review loop. Without this, users must mentally diff two whole documents to understand what the AI changed.
+
+### Acceptance criteria
+
+1. `PUT /api/tabs/:id/content` (Option 1) populates `tab.pendingReview` instead of replacing `xmlContent` when the tab has existing content (non-empty body), giving the standard red/green Monaco diff + Accept/Reject bar.
+2. Accept commits the AI's version byte-for-byte (no serializer round-trip) and clears `pendingReview`.
+3. Reject discards the proposed version and restores the tab to its prior state.
+4. A `PUT` into a blank tab (no prior content) bypasses `pendingReview` and renders immediately — there is nothing to diff against.
+5. The `insert-section` guard on suggesting mode is removed now that both routes go through `pendingReview`.
+
+---
+
+## FR-058: Ingest API whole-document replace as tracked marks
+
+**Requested:** 2026-08-04
+**Source:** Kiryl — follow-on to FR-057; the Monaco diff surface is all-or-nothing; the intended end state is per-change review in the visual editor
+**Status:** Open
+**Priority:** P2
+**Impact:** High — completes the "AI drafts, human reviews each change" workflow; FR-057 is a waypoint
+**Model weight:** Fable (touches round-trip contract and tracked-changes machinery simultaneously)
+
+**Problem:** FR-057 (v0.9.3) delivers a whole-document red/green diff with Accept/Reject. The writer can see what the AI produced, but must accept or reject the entire document at once. The intended end state is:
+
+1. AI PUTs a revised document
+2. Each change appears as a tracked insertion/deletion in the visual editor (green underline / red strikethrough)
+3. Writer accepts or rejects individual changes via the ChangeListPanel — same UX as human-typed suggestions
+
+**Smallest slice:** Diff the `baseXml` against `proposedXml`, and synthesise `TrackedTextNode` marks from the diff — treating every added run as a tracked insertion and every removed run as a tracked deletion. The tab transitions to suggesting mode with the diff pre-loaded as marks, and the writer uses the existing accept/reject UI.
+
+**Dependencies:**
+- **FR-051** (tracked-changes v2 carrier): marks are currently session-only. If the writer closes the tab or saves before resolving all marks, they are lost. FR-051's round-trip carrier (`<?ezd-review-start?>`/`<?ezd-review-end?>` PIs) is needed for marks to survive across sessions. FR-058 can ship without FR-051 if the writer resolves and saves in one sitting, but the limitation must be surfaced.
+- A reliable **text-level XML diff algorithm**: standard Myers/LCS diff on the serialized XML text produces false positives at tag boundaries. A structure-aware diff (walk both DOM trees, identify matching subtrees, diff leaf text runs) is the right approach. This is the hard part — it is novel engineering, not configuration of existing machinery.
+
+**Why Fable:** The diff synthesis touches both the parser/serializer round-trip contract (marks must be stamped with correct `originMap` entries so the serializer can reconstruct them) and the `TrackedTextNode` machinery (FR-046). A single context holding both simultaneously is the risk-mitigation argument from the model-weight scale.
+
+### Acceptance criteria
+
+1. After a PUT is staged and the writer clicks "Accept as suggestions" (a new button alongside the existing Accept/Reject bar), the tab transitions to suggesting mode with AI changes pre-loaded as `TrackedTextNode` marks.
+2. Unchanged content carries no marks — the diff is minimal, not a whole-document replacement.
+3. The writer can accept/reject individual AI changes via the existing ChangeListPanel.
+4. The existing "Accept all / Reject all" Accept/Reject bar from FR-045 remains as the all-or-nothing shortcut.
+5. If FR-051 has not shipped, a toast warns that marks are session-only.
+
+---
+
+## FR-059: Expose readability score via API
+
+**Requested:** 2026-08-12
+**Source:** Kiryl — surfaced during TECHWR-6606 GO Talk topic authoring workflow
+**Status:** Open
+**Priority:** P2
+**Impact:** Medium — enables AI agents to measure and improve content quality without requiring human review of the score in the UI
+**Model weight:** Sonnet
+
+**Problem:** DITA Architect displays a readability score (e.g. Flesch-Kincaid or equivalent) in the editor UI for the active tab. This score is not currently accessible via the HTTP API on port 3001. When an AI agent drafts or revises a topic, it cannot read the score, evaluate whether it meets a target threshold, or iterate on the content autonomously to improve it.
+
+**Use case that triggered this:** During the TECHWR-6606 Video Coaching User Guide Q3 update workflow, a concept topic (`GO_Talk_camera_speaker_integration.dita`) was drafted by an AI agent and loaded into DITA Architect via `POST /api/load-content`. The author observed a readability score of 35.6 in the UI. The agent had no way to see this score, could not assess whether it was acceptable, and could not offer to revise the content to improve it — the human had to flag the number manually. The intended workflow is: agent drafts → agent reads score → agent revises if below threshold → human reviews final content.
+
+**Smallest slice:** Add the readability score to the response of `GET /api/tabs/:id/content` as an additional field alongside the existing `xml` and `xmlErrors` fields. Computing it server-side (Swift) or in the JS layer and surfacing it via the JSBridge is equivalent — whichever is simpler given the existing architecture.
+
+**Serves:** The AI-drafts-human-reviews workflow. Without API access to the readability score, quality control on AI-generated content requires manual human inspection of the UI metric on every draft iteration.
+
+### Acceptance criteria
+
+1. `GET /api/tabs/:id/content` includes a `readabilityScore` field (number, same scale and algorithm as the UI display) in its JSON response.
+2. If the score cannot be computed (e.g. empty topic, XML errors), `readabilityScore` is `null`.
+3. The score reflects the current state of the tab at the time of the request — the same value the author sees in the UI.
+4. No new endpoint is required — the score is added to the existing content response.
+
+---
+
+## FR-060: Native Windows and Linux app shells
+
+**Requested:** 2026-10-19
+**Source:** Kiryl — filed when the GitHub repos were made public; the project is no longer macOS-only in audience
+**Status:** Open
+**Priority:** P3
+**Impact:** Medium — the web frontend already runs anywhere Node does, but the native experience (no terminal, port-3001 tab API, `dita://` scheme, menu bar) exists only on macOS
+**Model weight:** Fable (new run-mode per platform — ADR required under the architectural trigger; one context must hold the HTTP server, scheme handler, and JS bridge contracts across platforms)
+
+**Problem:** The native app is a Swift `WKWebView` shell (`macos/`) that serves the built `dist/` over a custom `dita://` scheme, hosts the `NWListener` HTTP server on port 3001, and routes Swift → JS through `callAsyncJavaScript`. All of that is Apple-only API. On Windows and Linux the only option is the Vite dev server on port 3000, which per ADR-007 serves **only** `/api/load-content` and `/api/pending-loads` — so the tab API (`/api/status`, `/api/tabs/*`, insert-section, the FR-057 review flow) is unavailable to non-Mac users. The AI-review loop, which is the project's first moat, is therefore macOS-only today.
+
+**Signal:** Repos made public 2026-10-19. Any non-Mac user who clones gets a strictly weaker product with no documentation of why.
+
+**Smallest slice:** Pick one cross-platform shell and reach **native-mode parity for the tab API only** — not the menu bar, not print. Candidates, in rough order of fit:
+
+1. **Tauri 2** (Rust shell, system WebView2 on Windows / WebKitGTK on Linux) — closest analogue to the current architecture (thin native shell, system webview, small binary). Custom URI scheme and IPC are first-class; an HTTP listener is a small Rust dependency. Would also be able to replace the Swift shell on macOS eventually, collapsing three shells into one.
+2. **Electron** — heaviest, but the frontend needs zero changes and the Node side could host the port-3001 server directly; the JS bridge becomes an in-process call.
+3. **A Node sidecar** (no native shell): `npm run app` starts a Node process that serves `dist/`, hosts port 3001, and opens the system browser. Cheapest; loses "feels like an app" but delivers the tab API everywhere. Could ship first as a stopgap while 1 or 2 is built.
+
+Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib/native-api-bridge.ts`) is the only transport for the tab API (ADR-007); `/api/*` shapes in `API.md` do not change; the `dita:` protocol check that gates `__ditaApi` registration needs a platform-neutral replacement (e.g. an injected `window.__ditaNative` flag).
+
+**Serves:** Moat 1 (AI-review loop) and moat 2 (local speed + native app) for anyone not on a Mac; also a prerequisite for the repos being meaningfully public.
+
+**Not in scope for the first slice:** native menu bar parity (P2-39/40/41 are macOS-specific by design), FR-050 print, code signing / installers, auto-update.
+
+### Acceptance criteria
+
+1. An ADR records the shell choice, how `__ditaApi` is reached on each platform, and why the alternatives were rejected.
+2. On Windows and Linux, a packaged or `npm`-launched app serves the built `dist/` without a Vite dev server and exposes the full port-3001 tab API with the same response shapes as macOS (`API.md` is the contract; `tests/native-api-bridge.test.ts` passes unchanged).
+3. `POST /api/load-content`, `PUT /api/tabs/:id/content` (stages a review per ADR-008), and `POST /api/tabs/:id/save` work end-to-end against Heretto from a non-Mac machine, reading credentials from the user's home-directory `heretto.json`.
+4. CLAUDE.md's "Two Run Modes" table and `README.md` gain the new platform rows; the macOS-only limitation is documented until parity lands.
+5. The Swift shell is untouched; macOS behaviour has no regressions (`npm run build:app` and the native smoke pass still succeed).

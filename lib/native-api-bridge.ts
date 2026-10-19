@@ -86,8 +86,26 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         return JSON.stringify({ success: false, httpStatus: 400, error: 'Invalid XML format', details: validation.error ?? 'Parse error' });
       }
 
-      updateTab(id, { xmlContent: xml, lastUpdatedBy: 'api', syncTrigger: tab.syncTrigger + 1 });
-      return JSON.stringify({ success: true, httpStatus: 200, tabId: id });
+      // ADR-008 / FR-057: PUT proposes; it does not apply.
+      // Stage the replacement as a pendingReview so the writer gets a red/green
+      // diff + Accept/Reject bar. xmlContent is NOT touched here — handleReviewAccept
+      // commits it. Applies regardless of documentMode and regardless of whether
+      // the base is blank (the primary workflow starts from a blank skeleton).
+      if (xml === tab.xmlContent) {
+        // No-op: nothing to diff. Don't park an empty review in front of the writer.
+        return JSON.stringify({ success: true, httpStatus: 200, tabId: id, status: 'no-change' });
+      }
+
+      if (tab.pendingReview) {
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
+      }
+
+      setTabs(prev => prev.map(t =>
+        t.id === id
+          ? { ...t, pendingReview: { proposedXml: xml, baseXml: tab.xmlContent, sourceLabel: 'AI draft' } }
+          : t
+      ));
+      return JSON.stringify({ success: true, httpStatus: 200, tabId: id, status: 'pending-review' });
     },
 
     saveTab: async (id: string): Promise<string> => {
@@ -95,6 +113,9 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       const tab = tabs.find(t => t.id === id);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
       if (!tab.herettoFile) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has no associated Heretto file' });
+      // ADR-008: since PUT no longer writes xmlContent, saving while a review is
+      // pending would silently push the pre-PUT document to Heretto.
+      if (tab.pendingReview) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has a pending review — accept or reject it before saving' });
 
       try {
         await handleHerettoSave(id);
@@ -112,9 +133,8 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       const tabs = getTabs();
       const tab = tabs.find(t => t.id === tabId);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab "${tabId}" not found` });
-      if (tab.documentMode === 'suggesting') {
-        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab is in suggesting mode — resolve tracked changes before inserting via the API' });
-      }
+      // ADR-008: the suggesting-mode guard is removed — insertSection now stages
+      // pendingReview rather than writing xmlContent, so live marks are unaffected.
       if (tab.pendingReview) {
         return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
       }

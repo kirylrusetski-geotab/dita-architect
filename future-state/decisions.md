@@ -229,3 +229,90 @@ or reverse-poll) so the full tab API works on port 3000 (rejected: adds a whole 
 to serve a use case — driving live editor tabs from the dev server — that has had zero consumers
 since the feature shipped; the skills target port 3001; YAGNI). Leaving the dead code in place with
 a doc note (rejected: the false-green tests actively mislead future Gate 3/5 checks).
+
+---
+
+## ADR-008 — `PUT /api/tabs/:id/content` proposes; it does not apply
+
+**Date:** 2026-08-04 · **Status:** Accepted (implemented by FR-057, v0.9.3, 2026-08-04; promoted 2026-10-19)
+
+**Context** — `PUT /api/tabs/:id/content` has always been write-through: it validates the incoming
+XML and replaces `tab.xmlContent` immediately. That was adequate when the API's job was "put this
+document in the editor." It is not adequate for the workflow the tool is now used for — an AI drafts
+or revises a topic and a writer reviews the result before it reaches Heretto.
+
+Three sessions against a live topic (TECHWR-6335, `Coaching_Effectiveness_tab.dita`; see
+`Session Log — FR-057 Real-Scenario Context (2026-08-04)` in the Obsidian folder) established the
+gap in stages:
+
+- **Attempt 1** — loading the finished draft directly meant it arrived as the committed base
+  document. Nothing to review. Suggesting mode has to be active *before* the content arrives.
+- **Attempt 2** — with suggesting mode active, the PUT silently vanished: `SyncManager`'s
+  `suspendSync` buffered it and nothing ever flushed the buffer. Filed as FR-056, fixed in v0.9.2.
+- **Attempt 3** — the content now renders, but as plain committed text. `trackedChangeCount` is 0
+  and the ChangeListPanel is empty. The writer can see the AI's output but not what it *changed*.
+
+Meanwhile the review surface already exists and is proven: ADR-004 track 1 (FR-045, v0.8.8) built
+`Tab.pendingReview` + `ReviewBar` + a read-only Monaco diff with Accept/Reject, and wired it to
+`POST /api/tabs/:id/insert-section`. Two API routes that both deliver AI-authored content behave
+inconsistently — one stages a review, the other overwrites the document.
+
+A related asymmetry: `insertSection` refuses outright when `documentMode === 'suggesting'`, on the
+reasoning that writing `xmlContent` would clobber live tracked marks. That guard is correct for a
+write-through route and unnecessary for a staging one.
+
+**Decision** — Make `PUT /api/tabs/:id/content` **stage a proposal rather than apply a change**. It
+populates `tab.pendingReview = { proposedXml, baseXml, sourceLabel: 'AI draft' }` and leaves
+`tab.xmlContent` untouched; the existing FR-045 surface renders the diff and the writer commits via
+Accept. Specifically:
+
+- **Always stage** when the incoming XML differs from `tab.xmlContent` — no heuristic exemptions,
+  in any `documentMode`. A PUT identical to current content is a no-op (`status: 'no-change'`).
+- **Remove** the `insertSection` suggesting-mode guard. Both API routes now stage rather than write,
+  so the reason for it is gone. The "one pending review at a time" conflict check stays on both.
+- **`POST /api/tabs/:id/save` refuses while a review is pending.** Since PUT no longer writes,
+  save-after-PUT would otherwise push the pre-PUT document to Heretto silently.
+- **Warn on Accept when marks are discarded.** `handleReviewAccept` commits with
+  `lastUpdatedBy: 'api'`, which under the FR-056 bypass re-parses immediately and destroys live
+  `TrackedTextNode` marks. Removing the `insertSection` guard makes that state reachable, so the
+  discarded-count toast moves from `updateTabContent` into the accept path.
+- **The FR-056 `suspendSync` bypass stays.** It is what makes Accept render in suggesting mode.
+
+**Consequences** — One review model for every route that delivers AI-authored content: propose,
+diff, accept. The writer always gets a chance to see what arrived before it becomes the document,
+which is the behaviour the session log asks for.
+
+The cost is a breaking contract change. Any caller that PUTs and then saves now persists stale
+content unless the writer accepts first; the `saveTab` guard converts that from silent corruption
+into a 400, and `API.md` (including the worked example and the "after writing via PUT, call save"
+note at `:222`) must be corrected. No installed skill calls PUT today — the blast radius is ad-hoc
+API use — but the contract is documented and must be re-documented, not just changed.
+
+It also makes automated end-to-end writes deliberately impossible: a fully unattended
+"draft → PUT → save to Heretto" pipeline can no longer complete without a human. That is the intent,
+not a side effect. If an unattended path is ever needed it should be an explicit opt-out
+(`?apply=1`) recorded as its own ADR, not a quiet return to write-through.
+
+Two known rough edges accepted for this slice: while a review is pending the visual editor stays
+live, so in **editing** mode a single keystroke drifts `xmlContent` and the accept-time drift guard
+discards the proposal ("Re-send the request"); making the editor read-only while
+`pendingReview` is set is the honest fix and is deferred. And the diff is **XML-level with
+all-or-nothing Accept/Reject** — this decision does not deliver green insertions in the visual
+editor or per-change review in the ChangeListPanel. That requires synthesising `TrackedTextNode`
+marks from the diff (FR-058, dependent on FR-051's carrier) and is a separate decision.
+
+**Alternatives considered** — **(B)** Keep PUT write-through and add opt-in review via `?review=1`
+or a new `POST /api/tabs/:id/propose` (rejected: preserves the existing contract and needs no
+`saveTab` guard, but makes the safe path the one you have to remember. The session log is explicit
+that the writer should *always* get a review surface when AI content arrives; an opt-in flag means
+the destructive default survives, and the route that skips review is the one an automated caller
+reaches for first). **(C)** Stage a review only when the tab has content, applying immediately to a
+blank tab (rejected — and it was the original FR-057 plan: the real workflow's base *is* a blank
+skeleton, so the exemption removed the review surface from the primary use case. The proposed
+`isBlankDocument` regex also matched every document, which would have made FR-057 a no-op; the
+corrected regex would have been worse, correctly exempting exactly the scenario the feature exists
+to serve. Heuristics about "is this document meaningful" earn their complexity nowhere here).
+**(D)** Go straight to tracked marks (FR-058) and skip the diff surface (rejected for sequencing,
+not merit: it is the better end state, but it depends on FR-051 and is Fable-weight, while this
+reuses a surface that already ships. FR-058 supersedes the diff surface for whole-doc PUTs if and
+when it lands).

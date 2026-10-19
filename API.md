@@ -164,7 +164,7 @@ curl -s http://localhost:3001/api/tabs/tab-1710612345678/content | jq
 
 ### PUT /api/tabs/:id/content
 
-**Native app only (port 3001).** Replaces the XML content of an open tab. The server validates XML structure before applying the update — malformed XML is rejected with a 400.
+**Native app only (port 3001).** Proposes a whole-document replacement for an open tab. The server validates the XML, then **stages a pending review** — it does not apply the content immediately. The XML pane swaps to a read-only Monaco diff (red/green) with an Accept/Reject bar. Accept commits the proposed document byte-for-byte; Reject discards it. The tab's XML is not changed until the author accepts. (ADR-008, v0.9.3)
 
 **Request:**
 ```bash
@@ -177,11 +177,16 @@ curl -s -X PUT http://localhost:3001/api/tabs/tab-1710612345678/content \
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `xml` | string | Yes | The full DITA XML to write into the tab |
+| `xml` | string | Yes | The full DITA XML to propose for the tab |
 
-**Response (200):**
+**Response (200) — review staged:**
 ```json
-{ "success": true, "tabId": "tab-1710612345678" }
+{ "success": true, "tabId": "tab-1710612345678", "status": "pending-review" }
+```
+
+**Response (200) — no change (incoming XML identical to current content):**
+```json
+{ "success": true, "tabId": "tab-1710612345678", "status": "no-change" }
 ```
 
 **Error responses:**
@@ -190,10 +195,12 @@ curl -s -X PUT http://localhost:3001/api/tabs/tab-1710612345678/content \
 |--------|-----------|
 | 400 | `xml` field missing or not a string |
 | 400 | XML fails structural validation — `details` field contains the parse error |
+| 400 | Tab already has a pending review — accept or reject it first |
 | 404 | Tab ID not found |
-| 500 | Bridge failed to apply the update |
 
-**When to use this:** To push AI-generated or transformed XML into a tab the author already has open.
+**When to use this:** To deliver AI-generated or revised XML to an open tab for the author to review before it becomes the document. Works in any `documentMode` — the review surface is always presented. After the author accepts, call `POST /api/tabs/:id/save` to persist to Heretto.
+
+> **Breaking change from v0.9.2 and earlier:** PUT used to apply immediately (`xmlContent` replaced, `syncTrigger` bumped). Callers that PUT and then immediately save will now receive a 400 from `save` until the author accepts the review. See `POST /api/tabs/:id/save` below.
 
 ---
 
@@ -216,10 +223,11 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/save
 | Status | Condition |
 |--------|-----------|
 | 400 | Tab has no associated Heretto file |
+| 400 | Tab has a pending review — accept or reject it before saving |
 | 404 | Tab ID not found |
 | 500 | Save operation failed — `details` field contains the error |
 
-**When to use this:** After writing updated XML via `PUT /api/tabs/:id/content`, call this to persist the changes to Heretto.
+**When to use this:** After the author accepts a proposal (from `PUT` or `insert-section`) and the content is live in the tab, call this to persist to Heretto. Do not call immediately after `PUT` — since v0.9.3, `PUT` stages a review rather than applying, so save will be refused until the author accepts.
 
 ---
 
@@ -257,7 +265,7 @@ Success is returned only after the fragment is validated and the proposed docume
 
 | Status | Condition |
 |--------|-----------|
-| 400 | `xml` missing, fragment fails validation, `replaceId` not found, tab is in edit mode, or tab already has a pending review |
+| 400 | `xml` missing, fragment fails validation, `replaceId` not found, or tab already has a pending review |
 | 404 | Tab ID not found |
 
 **When to use this:** When an external tool wants to suggest a new paragraph, list, note, or section in an open tab and have the author review it as a precise XML diff before it lands.
@@ -375,18 +383,23 @@ curl -s http://localhost:3001/api/tabs | jq '.tabs[] | select(.dirty == true) | 
 curl -s http://localhost:3001/api/tabs | jq '.tabs[] | select(.xmlErrorCount > 0) | {fileName, xmlErrorCount}'
 ```
 
-### Write updated XML to the active tab and save it
+### Propose updated XML for the author to review, then save after acceptance
+
+Since v0.9.3, `PUT` stages a review rather than applying immediately. The author must accept the
+diff in the app before the content is live — only then can you save to Heretto.
 
 ```bash
 ACTIVE_TAB=$(curl -s http://localhost:3001/api/tabs | jq -r '.activeTabId')
 
-# Write new XML
+# Stage a whole-document proposal — the author sees a red/green diff with Accept/Reject
 curl -s -X PUT "http://localhost:3001/api/tabs/${ACTIVE_TAB}/content" \
   -H "Content-Type: application/json" \
   -d "{\"xml\": \"$(cat updated.dita | sed 's/"/\\"/g')\"}"
+# → { "success": true, "status": "pending-review" }
 
-# Save to Heretto
+# After the author clicks Accept in the app, save to Heretto:
 curl -s -X POST "http://localhost:3001/api/tabs/${ACTIVE_TAB}/save"
+# → { "success": true } — or 400 if the review is still pending
 ```
 
 ### Load a new topic into the editor

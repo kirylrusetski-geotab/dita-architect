@@ -1,7 +1,8 @@
 {
   "name": "dita-architect",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.3",
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -21,6 +21,47 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.3',
+    date: '2026-08-04',
+    title: 'PUT now shows a diff — AI-drafted content goes to review, not straight into the document.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          '`PUT /api/tabs/:id/content` now stages a proposal instead of applying immediately. The XML pane shows a red/green Monaco diff with an Accept/Reject bar — the same surface used by `insert-section`. The tab\'s content is not changed until you click Accept. Works in any mode, including suggesting mode, and from any base document including a blank skeleton.',
+          '`insert-section` now works in suggesting mode. The guard that previously blocked it ("resolve tracked changes before inserting") is gone — both routes go through the review surface, so there is nothing left to guard against.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Saving while a review is pending is now refused with a clear error instead of silently pushing the pre-PUT document to Heretto.',
+          'Accepting a proposal while in suggesting mode now reports how many unresolved suggestions were discarded, rather than losing them silently.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-008 records the contract change: `PUT /api/tabs/:id/content` proposes; it does not apply. Any caller that PUT-then-saved must accept first. `API.md` updated throughout.',
+        ],
+      },
+    ],
+  },
+  {
+    version: '0.9.2',
+    date: '2026-08-04',
+    title: 'API content now renders in suggesting mode immediately — the AI-drafts-human-reviews workflow unblocked.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          '`PUT /api/tabs/:id/content` while a tab is in suggesting mode now renders in the visual editor and XML pane straight away, with no mode toggle required. Previously, the sync bridge buffered the incoming content behind the suspension that protects live tracked-change marks, and nothing flushed that buffer — leaving the tab blank with no indication anything had gone wrong. The fix applies API whole-document replacements immediately regardless of focus; the new content becomes the base document, and any further edits in suggesting mode are tracked against it.',
+          'If an API replacement discards unresolved suggestions, a toast reports how many were lost rather than letting them disappear silently.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.1',
     date: '2026-08-04',
     title: 'Every dialog now closes with Escape and keeps your keyboard inside it, and Heretto stops reporting problems that were never there.',
