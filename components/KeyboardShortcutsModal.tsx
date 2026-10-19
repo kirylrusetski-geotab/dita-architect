@@ -1,6 +1,7 @@
 import React from 'react';
 import { Keyboard } from 'lucide-react';
 import { KEYBOARD_SHORTCUTS } from '../constants/keyboard-shortcuts';
+import { Modal } from './Modal';
 
 interface KeyboardShortcutsModalProps {
   onClose: () => void;
@@ -10,20 +11,7 @@ export const KeyboardShortcutsModal = ({ onClose }: KeyboardShortcutsModalProps)
   const categories = Array.from(new Set(KEYBOARD_SHORTCUTS.map(s => s.category)));
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-      onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="keyboard-shortcuts-title"
-        className="rounded-xl p-6 w-[480px] max-h-[80vh] flex flex-col shadow-2xl"
-        style={{
-          backgroundColor: 'var(--app-surface)',
-          border: '1px solid var(--app-border-subtle)',
-        }}
-      >
+    <Modal onClose={onClose} labelId="keyboard-shortcuts-title" className="rounded-xl p-6 w-[480px] max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dita-500 to-dita-600 flex items-center justify-center shadow-lg shadow-dita-500/20">
@@ -91,7 +79,6 @@ export const KeyboardShortcutsModal = ({ onClose }: KeyboardShortcutsModalProps)
             Close
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { DiffViewer } from './DiffViewer';
+import { Modal } from './Modal';
 import { stripHerettoClassAttrs } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
@@ -137,20 +138,7 @@ export const HerettoReplaceModal = ({
   const modalId = 'heretto-replace-modal-title';
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-      onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={modalId}
-        className="rounded-xl p-6 w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl"
-        style={{
-          backgroundColor: 'var(--app-surface)',
-          border: '1px solid var(--app-border-subtle)',
-        }}
-      >
+    <Modal onClose={onClose} labelId={modalId} className="rounded-xl p-6 w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-2 mb-5">
           <HerettoLogo className="w-5 h-5" style={{ color: '#14b8a6' }} />
@@ -365,7 +353,6 @@ export const HerettoReplaceModal = ({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 };

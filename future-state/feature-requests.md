@@ -853,7 +853,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 **Smallest slice:** Rename the theme to **Navy** everywhere it is user-visible or persisted, with a one-time migration for stored preferences:
 
 - `index.css`: `[data-theme="geotab"]` → `[data-theme="navy"]` (palette values unchanged).
-- `components/Toolbar.tsx`: `{ value: 'navy', label: 'Navy' }`; description → `Deep blue-navy palette` (keep the "what / for whom" pattern from v0.7.x).
+- `components/Toolbar.tsx`: `{ value: 'navy', label: 'Navy' }`. **The dropdown tooltip/description changes too:** `THEME_DESCRIPTIONS.geotab` currently reads `Geotab brand colors` (visible on hover over the `Geotab` entry); it becomes `THEME_DESCRIPTIONS.navy = 'Deep blue-navy palette for low-light work'` (keep the "what / for whom" pattern from v0.7.x). No user-visible string may keep the company name.
 - `components/MonacoDitaEditor.tsx` `bgColors.navy`; `hooks/useEditorUi.ts` validator accepts `'navy'`, and **maps a stored `'geotab'` to `'navy'`** so existing users keep their theme (write the migrated value back to `localStorage`).
 - `API.md` `theme` enum; `README.md` theme list.
 - Tests: `tests/geotab-theme-integration.test.ts` (rename file to `navy-theme-integration.test.ts`), `tests/monaco-theme-config.test.ts`, `tests/theme-options.test.ts`, `tests/theme-validation.test.ts`, `tests/theme-descriptions-user-focused-update.test.ts`, `tests/light-theme-stone-color-conversion.test.ts` — update expectations; add one test for the `geotab → navy` localStorage migration.
@@ -863,7 +863,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 
 ### Acceptance criteria
 
-1. The theme dropdown shows **Navy**; no user-visible string, CSS selector, or API value says `geotab`.
+1. The theme dropdown shows **Navy**, and hovering it shows `Deep blue-navy palette for low-light work` instead of `Geotab brand colors`; no user-visible string, CSS selector, or API value says `geotab`.
 2. A user whose `localStorage` holds `dita-architect-theme = geotab` opens the app and gets Navy with no flash of the default theme; the stored value is rewritten to `navy`.
 3. `GET /api/status` returns `theme: "navy"` when selected; `API.md` lists it.
 4. All theme tests pass with the new name; the migration test is pinned.
@@ -890,7 +890,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 
 **Slice 3 — root discovery (Opus, optional):** If the Heretto REST API exposes a top-level listing, derive the content root automatically when `rootUuid` is absent, so a fresh install needs only host, email, and token. Only worth doing if slice 2 shows users struggle to find their root UUID.
 
-**Fixture hygiene (any time, Haiku):** Replace the author email in the Journey Definition fixture's `<prolog>` with a neutral placeholder **and** regenerate the expected-output side of the byte-stability test from the edited file, so Gate 1 still asserts byte equality. The fixture's value is its structure (nested `<dl>`, table, note, inline image), not its metadata.
+**Fixture hygiene (any time, Haiku):** ✅ **Done in v0.9.5 (2026-10-19).** The author email in the Journey Definition fixture's `<prolog>` is now `author@example.com`. The byte-stability test compares the fixture against its own round-trip (`expect(roundTrip(xml)).toBe(xml)`), so no separate expected-output file needed regenerating. The fixture's value is its structure (nested `<dl>`, table, note, inline image), not its metadata.
 
 **Serves:** The public repo's basic honesty; moat 3 (workflow glue) becomes portable to any Heretto tenant instead of one.
 

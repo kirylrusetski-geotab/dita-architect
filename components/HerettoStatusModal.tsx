@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
+import { Modal } from './Modal';
 
 const HerettoLogo = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className} style={style}>
@@ -27,19 +28,10 @@ export const HerettoStatusModal = ({
   saveHerettoCredentials,
   onClose,
 }: HerettoStatusModalProps) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="rounded-xl p-6 w-[420px] shadow-2xl"
-      style={{
-        backgroundColor: 'var(--app-surface)',
-        border: '1px solid var(--app-border-subtle)',
-      }}
-    >
+  <Modal onClose={onClose} labelId="heretto-status-title" className="rounded-xl p-6 w-[420px] shadow-2xl">
       <div className="flex items-center gap-2 mb-5">
         <HerettoLogo className="w-5 h-5" style={{ color: '#14b8a6' }} />
-        <h3 className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>Heretto Status</h3>
+        <h3 id="heretto-status-title" className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>Heretto Status</h3>
       </div>
 
       {/* Connection status */}
@@ -162,6 +154,5 @@ export const HerettoStatusModal = ({
           Save
         </button>
       </div>
-    </div>
-  </div>
+  </Modal>
 );

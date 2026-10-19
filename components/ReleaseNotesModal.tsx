@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { RELEASE_NOTES, ReleaseNote } from '../constants/version';
+import { Modal } from './Modal';
 
 interface ReleaseNotesModalProps {
   onClose: () => void;
@@ -105,20 +106,7 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-      onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="release-notes-title"
-        className="rounded-xl p-6 w-[800px] max-w-[92vw] max-h-[82vh] flex flex-col shadow-2xl"
-        style={{
-          backgroundColor: 'var(--app-surface)',
-          border: '1px solid var(--app-border-subtle)',
-        }}
-      >
+    <Modal onClose={onClose} labelId="release-notes-title" className="rounded-xl p-6 w-[800px] max-w-[92vw] max-h-[82vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
@@ -205,7 +193,6 @@ export const ReleaseNotesModal = ({ onClose }: ReleaseNotesModalProps) => {
           </div>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 };

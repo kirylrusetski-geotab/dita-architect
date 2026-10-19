@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, FileText, Folder, ChevronDown, Network, MapIcon, Search, XCircle } from 'lucide-react';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus } from '../types/heretto';
 import { HERETTO_ROOT_UUID } from '../constants/heretto';
+import { Modal } from './Modal';
 
 const HerettoLogo = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className} style={style}>
@@ -75,18 +76,9 @@ export const HerettoBrowserModal = ({
   const currentFolderName = breadcrumbs[breadcrumbs.length - 1]?.name ?? 'Heretto';
 
   return (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="rounded-xl p-6 w-[520px] max-h-[80vh] flex flex-col shadow-2xl"
-      style={{
-        backgroundColor: 'var(--app-surface)',
-        border: '1px solid var(--app-border-subtle)',
-      }}
-    >
+  <Modal onClose={onClose} labelId="heretto-browser-title" className="rounded-xl p-6 w-[520px] max-h-[80vh] flex flex-col shadow-2xl">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--app-text-primary)' }}>
+        <h3 id="heretto-browser-title" className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--app-text-primary)' }}>
           <HerettoLogo className="w-5 h-5" style={{ color: '#14b8a6' }} />
           {mode === 'open' ? 'Open from Heretto' : mode === 'save' ? 'Save to Heretto' : 'Replace in Heretto'}
         </h3>
@@ -440,7 +432,6 @@ export const HerettoBrowserModal = ({
           </button>
         )}
       </div>
-    </div>
-  </div>
+  </Modal>
   );
 };

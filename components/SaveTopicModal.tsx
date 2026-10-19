@@ -1,4 +1,5 @@
 import React from 'react';
+import { Modal } from './Modal';
 
 interface SaveTopicModalProps {
   saveFileName: string;
@@ -8,17 +9,8 @@ interface SaveTopicModalProps {
 }
 
 export const SaveTopicModal = ({ saveFileName, setSaveFileName, onSave, onClose }: SaveTopicModalProps) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="rounded-xl p-6 w-96 shadow-2xl"
-      style={{
-        backgroundColor: 'var(--app-surface)',
-        border: '1px solid var(--app-border-subtle)',
-      }}
-    >
-      <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>Save Topic</h3>
+  <Modal onClose={onClose} labelId="save-topic-title" className="rounded-xl p-6 w-96 shadow-2xl">
+      <h3 id="save-topic-title" className="text-lg font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>Save Topic</h3>
       <p className="text-sm mb-5" style={{ color: 'var(--app-text-muted)' }}>
         Confirm the file name, then pick where to save it.
       </p>
@@ -64,6 +56,5 @@ export const SaveTopicModal = ({ saveFileName, setSaveFileName, onSave, onClose 
           Save
         </button>
       </div>
-    </div>
-  </div>
+  </Modal>
 );

@@ -21,6 +21,30 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.5',
+    date: '2026-10-19',
+    title: 'Bug sweep: every modal traps focus, the API docs match the API, and the native server stops holding idle connections.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'All eleven modals now share one dialog shell. Before, eight of them (Exit Suggesting Mode, Open from Heretto, Replace in Heretto, Heretto Status, the import verification dialog, Keyboard Shortcuts, What\'s New, and Save Topic) drew their own overlay: Tab could walk out of the dialog into the editor behind it, and closing the dialog did not return focus to the button that opened it. Each now traps Tab inside the dialog, restores focus to the opener on close, and closes on Escape from anywhere, not only while focus happens to be inside it. (WCAG 2.1.2 and 2.4.3.)',
+          'Typing in a dialog field no longer risks losing focus. The shared shell reads its close handler through a ref, so a parent that re-renders on every keystroke cannot restart the focus logic mid-word. A field marked `autoFocus` keeps focus; the shell only focuses the first control when nothing inside has focus yet.',
+          'The native API server now closes a connection that has not delivered a complete request within 30 seconds. Before, a client that connected and sent nothing held the connection open indefinitely.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          '`API.md` now documents the response envelope: every port-3001 response carries `success` and `httpStatus`, and the Swift server derives the real HTTP status line from that field. The documented contract had lagged the code since v0.9.1 (BUG-23). Example responses updated; `413` and the idle timeout added to the status table.',
+          'Regression tests now pin the three Heretto fixes that shipped untested in v0.9.1 (BUG-24): save verification ignores Heretto\'s injected `class` attributes; an HTML body from Heretto can never overwrite a tab or its saved baseline, on Refresh or on the background change poll; and the external-load poller keeps polling after a failed request. New file `tests/heretto-verification-guards.test.tsx`, 8 tests driving the real hooks.',
+          'The byte-stability fixture `journey-definition.dita` no longer carries a real author email. The test compares the fixture against its own round-trip, so the edit is self-consistent.',
+          'Sweep-ready lane cleared: BUG-21, BUG-22, BUG-23, BUG-24. Remaining dialog-like overlays not covered by this sweep: the Insert Link and Insert Table popovers in `Toolbar.tsx`, which close on outside click and were not in BUG-22\'s scope.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.4',
     date: '2026-10-19',
     title: 'Connect to any Heretto instance: the host is now a setting, not a constant.',

@@ -44,28 +44,36 @@ final class HttpServer {
     // MARK: – Connection lifecycle
 
     private func handleConnection(_ connection: NWConnection) {
-        connection.start(queue: .global(qos: .background))
-        receiveRequest(connection: connection, accumulated: Data())
+        let queue = DispatchQueue.global(qos: .background)
+        connection.start(queue: queue)
+        // BUG-21: a peer that connects and never finishes a request must not hold the
+        // connection open forever. The timer is cancelled once a complete request is routed;
+        // every other exit path closes the connection, so a late fire is a harmless no-op.
+        let idleTimer = DispatchWorkItem { connection.cancel() }
+        queue.asyncAfter(deadline: .now() + HttpServer.idleTimeoutSeconds, execute: idleTimer)
+        receiveRequest(connection: connection, accumulated: Data(), idleTimer: idleTimer)
     }
 
     private static let maxRequestBytes = 10 * 1024 * 1024  // 10 MB
+    private static let idleTimeoutSeconds: TimeInterval = 30
 
-    private func receiveRequest(connection: NWConnection, accumulated: Data) {
+    private func receiveRequest(connection: NWConnection, accumulated: Data, idleTimer: DispatchWorkItem) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
-            guard let self, error == nil else { connection.cancel(); return }
+            guard let self, error == nil else { idleTimer.cancel(); connection.cancel(); return }
 
             var buffer = accumulated
             if let data { buffer.append(data) }
 
             if buffer.count > HttpServer.maxRequestBytes {
+                idleTimer.cancel()
                 self.sendError(connection: connection, status: 413, message: "Request too large")
                 return
             }
 
             let headerDelimiter = Data("\r\n\r\n".utf8)
             guard let headerEndRange = buffer.range(of: headerDelimiter) else {
-                if isComplete { connection.cancel(); return }
-                self.receiveRequest(connection: connection, accumulated: buffer)
+                if isComplete { idleTimer.cancel(); connection.cancel(); return }
+                self.receiveRequest(connection: connection, accumulated: buffer, idleTimer: idleTimer)
                 return
             }
 
@@ -96,10 +104,11 @@ final class HttpServer {
             let bodyStart = headerEndRange.upperBound
             let available = buffer[bodyStart...]
             if available.count >= contentLength {
+                idleTimer.cancel()
                 let body = contentLength > 0 ? Data(available.prefix(contentLength)) : Data()
                 self.routeRequest(connection: connection, method: method, path: path, body: body)
             } else {
-                self.receiveRequest(connection: connection, accumulated: buffer)
+                self.receiveRequest(connection: connection, accumulated: buffer, idleTimer: idleTimer)
             }
         }
     }

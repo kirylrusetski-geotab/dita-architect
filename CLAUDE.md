@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.9.4 (2026-10-19)
+**Current version:** 0.9.5 (2026-10-19)
 
 ---
 
@@ -215,7 +215,7 @@ Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backl
 | Lane | Items |
 |---|---|
 | 🔴 **Blocking now** (corrupts data — fix immediately) | — (cleared; BUG-03 shipped v0.8.5) |
-| 🟡 **Sweep-ready** (batch into next sweep) | **BUG-10** (Swift status-envelope remainder), **BUG-11** (shared Modal / focus traps), **BUG-16** (Heretto verification gaps) — below threshold; rest of the 2026-07-17 review swept in v0.8.9 |
+| 🟡 **Sweep-ready** (batch into next sweep) | — (cleared 2026-10-19 in the v0.9.5 sweep: BUG-21 idle timeout, BUG-22 shared Modal for all 11 dialogs, BUG-23 `httpStatus` in API.md, BUG-24 Heretto regression tests) |
 | 🔵 **Larger** (own session) | — (cleared 2026-07-17: **BUG-02** closed by FR-045 v0.8.8 + FR-046 v0.9.0, ADR-004 Accepted; **BUG-04** closed by Sessions 4A/4B, ADR-006; **BUG-05** closed by ADR-007) |
 
 ### Features (sequenced by dependency)

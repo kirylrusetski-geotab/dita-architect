@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Modal } from './Modal';
 
 interface ExitEditModeModalProps {
   changeCount?: number;
@@ -8,25 +9,8 @@ interface ExitEditModeModalProps {
 }
 
 export const ExitEditModeModal = ({ changeCount = 0, onAccept, onReject, onCancel }: ExitEditModeModalProps) => {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onCancel]);
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="exit-edit-mode-title"
-        className="rounded-xl p-6 shadow-2xl"
-        style={{
-          width: '440px',
-          backgroundColor: 'var(--app-surface)',
-          border: '1px solid var(--app-border-subtle)',
-        }}
-      >
+    <Modal onClose={onCancel} labelId="exit-edit-mode-title" className="rounded-xl p-6 shadow-2xl" style={{ width: '440px' }}>
         <h3
           id="exit-edit-mode-title"
           className="text-lg font-bold mb-2"
@@ -71,7 +55,6 @@ export const ExitEditModeModal = ({ changeCount = 0, onAccept, onReject, onCance
             Accept All
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

@@ -181,12 +181,12 @@ curl -s -X PUT http://localhost:3001/api/tabs/tab-1710612345678/content \
 
 **Response (200) — review staged:**
 ```json
-{ "success": true, "tabId": "tab-1710612345678", "status": "pending-review" }
+{ "success": true, "httpStatus": 200, "tabId": "tab-1710612345678", "status": "pending-review" }
 ```
 
 **Response (200) — no change (incoming XML identical to current content):**
 ```json
-{ "success": true, "tabId": "tab-1710612345678", "status": "no-change" }
+{ "success": true, "httpStatus": 200, "tabId": "tab-1710612345678", "status": "no-change" }
 ```
 
 **Error responses:**
@@ -215,7 +215,7 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/save
 
 **Response (200):**
 ```json
-{ "success": true, "tabId": "tab-1710612345678" }
+{ "success": true, "httpStatus": 200, "tabId": "tab-1710612345678" }
 ```
 
 **Error responses:**
@@ -256,7 +256,7 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/insert-section 
 
 **Response (200):**
 ```json
-{ "success": true, "status": "pending-review" }
+{ "success": true, "httpStatus": 200, "status": "pending-review" }
 ```
 
 Success is returned only after the fragment is validated and the proposed document passes DITA validation — there is no deferred failure. If the author edits the document while a review is pending, Accept is refused (the proposal was computed against a base that no longer exists) and the review is cleared.
@@ -415,20 +415,35 @@ curl -s -X POST http://localhost:3001/api/load-content \
 
 ---
 
-## Error responses
+## Response envelope and error responses
+
+Every tab-API response (port 3001) is a JSON object with two fixed fields:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `success` | boolean | `true` on success, `false` on any error |
+| `httpStatus` | number | The HTTP status code of this response, repeated in the body |
+
+`httpStatus` exists because the editor logic runs in JavaScript and the HTTP server runs in Swift: the JS bridge decides the outcome and encodes the status in its JSON, and the Swift server reads that field to set the real HTTP status line (`HttpServer.swift` `statusCode(from:)`). The two always match, so clients can use either. Responses that carry other fields (`tabId`, `status`, `xml`, …) include them alongside these two.
+
+```json
+{ "success": true,  "httpStatus": 200, "tabId": "tab-1710612345678", "status": "pending-review" }
+{ "success": false, "httpStatus": 404, "error": "Tab with ID \"tab-x\" not found" }
+{ "success": false, "httpStatus": 400, "error": "Invalid XML format", "details": "Invalid XML: unclosed tag <task>" }
+```
 
 | HTTP Status | Meaning |
 |-------------|---------|
 | 200 | Success |
-| 400 | Bad request — missing fields, invalid JSON, or XML validation failure |
+| 400 | Bad request — missing fields, invalid JSON, XML validation failure, a pending review blocking the action, or a tab with no Heretto file |
 | 404 | Tab ID not found, or invalid endpoint path |
 | 405 | Wrong HTTP method for this endpoint |
+| 413 | Request body over 10 MB |
 | 500 | Server-side error during save or content update |
 
-Error responses return JSON with an `error` field, and sometimes a `details` field with more context:
-```json
-{ "error": "Invalid XML format", "details": "Invalid XML: unclosed tag <task>" }
-```
+Error responses always have `success: false`, an `error` string, and sometimes a `details` field with more context. The port-3000 dev-server endpoints (`/api/load-content`, `/api/pending-loads`) return `success` but **not** `httpStatus`; they are served by Vite middleware, not the bridge.
+
+The native server also closes any connection that has not delivered a complete request within 30 seconds.
 
 ---
 

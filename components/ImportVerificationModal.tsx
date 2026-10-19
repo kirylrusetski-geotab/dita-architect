@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { ImportVerificationState } from '../types/heretto';
+import { Modal } from './Modal';
 
 interface ImportVerificationModalProps {
   data: ImportVerificationState;
@@ -9,22 +10,16 @@ interface ImportVerificationModalProps {
 }
 
 export const ImportVerificationModal = ({ data, onClose, onContinue }: ImportVerificationModalProps) => (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={
-        data.phase === 'downloading' ? 'import-downloading-heading' :
-        data.phase === 'verifying' ? 'import-verifying-heading' :
-        (data.phase === 'results' && data.verified && data.unrecognizedElements.length === 0) ? 'import-ready-heading' :
-        'import-review-heading'
-      }
-      className="rounded-xl p-6 w-[440px] shadow-2xl"
-      style={{
-        backgroundColor: 'var(--app-surface)',
-        border: '1px solid var(--app-border-subtle)',
-      }}
-    >
+  <Modal
+    onClose={onClose}
+    labelId={
+      data.phase === 'downloading' ? 'import-downloading-heading' :
+      data.phase === 'verifying' ? 'import-verifying-heading' :
+      (data.phase === 'results' && data.verified && data.unrecognizedElements.length === 0) ? 'import-ready-heading' :
+      'import-review-heading'
+    }
+    className="rounded-xl p-6 w-[440px] shadow-2xl"
+  >
       {data.phase === 'downloading' && (
         <>
           <div className="flex items-center gap-3 mb-4">
@@ -151,6 +146,5 @@ export const ImportVerificationModal = ({ data, onClose, onContinue }: ImportVer
           </div>
         </>
       )}
-    </div>
-  </div>
+  </Modal>
 );
