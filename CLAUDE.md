@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.9.5 (2026-10-19)
+**Current version:** 0.9.6 (2026-10-19)
 
 ---
 
@@ -188,7 +188,7 @@ All endpoints return JSON. No authentication required.
 
 ## Heretto Credentials
 
-Stored in `~/heretto.json` — `{ "host": "yourcompany.heretto.com", "email": "...", "token": "..." }`. Both run modes read from this file. The Settings modal can write it too. `host` is the Heretto instance hostname (scheme and trailing slash are stripped); nothing is hardcoded in the app. In dev mode the Vite proxy target is fixed at startup, so a host change needs a dev-server restart. The content-root folder UUID in `constants/heretto.ts` is still tenant-specific — see FR-062.
+Stored in `~/heretto.json` — `{ "host": "yourcompany.heretto.com", "rootUuid": "<content-folder-uuid>", "email": "...", "token": "..." }`. Both run modes read from this file. The Settings modal can write it too. `host` is the Heretto instance hostname (scheme and trailing slash are stripped). `rootUuid` is the content folder the browser opens on and the connection probe hits; it lives in `useHerettoCms` state as `herettoRootUuid` (loaded from `/heretto-credentials` on mount) and is passed to `HerettoBrowserModal` as a prop. Nothing tenant-specific is hardcoded (FR-062 slices 1–2). In dev mode the Vite proxy target is fixed at startup, so a host change needs a dev-server restart. Heretto's folder XML carries `parent-folder-id`; walking it upward from any folder reaches a parentless `master` folder, which is the discovery path for FR-062 slice 3.
 
 **Important:** The Heretto connection indicator checks `res.ok` AND `content-type: application/xml`. An HTTP 200 with an HTML body (SPA fallback) does not set the green indicator.
 

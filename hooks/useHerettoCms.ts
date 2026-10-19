@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Tab } from '../types/tab';
 import { createTab } from '../types/tab';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus, ImportVerificationState } from '../types/heretto';
-import { HERETTO_ROOT_UUID, herettoFolderCache } from '../constants/heretto';
+import { herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
 import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml, stripHerettoClassAttrs } from '../lib/xml-utils';
 import { formatXml } from '../lib/xml-utils';
@@ -31,8 +31,13 @@ export function useHerettoCms({
 }: UseHerettoCmsParams) {
   // --- Heretto Status modal ---
   const [isHerettoStatusOpen, setIsHerettoStatusOpen] = useState(false);
-  const [herettoCredentials, setHerettoCredentials] = useState({ host: '', email: '', token: '' });
+  const [herettoCredentials, setHerettoCredentials] = useState({ host: '', rootUuid: '', email: '', token: '' });
   const [herettoStatusChecking, setHerettoStatusChecking] = useState(false);
+  // FR-062: the effective content-root folder UUID (what browse/search/probe use).
+  // Loaded from /heretto-credentials on mount; updated when credentials are saved.
+  // Empty until loaded, or when the user has not configured one yet.
+  const [herettoRootUuid, setHerettoRootUuid] = useState('');
+  const ROOT_UUID_HINT = 'Set the Heretto content root folder UUID in Heretto Status first';
 
   // --- Heretto CMS state (shared across tabs) ---
   const [isHerettoBrowserOpen, setIsHerettoBrowserOpen] = useState(false);
@@ -68,16 +73,32 @@ export function useHerettoCms({
     useState<ImportVerificationState | null>(null);
   const importAbortRef = useRef<AbortController | null>(null);
 
-  // Check Heretto connectivity on mount — abort on unmount to avoid state updates after cleanup
+  // FR-062: load the configured root folder (and prefill host/email) on mount.
   useEffect(() => {
     const abort = new AbortController();
-    fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout(abort.signal) })
+    fetch('/heretto-credentials', { signal: withTimeout(abort.signal) })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!data || abort.signal.aborted) return;
+        const root = typeof data.rootUuid === 'string' ? data.rootUuid.trim() : '';
+        setHerettoRootUuid(root);
+        setHerettoCredentials(prev => ({ ...prev, host: data.host || '', rootUuid: root, email: data.email || '' }));
+      })
+      .catch(() => {});
+    return () => { abort.abort(); };
+  }, []);
+
+  // Check Heretto connectivity once the root folder is known — abort on unmount to avoid state updates after cleanup
+  useEffect(() => {
+    if (!herettoRootUuid) return;
+    const abort = new AbortController();
+    fetch(`/heretto-api/all-files/${herettoRootUuid}`, { signal: withTimeout(abort.signal) })
       .then(res => {
         if (res.ok && res.headers.get('content-type')?.includes('xml')) setHerettoConnected(true);
       })
       .catch(() => {});
     return () => { abort.abort(); };
-  }, []);
+  }, [herettoRootUuid]);
 
   const openHerettoStatus = useCallback(async () => {
     setIsHerettoStatusOpen(true);
@@ -86,22 +107,27 @@ export function useHerettoCms({
       if (res.ok) {
         const data = await res.json();
         // Token is never returned by the server; leave blank so the user must re-enter to save.
-        setHerettoCredentials({ host: data.host || '', email: data.email || '', token: '' });
+        setHerettoCredentials({ host: data.host || '', rootUuid: data.rootUuid || '', email: data.email || '', token: '' });
       }
     } catch { /* silent */ }
   }, []);
 
   const testHerettoConnection = useCallback(async () => {
+    if (!herettoRootUuid) {
+      setHerettoConnected(false);
+      toast.error(ROOT_UUID_HINT);
+      return;
+    }
     setHerettoStatusChecking(true);
     try {
-      const res = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout() });
+      const res = await fetch(`/heretto-api/all-files/${herettoRootUuid}`, { signal: withTimeout() });
       setHerettoConnected(res.ok && !!res.headers.get('content-type')?.includes('xml'));
     } catch {
       setHerettoConnected(false);
     } finally {
       setHerettoStatusChecking(false);
     }
-  }, []);
+  }, [herettoRootUuid]);
 
   const saveHerettoCredentials = useCallback(async () => {
     setHerettoStatusChecking(true);
@@ -113,14 +139,29 @@ export function useHerettoCms({
         signal: withTimeout(),
       });
       if (!res.ok) throw new Error();
+      // The saved root becomes the effective one. If the field was left blank the
+      // server keeps whatever was on disk, so re-read it rather than trusting the form.
+      let nextRoot = herettoCredentials.rootUuid.trim();
+      if (!nextRoot) {
+        try {
+          const saved = await (await fetch('/heretto-credentials', { signal: withTimeout() })).json();
+          nextRoot = typeof saved.rootUuid === 'string' ? saved.rootUuid.trim() : '';
+        } catch { /* fall through with empty root */ }
+      }
+      setHerettoRootUuid(nextRoot);
+      if (!nextRoot) {
+        setHerettoConnected(false);
+        toast.warning('Credentials saved. Enter the content root folder UUID to connect.');
+        return;
+      }
       // Test connection with new credentials
-      const testRes = await fetch(`/heretto-api/all-files/${HERETTO_ROOT_UUID}`, { signal: withTimeout() });
+      const testRes = await fetch(`/heretto-api/all-files/${nextRoot}`, { signal: withTimeout() });
       const testConnected = testRes.ok && !!testRes.headers.get('content-type')?.includes('xml');
       setHerettoConnected(testConnected);
       if (testConnected) {
         toast.success('Credentials saved and connection verified');
       } else {
-        toast.warning('Credentials saved but connection failed — check your Heretto host, email and token');
+        toast.warning('Credentials saved but connection failed — check your Heretto host, root folder UUID, email and token');
       }
     } catch {
       toast.error('Failed to save credentials');
@@ -326,7 +367,8 @@ export function useHerettoCms({
 
       const searchRoot = herettoBreadcrumbs.length > 0
         ? herettoBreadcrumbs[herettoBreadcrumbs.length - 1].uuid
-        : HERETTO_ROOT_UUID;
+        : herettoRootUuid;
+      if (!searchRoot) return;
 
       herettoSearch(herettoSearchQuery.trim(), searchRoot, abort.signal);
     }, 350);
@@ -336,7 +378,7 @@ export function useHerettoCms({
         clearTimeout(herettoSearchDebounceRef.current);
       }
     };
-  }, [herettoSearchQuery, isHerettoBrowserOpen, herettoBreadcrumbs, herettoSearch]);
+  }, [herettoSearchQuery, isHerettoBrowserOpen, herettoBreadcrumbs, herettoSearch, herettoRootUuid]);
 
   // Cleanup: abort search when modal closes
   useEffect(() => {
@@ -369,8 +411,13 @@ export function useHerettoCms({
       }
     }
     setHerettoAtLastSavedLocation(false);
-    await herettoNavigate(HERETTO_ROOT_UUID, 'Content Root', true);
-  }, [herettoNavigate, activeTab?.xmlContent]);
+    if (!herettoRootUuid) {
+      toast.error(ROOT_UUID_HINT);
+      setIsHerettoBrowserOpen(false);
+      return;
+    }
+    await herettoNavigate(herettoRootUuid, 'Content Root', true);
+  }, [herettoNavigate, activeTab?.xmlContent, herettoRootUuid]);
 
   const handleHerettoOpen = useCallback(async (item: HerettoItem | HerettoSearchResult) => {
     importAbortRef.current?.abort();
@@ -446,9 +493,9 @@ export function useHerettoCms({
     const ancestorUuids = breadcrumbs.map(b => b.uuid);
 
     // Defensive checks to ensure data integrity
-    if (!ancestorUuids.length) {
-      console.warn('[HerettoCms] ancestorUuids is empty, adding root UUID:', HERETTO_ROOT_UUID);
-      ancestorUuids.push(HERETTO_ROOT_UUID);
+    if (!ancestorUuids.length && herettoRootUuid) {
+      console.warn('[HerettoCms] ancestorUuids is empty, adding root UUID:', herettoRootUuid);
+      ancestorUuids.push(herettoRootUuid);
     }
     if (!parentCrumb?.uuid) {
       console.warn('[HerettoCms] parentFolderUuid is missing, using last ancestor UUID');
@@ -470,7 +517,7 @@ export function useHerettoCms({
       setTabs(prev => prev.map(t => t.id === newTab.id ? { ...t, syncTrigger: t.syncTrigger + 1 } : t));
     }, 0);
     toast.success(`Opened ${item.name} from Heretto`);
-  }, [importVerification, setTabs, setActiveTabId]);
+  }, [importVerification, setTabs, setActiveTabId, herettoRootUuid]);
 
   const handleHerettoSave = useCallback(async (tabId?: string) => {
     if (tabId && !tabs.find(t => t.id === tabId)) {
@@ -665,9 +712,9 @@ export function useHerettoCms({
       const ancestorUuids = herettoBreadcrumbs.map(b => b.uuid);
 
       // Defensive check to ensure ancestorUuids is never empty
-      if (!ancestorUuids.length) {
-        console.warn('[HerettoCms] Breadcrumbs produced empty ancestorUuids, adding root UUID:', HERETTO_ROOT_UUID);
-        ancestorUuids.push(HERETTO_ROOT_UUID);
+      if (!ancestorUuids.length && herettoRootUuid) {
+        console.warn('[HerettoCms] Breadcrumbs produced empty ancestorUuids, adding root UUID:', herettoRootUuid);
+        ancestorUuids.push(herettoRootUuid);
       }
 
       setTabs(prev => prev.map(t => {
@@ -692,13 +739,14 @@ export function useHerettoCms({
     } finally {
       setHerettoSaving(false);
     }
-  }, [herettoSaveFileName, activeTab, herettoBreadcrumbs, setTabs]);
+  }, [herettoSaveFileName, activeTab, herettoBreadcrumbs, setTabs, herettoRootUuid]);
 
   const onBrowseFromRoot = useCallback(async () => {
     setHerettoAtLastSavedLocation(false);
     setHerettoBreadcrumbs([]);
-    await herettoNavigate(HERETTO_ROOT_UUID, 'Content Root', true);
-  }, [herettoNavigate]);
+    if (!herettoRootUuid) { toast.error(ROOT_UUID_HINT); return; }
+    await herettoNavigate(herettoRootUuid, 'Content Root', true);
+  }, [herettoNavigate, herettoRootUuid]);
 
   const handleHerettoReplace = useCallback(async (target: { uuid: string; name: string; path: string }) => {
     const tabId = activeTab.id;
@@ -821,5 +869,6 @@ export function useHerettoCms({
     handleHerettoReplace,
     herettoAtLastSavedLocation,
     onBrowseFromRoot,
+    herettoRootUuid,
   };
 }

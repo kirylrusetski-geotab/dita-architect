@@ -222,6 +222,52 @@ describe('BUG-16 fix 2 — non-XML responses never overwrite a tab', () => {
   });
 });
 
+describe('FR-062 slice 2 — the content root folder comes from configuration, not a constant', () => {
+  const credentials = (rootUuid: string) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'content-type': 'application/json' }),
+    text: async () => '',
+    json: async () => ({ host: 'example.heretto.com', rootUuid, email: 'a@example.com', hasCredentials: true }),
+  });
+
+  it('probes the configured root folder and reports connected', async () => {
+    const tab = createTab('<concept id="x"><title>T</title></concept>');
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url) === '/heretto-credentials') return credentials('root-from-config');
+      if (String(url) === '/heretto-api/all-files/root-from-config') return xmlResponse('<folder/>');
+      return { ok: false, status: 404, headers: new Headers(), text: async () => '', json: async () => ({}) };
+    });
+
+    const { result } = renderCms(tab);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    expect(result.current.herettoRootUuid).toBe('root-from-config');
+    expect(result.current.herettoConnected).toBe(true);
+    expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain('/heretto-api/all-files/root-from-config');
+  });
+
+  it('with no root configured it probes nothing and stays disconnected', async () => {
+    const tab = createTab('<concept id="x"><title>T</title></concept>');
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url) === '/heretto-credentials') return credentials('');
+      return xmlResponse('<folder/>');
+    });
+
+    const { result } = renderCms(tab);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    expect(result.current.herettoRootUuid).toBe('');
+    expect(result.current.herettoConnected).toBe(false);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).startsWith('/heretto-api/all-files/'))).toBe(false);
+  });
+
+  it('no hardcoded tenant root UUID remains in constants/heretto.ts', async () => {
+    const mod = await import('../constants/heretto');
+    expect('HERETTO_ROOT_UUID' in mod).toBe(false);
+  });
+});
+
 describe('BUG-16 fix 3 — useExternalLoad keeps polling after a non-OK response', () => {
   it('reschedules after a 500 and picks up a load queued on the next poll', async () => {
     vi.useFakeTimers();

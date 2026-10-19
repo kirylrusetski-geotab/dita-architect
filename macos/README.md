@@ -122,9 +122,12 @@ Credentials are read from `~/heretto.json`:
 ```json
 {
   "host": "yourcompany.heretto.com",
+  "rootUuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "email": "your.name@example.com",
   "token": "your-heretto-api-token"
 }
 ```
+
+`rootUuid` is the content folder the browser opens on and the connection check probes; see the top-level README for how to find it.
 
 The file is created automatically when you enter credentials through the app's Settings panel. You can also create or edit it manually. Credentials are reloaded on every Heretto request — no restart needed after updating the file.

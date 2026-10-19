@@ -1,6 +1,6 @@
 # DITA Architect Backlog
 
-**Last updated:** 2026-10-19 — v0.9.5 shipped (bug sweep: BUG-21/22/23/24 cleared; Sweep-ready lane empty). Earlier today: v0.9.4 (FR-062 slice 1: configurable Heretto host); repos made public with an all-rights-reserved LICENSE; v0.9.0–v0.9.3 pushed and tagged; FR-060/061/062 filed. Full history in [Changelog](#changelog) at the end of this file.
+**Last updated:** 2026-10-19 — v0.9.6 shipped (FR-062 slice 2: configurable Heretto content root; the last tenant-specific constant is gone). Earlier today: v0.9.5 bug sweep (BUG-21/22/23/24; Sweep-ready lane empty), v0.9.4 (FR-062 slice 1: configurable Heretto host), repos made public with an all-rights-reserved LICENSE, v0.9.0–v0.9.3 pushed and tagged, FR-060/061/062 filed. Full history in [Changelog](#changelog) at the end of this file.
 
 This backlog has two lists — **Bugs** and **Features** — because they need different handling. Bugs arrive on their own and get cleared reactively, in batches; features are chosen deliberately and sequenced by dependency. Most rows carry a **model weight** (Haiku / Sonnet / Opus / Multi-agent, in bold) and any dependency chain.
 
@@ -104,7 +104,7 @@ Build order: **P2-39 (establishes the JS-bridge surface) → P2-41 → P2-40**
 | FR-058 | Ingest API whole-document replace as tracked marks | Feature | FR-057 delivers an XML-level diff with all-or-nothing Accept/Reject. This item delivers per-change review in the visual editor and ChangeListPanel — diff old vs new XML and synthesise `TrackedTextNode` marks so each AI edit appears inline. Depends on FR-051 (marks must survive save/reload to be useful across a review session). See [FR-058](feature-requests.md#fr-058-ingest-api-whole-document-replace-as-tracked-marks). **Fable** (round-trip contract + tracked-changes machinery simultaneously). |
 | FR-060 | Native Windows and Linux app shells | Feature | Filed 2026-10-19 when the repos went public. The native shell (`macos/`) is Swift/WebKit-only, and per ADR-007 the Vite dev server exposes only the load-content queue — so the tab API and the whole AI-review loop are macOS-only today. First slice is **tab-API parity, not menu-bar parity**: pick one cross-platform shell (Tauri 2 preferred; Electron or a Node sidecar as alternatives), keep `window.__ditaApi` as the sole transport and `API.md` shapes unchanged, replace the `dita:`-protocol gate with a platform-neutral native flag. ADR required (new run-mode surface). Post-1.0 unless a non-Mac user materialises. See [FR-060](feature-requests.md#fr-060-native-windows-and-linux-app-shells). **Fable.** |
 | FR-061 | Rename the Geotab theme to Navy | Polish | Filed 2026-10-19. The sixth theme is a blue-navy palette carrying a company name — the last tenant-specific label in the product surface now that the repo is public. Rename `geotab` → `navy` in `index.css`, `Toolbar.tsx` (label **and** the hover description: `Geotab brand colors` → `Deep blue-navy palette for low-light work`), `MonacoDitaEditor.tsx`, `useEditorUi.ts`, `API.md`, README; **migrate stored `localStorage` value `geotab` → `navy`** so existing users keep their theme; update six theme test files and pin the migration. Release-note history is not rewritten. See [FR-061](feature-requests.md#fr-061-rename-the-geotab-theme-to-navy). **Sonnet.** |
-| FR-062 | Heretto instance agnosticism | Feature | Filed 2026-10-19 after a code audit showed the integration only worked against one tenant. **Slice 1 shipped 2026-10-19:** `host` in `~/heretto.json` drives both proxies (`vite.config.ts`, `DITASchemeHandler.swift`), Settings modal gained a host field, PUT preserves host when omitted. **Open — slice 2 (Sonnet):** `constants/heretto.ts` `HERETTO_ROOT_UUID` is a single tenant's content-root folder used by the connection probe, browse/search start, and image-path fallback (~12 call sites in `useHerettoCms.ts` / `HerettoBrowserModal.tsx`); make it `rootUuid` in `heretto.json`, held in hook state, with a folder-independent probe. **Slice 3 (Opus, optional):** auto-discover the root from the Heretto REST top-level listing. **Fixture hygiene (Haiku):** scrub the real author email from `tests/sync/fixtures/journey-definition.dita` and regenerate the byte-stability expectation. See [FR-062](feature-requests.md#fr-062-heretto-instance-agnosticism). |
+| FR-062 | Heretto instance agnosticism | Feature | Filed 2026-10-19 after a code audit showed the integration only worked against one tenant. **Slice 1 shipped v0.9.4, fixture hygiene shipped v0.9.5, slice 2 shipped v0.9.6** (all 2026-10-19) — see Completed. **Remaining — slice 3, root discovery (Sonnet, optional):** verified live that every folder's XML carries `parent-folder-id` and the chain ends at a parentless `master` folder, so the root can be derived from any known folder/file UUID (e.g. a `herettoTargetUuid` the writer already used). Build only if users struggle to find their `rootUuid`. Also open: acceptance criterion 3 (green indicator against a *second* live tenant) is code-complete but unexercised. See [FR-062](feature-requests.md#fr-062-heretto-instance-agnosticism). |
 
 ---
 
@@ -126,6 +126,16 @@ Not scheduled. Each carries an explicit unblock condition — revisit only when 
 ---
 
 ## Completed
+
+### Shipped in v0.9.6 (2026-10-19)
+
+FR-062 slice 2 — the content root folder is configuration, not a constant.
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| FR-062 (slice 2) | Heretto content-root folder UUID read from `~/heretto.json` | Feature | `HERETTO_ROOT_UUID` deleted from `constants/heretto.ts`. `useHerettoCms` loads `rootUuid` from `/heretto-credentials` on mount into `herettoRootUuid` state; the connection probe is an effect on that state; `testHerettoConnection`, `saveHerettoCredentials`, the search effect, `openHerettoBrowser`, `handleImportContinue`, `handleHerettoSaveNew`, and `onBrowseFromRoot` all read it (12 former call sites). `HerettoBrowserModal` takes a `rootUuid` prop. Settings modal gained `Content root folder UUID`. Both `/heretto-credentials` handlers (Vite + Swift) return `rootUuid` on GET and preserve it on a PUT that omits it. Empty-root UX: probe skipped, `Test`/`Browse` toast `Set the Heretto content root folder UUID in Heretto Status first`, Save warns `Enter the content root folder UUID to connect`. Live probe of six candidate folder-independent endpoints: all HTTP 500, so no change to the probe URL shape. 3 new tests. Suite 57 files / 1067 passed / 3 skipped; tsc clean; app rebuilt. |
+
+---
 
 ### Shipped in v0.9.5 (2026-10-19)
 

@@ -65,12 +65,19 @@ Connect in two ways:
 ```json
 {
   "host": "yourcompany.heretto.com",
+  "rootUuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "email": "your.name@example.com",
   "token": "your-heretto-api-token"
 }
 ```
 
-`host` is the bare hostname (a leading `https://` or trailing `/` is tolerated and stripped). In dev-server mode the proxy target is read at startup, so restart `npm run dev` after changing the host.
+| Key | What it is |
+|---|---|
+| `host` | Your Heretto instance's bare hostname. A leading `https://` or trailing `/` is tolerated and stripped. In dev-server mode the proxy target is read at startup, so restart `npm run dev` after changing it. |
+| `rootUuid` | The UUID of the content folder the Heretto browser opens on. It is also what the connection check probes. Get it from your Heretto administrator or from the `id` attribute returned by `GET https://<host>/rest/all-files/<any-folder-uuid>` (walk `parent-folder-id` upward to reach the top). |
+| `email`, `token` | Your Heretto login email and an API token. |
+
+Without `rootUuid` the editor still works, but the Heretto browser and the connection indicator are disabled until you set one.
 
 Without a Heretto connection the editor still works — create topics from templates, open local `.dita` files by dragging them into the browser, and save files locally.
 

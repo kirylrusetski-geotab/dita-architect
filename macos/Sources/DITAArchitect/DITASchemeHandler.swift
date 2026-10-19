@@ -69,10 +69,13 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
 
     // MARK: – Heretto proxy
 
-    /// `host` is the Heretto instance hostname (e.g. "yourcompany.heretto.com").
-    /// DITA Architect works with any Heretto CMS instance; nothing is hardcoded.
+    /// `host` is the Heretto instance hostname (e.g. "yourcompany.heretto.com");
+    /// `rootUuid` is the UUID of the content folder the browser opens on and the
+    /// connection check probes (FR-062). DITA Architect works with any Heretto CMS
+    /// instance; nothing is hardcoded.
     private struct Credentials: Codable {
         var host: String?
+        var rootUuid: String?
         let email: String
         let token: String
     }
@@ -97,6 +100,8 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
               !creds.email.isEmpty, !creds.token.isEmpty
         else { return nil }
         creds.host = normalizeHerettoHost(creds.host)
+        creds.rootUuid = creds.rootUuid?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if creds.rootUuid?.isEmpty == true { creds.rootUuid = nil }
         return creds
     }
 
@@ -187,9 +192,9 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
             // Return only host + email + presence flag; never return the token over the scheme handler.
             let result: [String: Any]
             if let creds = loadCredentials() {
-                result = ["host": creds.host ?? "", "email": creds.email, "hasCredentials": true]
+                result = ["host": creds.host ?? "", "rootUuid": creds.rootUuid ?? "", "email": creds.email, "hasCredentials": true]
             } else {
-                result = ["host": "", "email": "", "hasCredentials": false]
+                result = ["host": "", "rootUuid": "", "email": "", "hasCredentials": false]
             }
             let data = (try? JSONSerialization.data(withJSONObject: result)) ?? Data("{}".utf8)
             respond(task, id: id, url: url, status: 200,
@@ -204,9 +209,12 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
                         headers: ["Content-Type": "application/json"], body: data)
                 return
             }
-            // A PUT without a host keeps whatever host is already on disk,
-            // so older callers that send only { email, token } don't wipe it.
-            creds.host = normalizeHerettoHost(creds.host) ?? loadCredentials()?.host
+            // A PUT without a host / rootUuid keeps whatever is already on disk,
+            // so older callers that send only { email, token } don't wipe them.
+            let existing = loadCredentials()
+            creds.host = normalizeHerettoHost(creds.host) ?? existing?.host
+            let trimmedRoot = creds.rootUuid?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            creds.rootUuid = trimmedRoot.isEmpty ? existing?.rootUuid : trimmedRoot
             do {
                 let out = try JSONEncoder().encode(creds)
                 try out.write(to: credentialsFileURL, options: .atomic)

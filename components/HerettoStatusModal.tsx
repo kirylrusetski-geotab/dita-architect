@@ -12,8 +12,8 @@ const HerettoLogo = ({ className, style }: { className?: string; style?: React.C
 interface HerettoStatusModalProps {
   herettoConnected: boolean;
   herettoStatusChecking: boolean;
-  herettoCredentials: { host: string; email: string; token: string };
-  setHerettoCredentials: React.Dispatch<React.SetStateAction<{ host: string; email: string; token: string }>>;
+  herettoCredentials: { host: string; rootUuid: string; email: string; token: string };
+  setHerettoCredentials: React.Dispatch<React.SetStateAction<{ host: string; rootUuid: string; email: string; token: string }>>;
   testHerettoConnection: () => void;
   saveHerettoCredentials: () => void;
   onClose: () => void;
@@ -88,6 +88,30 @@ export const HerettoStatusModal = ({
         placeholder="yourcompany.heretto.com"
         spellCheck={false}
       />
+
+      {/* Content root folder (FR-062) */}
+      <label htmlFor="heretto-root-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
+        Content root folder UUID
+      </label>
+      <input
+        id="heretto-root-input"
+        type="text"
+        value={herettoCredentials.rootUuid}
+        onChange={e => setHerettoCredentials(prev => ({ ...prev, rootUuid: e.target.value }))}
+        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-1"
+        style={{
+          backgroundColor: 'var(--app-surface-raised)',
+          border: '1px solid var(--app-border-subtle)',
+          color: 'var(--app-text-primary)',
+        }}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
+        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+        spellCheck={false}
+      />
+      <p className="text-[10px] mb-4" style={{ color: 'var(--app-text-muted)' }}>
+        The folder the browser opens on. Its UUID is the <code>id</code> of your top-level content folder in Heretto&apos;s REST API.
+      </p>
 
       {/* Email */}
       <label htmlFor="heretto-email-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>

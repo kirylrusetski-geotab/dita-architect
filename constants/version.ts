@@ -21,6 +21,37 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.6',
+    date: '2026-10-19',
+    title: 'The Heretto content root is now a setting. Nothing about your Heretto instance is baked into the app anymore.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'Heretto Status has a new `Content root folder UUID` field under `Heretto host`. This is the folder the Heretto browser opens on and the folder the connection check probes. Before, it was a fixed value compiled into the app, so the browser and the green indicator only worked against one Heretto instance.',
+          '`~/heretto.json` accepts a `rootUuid` key. The README explains how to find yours: ask your Heretto administrator, or read the `id` from any folder in the REST API and follow `parent-folder-id` upward.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'If no root folder is configured, `Test`, `Open from Heretto`, and `Browse from root` now tell you exactly what is missing: `Set the Heretto content root folder UUID in Heretto Status first`. Before, they would have queried a folder that does not exist on your instance and failed with no explanation.',
+          'Saving credentials without a root folder reports `Credentials saved. Enter the content root folder UUID to connect.` instead of claiming the connection failed.',
+          'Saving credentials from an older client that does not send a root folder keeps the one already stored on disk.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          '`HERETTO_ROOT_UUID` is gone from `constants/heretto.ts`. The value lives in `useHerettoCms` state (`herettoRootUuid`), is loaded from `/heretto-credentials` on mount, and reaches `HerettoBrowserModal` as a `rootUuid` prop. The connection probe waits for it instead of firing with a constant.',
+          'There is no folder-independent probe endpoint. `/rest/all-files`, `/rest/files`, `/rest/root`, `/rest/whoami`, `/rest/user`, and `/rest/content-root` were all tried against a live instance and all return HTTP 500, so the probe still hits `/rest/all-files/<rootUuid>`.',
+          'Root discovery (FR-062 slice 3) is now known to be feasible: every folder\'s XML carries `parent-folder-id`, and walking it upward reaches a parentless `master` folder. Not built yet.',
+          'Three new tests pin the behaviour: the probe uses the configured root, no root means no probe, and the constant no longer exists.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.5',
     date: '2026-10-19',
     title: 'Bug sweep: every modal traps focus, the API docs match the API, and the native server stops holding idle connections.',

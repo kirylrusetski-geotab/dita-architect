@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, FileText, Folder, ChevronDown, Network, MapIcon, Search, XCircle } from 'lucide-react';
 import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus } from '../types/heretto';
-import { HERETTO_ROOT_UUID } from '../constants/heretto';
 import { Modal } from './Modal';
 
 const HerettoLogo = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
@@ -13,6 +12,8 @@ const HerettoLogo = ({ className, style }: { className?: string; style?: React.C
 
 interface HerettoBrowserModalProps {
   mode: 'open' | 'save' | 'replace';
+  /** FR-062: the configured content-root folder UUID (from ~/heretto.json). */
+  rootUuid: string;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   breadcrumbs: { uuid: string; name: string }[];
@@ -40,6 +41,7 @@ interface HerettoBrowserModalProps {
 
 export const HerettoBrowserModal = ({
   mode,
+  rootUuid,
   searchQuery,
   setSearchQuery,
   breadcrumbs,
@@ -72,7 +74,7 @@ export const HerettoBrowserModal = ({
     return () => clearTimeout(timer);
   }, [browsing]);
 
-  const currentFolderUuid = breadcrumbs[breadcrumbs.length - 1]?.uuid ?? HERETTO_ROOT_UUID;
+  const currentFolderUuid = breadcrumbs[breadcrumbs.length - 1]?.uuid ?? rootUuid;
   const currentFolderName = breadcrumbs[breadcrumbs.length - 1]?.name ?? 'Heretto';
 
   return (
@@ -131,7 +133,7 @@ export const HerettoBrowserModal = ({
               const abort = new AbortController();
               searchAbortRef.current = abort;
               setSearchQuery(searchQuery); // keep the query
-              search(searchQuery.trim(), HERETTO_ROOT_UUID, abort.signal);
+              search(searchQuery.trim(), rootUuid, abort.signal);
             }}
             className="hover:underline transition-colors"
             style={{ color: 'var(--editor-accent)' }}

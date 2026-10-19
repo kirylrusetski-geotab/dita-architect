@@ -291,6 +291,7 @@ export default function ProfessionalDitaEditor() {
     handleHerettoReplace,
     herettoAtLastSavedLocation,
     onBrowseFromRoot,
+    herettoRootUuid,
   } = useHerettoCms({
     activeTab,
     tabs,
@@ -595,6 +596,7 @@ export default function ProfessionalDitaEditor() {
       {isHerettoBrowserOpen && (
         <HerettoBrowserModal
           mode={herettoBrowserMode}
+          rootUuid={herettoRootUuid}
           searchQuery={herettoSearchQuery}
           setSearchQuery={setHerettoSearchQuery}
           breadcrumbs={herettoBreadcrumbs}

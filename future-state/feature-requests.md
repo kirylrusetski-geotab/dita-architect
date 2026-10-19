@@ -78,7 +78,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-059](#fr-059-expose-readability-score-via-api)                                             | Expose readability score via API                                                  | 2026-08-12 | Open                      |
 | 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
 | 🔴  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Open                      |
-| 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (host slice shipped 2026-10-19) |
+| 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (slices 1–2 shipped v0.9.4/v0.9.6; slice 3 discovery open) |
 
 ---
 
@@ -875,7 +875,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 
 **Requested:** 2026-10-19
 **Source:** Kiryl — "it can integrate with any Heretto instance provided it has the right credentials"; filed when the repos went public and a code audit showed that was not yet true
-**Status:** Open — **slice 1 (configurable host) shipped 2026-10-19**; slices 2–3 open
+**Status:** Open — **slice 1 (configurable host) shipped v0.9.4, slice 2 (configurable root folder) shipped v0.9.6, fixture hygiene shipped v0.9.5 (all 2026-10-19)**; slice 3 (root discovery) open
 **Priority:** P2
 **Impact:** High for anyone outside the original tenant; without this the public repo advertises an integration that only works against one Heretto instance
 **Model weight:** Sonnet (slice 2), Opus (slice 3 — touches browse/search/save navigation and the connection probe)
@@ -886,9 +886,9 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 2. **Content root folder.** `constants/heretto.ts` exports `HERETTO_ROOT_UUID`, a single tenant's content-root folder UUID. It is used as the connection probe (`/heretto-api/all-files/<root>` on mount, on Test, and after saving credentials), as the starting breadcrumb for browse and search, and as the fallback ancestor when resolving image paths — about a dozen call sites in `hooks/useHerettoCms.ts` and `components/HerettoBrowserModal.tsx`. On any other instance the probe 404s, the connection indicator stays red, and the browser modal opens on a folder that does not exist.
 3. **Tenant data in fixtures.** `tests/sync/fixtures/journey-definition.dita` is a byte-exact topic from the original tenant (it must stay byte-exact to be a valid Gate 1 fixture) and carries a real author email in `<prolog>`. Not a functional dependency, but it is personal data in a public repo.
 
-**Slice 2 — configurable root (Sonnet):** Add an optional `rootUuid` to `~/heretto.json`; surface it through `GET /heretto-credentials` (both run modes) and a third field in the Settings modal. Replace the static `HERETTO_ROOT_UUID` import with a value held in `useHerettoCms` state and passed to `HerettoBrowserModal` as a prop. The connection probe should use an endpoint that does not depend on a folder UUID (e.g. `/rest/all-files` with no path, or whichever list endpoint the Heretto REST API exposes at the top level — verify against a live instance, not from memory). Tests that mock the constant (`tests/local-file.test.ts`) move to mocking the hook state.
+**Slice 2 — configurable root (Sonnet):** ✅ **Shipped v0.9.6 (2026-10-19).** `rootUuid` in `~/heretto.json`; both `/heretto-credentials` handlers return it on GET and preserve it on a PUT that omits it; third field (`Content root folder UUID`) in the Settings modal. `HERETTO_ROOT_UUID` deleted from `constants/heretto.ts`; the value lives in `useHerettoCms` state (`herettoRootUuid`, loaded on mount) and reaches `HerettoBrowserModal` as a `rootUuid` prop. With no root configured: the mount probe is skipped, Test/Browse show `Set the Heretto content root folder UUID in Heretto Status first`, and Save reports `Credentials saved. Enter the content root folder UUID to connect.` **Probe endpoint finding (verified live 2026-10-19):** `/rest/all-files`, `/rest/files`, `/rest/root`, `/rest/whoami`, `/rest/user`, `/rest/content-root` all return HTTP 500, so there is no folder-independent probe; the probe still hits `/rest/all-files/<rootUuid>`. Three tests in `tests/heretto-verification-guards.test.tsx` (probe uses configured root; no root → no probe, disconnected; the constant no longer exists).
 
-**Slice 3 — root discovery (Opus, optional):** If the Heretto REST API exposes a top-level listing, derive the content root automatically when `rootUuid` is absent, so a fresh install needs only host, email, and token. Only worth doing if slice 2 shows users struggle to find their root UUID.
+**Slice 3 — root discovery (Sonnet, optional):** Verified live 2026-10-19: every folder's XML carries `parent-folder-id`, and walking it upward from the content folder reaches a folder named `master` with **no** parent — the repository root. So discovery is possible from *any* known folder or file UUID (e.g. the UUID in a topic the writer already opened via `POST /api/load-content` with `herettoTargetUuid`): fetch, follow `parent-folder-id` until it is absent, then offer the `master` folder (or its `content` child) as the root. Only worth doing if slice 2 shows users struggle to find their root UUID.
 
 **Fixture hygiene (any time, Haiku):** ✅ **Done in v0.9.5 (2026-10-19).** The author email in the Journey Definition fixture's `<prolog>` is now `author@example.com`. The byte-stability test compares the fixture against its own round-trip (`expect(roundTrip(xml)).toBe(xml)`), so no separate expected-output file needed regenerating. The fixture's value is its structure (nested `<dl>`, table, note, inline image), not its metadata.
 
@@ -897,7 +897,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 ### Acceptance criteria
 
 1. ✅ (shipped) `~/heretto.json` `host` drives both proxies; the Settings modal edits it; a missing host yields a clear 400 in native mode and a startup warning in dev mode; no literal Heretto hostname remains in `vite.config.ts`, `DITASchemeHandler.swift`, or the READMEs.
-2. `~/heretto.json` `rootUuid` drives browse/search/save navigation; `constants/heretto.ts` no longer exports a tenant UUID.
-3. The connection indicator turns green against a second Heretto instance given only host, email, token (and `rootUuid` until slice 3).
-4. No real person's email address appears in any tracked file; byte-stability tests still pass.
-5. `README.md`, `macos/README.md`, and `CLAUDE.md` describe the full `heretto.json` shape.
+2. ✅ (shipped v0.9.6) `~/heretto.json` `rootUuid` drives browse/search/save navigation; `constants/heretto.ts` no longer exports a tenant UUID.
+3. The connection indicator turns green against a second Heretto instance given only host, email, token (and `rootUuid` until slice 3). *Code path complete; not yet exercised against a second live tenant.*
+4. ✅ (shipped v0.9.5) No real person's email address appears in any tracked file; byte-stability tests still pass.
+5. ✅ (shipped v0.9.6) `README.md`, `macos/README.md`, and `CLAUDE.md` describe the full `heretto.json` shape.

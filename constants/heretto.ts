@@ -1,6 +1,9 @@
 import type { HerettoItem } from '../types/heretto';
 
-export const HERETTO_ROOT_UUID = '6ffb7e80-e95c-11ee-ad84-0242039bae5e';
+// FR-062: the content-root folder UUID is no longer a constant. It is read from
+// `~/heretto.json` (`rootUuid`) via `/heretto-credentials` and held in
+// `useHerettoCms` state (`herettoRootUuid`), so DITA Architect can point at any
+// Heretto instance.
 
 /**
  * TTL-aware cache for Heretto folder listings.

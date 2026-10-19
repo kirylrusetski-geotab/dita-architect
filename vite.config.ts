@@ -161,27 +161,32 @@ export default defineConfig({
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                   host: normalizeHerettoHost(raw.host) ?? '',
+                  rootUuid: typeof raw.rootUuid === 'string' ? raw.rootUuid.trim() : '',
                   email: raw.email || '',
                   hasCredentials: !!(raw.email && raw.token),
                 }));
               } catch {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ host: '', email: '', hasCredentials: false }));
+                res.end(JSON.stringify({ host: '', rootUuid: '', email: '', hasCredentials: false }));
               }
             } else if (req.method === 'PUT') {
               let body = '';
               req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
               req.on('end', () => {
                 try {
-                  const { host, email, token } = JSON.parse(body);
-                  // A PUT without a host keeps whatever host is already on disk,
-                  // so older callers that send only { email, token } don't wipe it.
+                  const { host, rootUuid, email, token } = JSON.parse(body);
+                  // A PUT without a host / rootUuid keeps whatever is already on disk,
+                  // so older callers that send only { email, token } don't wipe them.
                   let existingHost: string | null = null;
+                  let existingRoot = '';
                   try {
-                    existingHost = normalizeHerettoHost(JSON.parse(fs.readFileSync(herettoConfigPath, 'utf-8')).host);
+                    const existing = JSON.parse(fs.readFileSync(herettoConfigPath, 'utf-8'));
+                    existingHost = normalizeHerettoHost(existing.host);
+                    existingRoot = typeof existing.rootUuid === 'string' ? existing.rootUuid.trim() : '';
                   } catch { /* no existing file */ }
                   const nextHost = normalizeHerettoHost(host) ?? existingHost;
-                  fs.writeFileSync(herettoConfigPath, JSON.stringify({ host: nextHost ?? '', email, token }, null, 2));
+                  const nextRoot = (typeof rootUuid === 'string' && rootUuid.trim()) ? rootUuid.trim() : existingRoot;
+                  fs.writeFileSync(herettoConfigPath, JSON.stringify({ host: nextHost ?? '', rootUuid: nextRoot, email, token }, null, 2));
                   // Update the in-memory auth header (mutates object property
                   // so the proxy closure picks up the new value immediately)
                   if (email && token) {
