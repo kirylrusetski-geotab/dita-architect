@@ -31,7 +31,7 @@ export function useHerettoCms({
 }: UseHerettoCmsParams) {
   // --- Heretto Status modal ---
   const [isHerettoStatusOpen, setIsHerettoStatusOpen] = useState(false);
-  const [herettoCredentials, setHerettoCredentials] = useState({ email: '', token: '' });
+  const [herettoCredentials, setHerettoCredentials] = useState({ host: '', email: '', token: '' });
   const [herettoStatusChecking, setHerettoStatusChecking] = useState(false);
 
   // --- Heretto CMS state (shared across tabs) ---
@@ -86,7 +86,7 @@ export function useHerettoCms({
       if (res.ok) {
         const data = await res.json();
         // Token is never returned by the server; leave blank so the user must re-enter to save.
-        setHerettoCredentials({ email: data.email || '', token: '' });
+        setHerettoCredentials({ host: data.host || '', email: data.email || '', token: '' });
       }
     } catch { /* silent */ }
   }, []);
@@ -120,7 +120,7 @@ export function useHerettoCms({
       if (testConnected) {
         toast.success('Credentials saved and connection verified');
       } else {
-        toast.warning('Credentials saved but connection failed — check your email and token');
+        toast.warning('Credentials saved but connection failed — check your Heretto host, email and token');
       }
     } catch {
       toast.error('Failed to save credentials');

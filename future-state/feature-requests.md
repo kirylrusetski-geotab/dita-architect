@@ -72,6 +72,13 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
 | 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
 | 🔴  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Open                      |
+| 🟢  | FR-056                                                                                          | API content loads flush into suggesting mode                                      | 2026-08-04 | Shipped v0.9.2            |
+| 🟢  | FR-057                                                                                          | API whole-document replace rendered as a reviewable diff                          | 2026-08-04 | Shipped v0.9.3            |
+| 🔴  | [FR-058](#fr-058-ingest-api-whole-document-replace-as-tracked-marks)                           | Ingest API whole-document replace as tracked marks                                | 2026-08-04 | Open                      |
+| 🔴  | [FR-059](#fr-059-expose-readability-score-via-api)                                             | Expose readability score via API                                                  | 2026-08-12 | Open                      |
+| 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
+| 🔴  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Open                      |
+| 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (host slice shipped 2026-10-19) |
 
 ---
 
@@ -829,3 +836,68 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 3. `POST /api/load-content`, `PUT /api/tabs/:id/content` (stages a review per ADR-008), and `POST /api/tabs/:id/save` work end-to-end against Heretto from a non-Mac machine, reading credentials from the user's home-directory `heretto.json`.
 4. CLAUDE.md's "Two Run Modes" table and `README.md` gain the new platform rows; the macOS-only limitation is documented until parity lands.
 5. The Swift shell is untouched; macOS behaviour has no regressions (`npm run build:app` and the native smoke pass still succeed).
+
+---
+
+## FR-061: Rename the Geotab theme to Navy
+
+**Requested:** 2026-10-19
+**Source:** Kiryl — filed when the repos went public; the theme is a colour palette, not an integration, and should not carry a company name
+**Status:** Open
+**Priority:** P3
+**Impact:** Low — cosmetic, but it is user-visible in the theme dropdown, the API `theme` field, and `localStorage`
+**Model weight:** Sonnet (one rename with a persisted-value migration and six test files to update)
+
+**Problem:** The sixth app theme is called `geotab` (`[data-theme="geotab"]` in `index.css`, `{ value: 'geotab', label: 'Geotab' }` in `components/Toolbar.tsx`, description `Geotab brand colors`, Monaco `bgColors.geotab`, and the `GET /api/status` `theme` enum in `API.md`). It is a blue-navy dark palette. Now that the repository is public and the Heretto integration is instance-agnostic (FR-062), a company-named theme is the one remaining tenant-specific label in the product surface.
+
+**Smallest slice:** Rename the theme to **Navy** everywhere it is user-visible or persisted, with a one-time migration for stored preferences:
+
+- `index.css`: `[data-theme="geotab"]` → `[data-theme="navy"]` (palette values unchanged).
+- `components/Toolbar.tsx`: `{ value: 'navy', label: 'Navy' }`; description → `Deep blue-navy palette` (keep the "what / for whom" pattern from v0.7.x).
+- `components/MonacoDitaEditor.tsx` `bgColors.navy`; `hooks/useEditorUi.ts` validator accepts `'navy'`, and **maps a stored `'geotab'` to `'navy'`** so existing users keep their theme (write the migrated value back to `localStorage`).
+- `API.md` `theme` enum; `README.md` theme list.
+- Tests: `tests/geotab-theme-integration.test.ts` (rename file to `navy-theme-integration.test.ts`), `tests/monaco-theme-config.test.ts`, `tests/theme-options.test.ts`, `tests/theme-validation.test.ts`, `tests/theme-descriptions-user-focused-update.test.ts`, `tests/light-theme-stone-color-conversion.test.ts` — update expectations; add one test for the `geotab → navy` localStorage migration.
+- Release notes history in `constants/version.ts` is **not** rewritten — past entries keep the name they shipped with.
+
+**Serves:** Moat-neutral hygiene for a public repo; also unblocks FR-044 (an "Altitude" theme) being re-evaluated without two company-named entries side by side.
+
+### Acceptance criteria
+
+1. The theme dropdown shows **Navy**; no user-visible string, CSS selector, or API value says `geotab`.
+2. A user whose `localStorage` holds `dita-architect-theme = geotab` opens the app and gets Navy with no flash of the default theme; the stored value is rewritten to `navy`.
+3. `GET /api/status` returns `theme: "navy"` when selected; `API.md` lists it.
+4. All theme tests pass with the new name; the migration test is pinned.
+5. The rendered palette is byte-identical to the current Geotab theme (CSS variables unchanged).
+
+---
+
+## FR-062: Heretto instance agnosticism
+
+**Requested:** 2026-10-19
+**Source:** Kiryl — "it can integrate with any Heretto instance provided it has the right credentials"; filed when the repos went public and a code audit showed that was not yet true
+**Status:** Open — **slice 1 (configurable host) shipped 2026-10-19**; slices 2–3 open
+**Priority:** P2
+**Impact:** High for anyone outside the original tenant; without this the public repo advertises an integration that only works against one Heretto instance
+**Model weight:** Sonnet (slice 2), Opus (slice 3 — touches browse/search/save navigation and the connection probe)
+
+**Problem:** Three tenant-specific values were baked into the Heretto integration:
+
+1. **Host.** `vite.config.ts` proxied `/heretto-api/*` to a hardcoded `https://<tenant>.heretto.com`, and `DITASchemeHandler.swift` built upstream URLs with the same literal host. **Fixed 2026-10-19:** both read `host` from `~/heretto.json`; the Settings modal has a Heretto host field; a PUT without `host` preserves the one on disk. The Vite proxy target is fixed at startup, so a host change in dev mode needs a restart (documented).
+2. **Content root folder.** `constants/heretto.ts` exports `HERETTO_ROOT_UUID`, a single tenant's content-root folder UUID. It is used as the connection probe (`/heretto-api/all-files/<root>` on mount, on Test, and after saving credentials), as the starting breadcrumb for browse and search, and as the fallback ancestor when resolving image paths — about a dozen call sites in `hooks/useHerettoCms.ts` and `components/HerettoBrowserModal.tsx`. On any other instance the probe 404s, the connection indicator stays red, and the browser modal opens on a folder that does not exist.
+3. **Tenant data in fixtures.** `tests/sync/fixtures/journey-definition.dita` is a byte-exact topic from the original tenant (it must stay byte-exact to be a valid Gate 1 fixture) and carries a real author email in `<prolog>`. Not a functional dependency, but it is personal data in a public repo.
+
+**Slice 2 — configurable root (Sonnet):** Add an optional `rootUuid` to `~/heretto.json`; surface it through `GET /heretto-credentials` (both run modes) and a third field in the Settings modal. Replace the static `HERETTO_ROOT_UUID` import with a value held in `useHerettoCms` state and passed to `HerettoBrowserModal` as a prop. The connection probe should use an endpoint that does not depend on a folder UUID (e.g. `/rest/all-files` with no path, or whichever list endpoint the Heretto REST API exposes at the top level — verify against a live instance, not from memory). Tests that mock the constant (`tests/local-file.test.ts`) move to mocking the hook state.
+
+**Slice 3 — root discovery (Opus, optional):** If the Heretto REST API exposes a top-level listing, derive the content root automatically when `rootUuid` is absent, so a fresh install needs only host, email, and token. Only worth doing if slice 2 shows users struggle to find their root UUID.
+
+**Fixture hygiene (any time, Haiku):** Replace the author email in the Journey Definition fixture's `<prolog>` with a neutral placeholder **and** regenerate the expected-output side of the byte-stability test from the edited file, so Gate 1 still asserts byte equality. The fixture's value is its structure (nested `<dl>`, table, note, inline image), not its metadata.
+
+**Serves:** The public repo's basic honesty; moat 3 (workflow glue) becomes portable to any Heretto tenant instead of one.
+
+### Acceptance criteria
+
+1. ✅ (shipped) `~/heretto.json` `host` drives both proxies; the Settings modal edits it; a missing host yields a clear 400 in native mode and a startup warning in dev mode; no literal Heretto hostname remains in `vite.config.ts`, `DITASchemeHandler.swift`, or the READMEs.
+2. `~/heretto.json` `rootUuid` drives browse/search/save navigation; `constants/heretto.ts` no longer exports a tenant UUID.
+3. The connection indicator turns green against a second Heretto instance given only host, email, token (and `rootUuid` until slice 3).
+4. No real person's email address appears in any tracked file; byte-stability tests still pass.
+5. `README.md`, `macos/README.md`, and `CLAUDE.md` describe the full `heretto.json` shape.

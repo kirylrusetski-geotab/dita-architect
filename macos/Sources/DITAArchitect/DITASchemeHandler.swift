@@ -69,7 +69,10 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
 
     // MARK: – Heretto proxy
 
+    /// `host` is the Heretto instance hostname (e.g. "yourcompany.heretto.com").
+    /// DITA Architect works with any Heretto CMS instance; nothing is hardcoded.
     private struct Credentials: Codable {
+        var host: String?
         let email: String
         let token: String
     }
@@ -78,11 +81,22 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("heretto.json")
     }
 
+    /// Strip scheme and trailing slashes so "https://x.heretto.com/" → "x.heretto.com".
+    private func normalizeHerettoHost(_ value: String?) -> String? {
+        guard var host = value?.trimmingCharacters(in: .whitespacesAndNewlines), !host.isEmpty else { return nil }
+        for prefix in ["https://", "http://"] where host.lowercased().hasPrefix(prefix) {
+            host = String(host.dropFirst(prefix.count))
+        }
+        while host.hasSuffix("/") { host.removeLast() }
+        return host.isEmpty ? nil : host
+    }
+
     private func loadCredentials() -> Credentials? {
         guard let data = try? Data(contentsOf: credentialsFileURL),
-              let creds = try? JSONDecoder().decode(Credentials.self, from: data),
+              var creds = try? JSONDecoder().decode(Credentials.self, from: data),
               !creds.email.isEmpty, !creds.token.isEmpty
         else { return nil }
+        creds.host = normalizeHerettoHost(creds.host)
         return creds
     }
 
@@ -93,12 +107,18 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
                     headers: ["Content-Type": "application/json"], body: data)
             return
         }
+        guard let host = creds.host else {
+            let data = Data(#"{"error":"Heretto host not configured — open Settings and enter your Heretto hostname"}"#.utf8)
+            respond(task, id: id, url: originalURL, status: 400,
+                    headers: ["Content-Type": "application/json"], body: data)
+            return
+        }
 
-        // /heretto-api/SOMETHING → https://geotab.heretto.com/rest/SOMETHING
+        // /heretto-api/SOMETHING → https://<host>/rest/SOMETHING
         let restPath = "/rest" + String(path.dropFirst("/heretto-api".count))
         var components = URLComponents()
         components.scheme = "https"
-        components.host = "geotab.heretto.com"
+        components.host = host
         components.path = restPath
         if let orig = URLComponents(url: originalURL, resolvingAgainstBaseURL: false) {
             components.queryItems = orig.queryItems
@@ -164,12 +184,12 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
         let url = request.url!
         switch request.httpMethod?.uppercased() ?? "GET" {
         case "GET":
-            // Return only email + presence flag; never return the token over the scheme handler.
+            // Return only host + email + presence flag; never return the token over the scheme handler.
             let result: [String: Any]
             if let creds = loadCredentials() {
-                result = ["email": creds.email, "hasCredentials": true]
+                result = ["host": creds.host ?? "", "email": creds.email, "hasCredentials": true]
             } else {
-                result = ["email": "", "hasCredentials": false]
+                result = ["host": "", "email": "", "hasCredentials": false]
             }
             let data = (try? JSONSerialization.data(withJSONObject: result)) ?? Data("{}".utf8)
             respond(task, id: id, url: url, status: 200,
@@ -177,13 +197,16 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
 
         case "PUT":
             guard let body = request.httpBody,
-                  let creds = try? JSONDecoder().decode(Credentials.self, from: body)
+                  var creds = try? JSONDecoder().decode(Credentials.self, from: body)
             else {
                 let data = Data(#"{"error":"Invalid JSON"}"#.utf8)
                 respond(task, id: id, url: url, status: 400,
                         headers: ["Content-Type": "application/json"], body: data)
                 return
             }
+            // A PUT without a host keeps whatever host is already on disk,
+            // so older callers that send only { email, token } don't wipe it.
+            creds.host = normalizeHerettoHost(creds.host) ?? loadCredentials()?.host
             do {
                 let out = try JSONEncoder().encode(creds)
                 try out.write(to: credentialsFileURL, options: .atomic)

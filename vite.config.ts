@@ -8,12 +8,29 @@ import tailwindcss from '@tailwindcss/vite';
 // Read Heretto credentials (server-side only, never exposed to browser).
 // Wrapped in an object so the proxy closure always reads the latest value
 // after credential updates via the PUT endpoint.
-const herettoState: { auth: string | null } = { auth: null };
+//
+// `host` is the Heretto instance hostname (e.g. "yourcompany.heretto.com").
+// DITA Architect works with any Heretto CMS instance; nothing is hardcoded.
+// Note: Vite fixes the proxy target at startup, so a host change via the
+// Settings panel takes effect after the dev server is restarted.
+const herettoState: { auth: string | null; host: string | null } = { auth: null, host: null };
+
+/** Strip scheme and trailing slashes so "https://x.heretto.com/" → "x.heretto.com". */
+const normalizeHerettoHost = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const host = value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  return host.length > 0 ? host : null;
+};
+
 try {
   const configPath = path.join(os.homedir(), 'heretto.json');
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  herettoState.host = normalizeHerettoHost(raw.host);
   if (raw.email && raw.token) {
     herettoState.auth = 'Basic ' + Buffer.from(`${raw.email}:${raw.token}`).toString('base64');
+  }
+  if (!herettoState.host) {
+    console.warn('[DITA Architect] ~/heretto.json has no "host" — Heretto proxy disabled until one is set');
   }
 } catch {
   console.warn('[DITA Architect] ~/heretto.json not found or invalid — Heretto proxy disabled');
@@ -38,10 +55,10 @@ export default defineConfig({
     server: {
       port: 3000,
       host: 'localhost',
-      proxy: herettoState.auth
+      proxy: herettoState.auth && herettoState.host
         ? {
             '/heretto-api': {
-              target: 'https://geotab.heretto.com',
+              target: `https://${herettoState.host}`,
               changeOrigin: true,
               rewrite: (p) => p.replace(/^\/heretto-api/, '/rest'),
               configure: (proxy) => {
@@ -140,24 +157,39 @@ export default defineConfig({
             if (req.method === 'GET') {
               try {
                 const raw = JSON.parse(fs.readFileSync(herettoConfigPath, 'utf-8'));
-                // Return email + presence flag only; never expose the token over HTTP.
+                // Return host + email + presence flag only; never expose the token over HTTP.
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ email: raw.email || '', hasCredentials: !!(raw.email && raw.token) }));
+                res.end(JSON.stringify({
+                  host: normalizeHerettoHost(raw.host) ?? '',
+                  email: raw.email || '',
+                  hasCredentials: !!(raw.email && raw.token),
+                }));
               } catch {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ email: '', hasCredentials: false }));
+                res.end(JSON.stringify({ host: '', email: '', hasCredentials: false }));
               }
             } else if (req.method === 'PUT') {
               let body = '';
               req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
               req.on('end', () => {
                 try {
-                  const { email, token } = JSON.parse(body);
-                  fs.writeFileSync(herettoConfigPath, JSON.stringify({ email, token }, null, 2));
+                  const { host, email, token } = JSON.parse(body);
+                  // A PUT without a host keeps whatever host is already on disk,
+                  // so older callers that send only { email, token } don't wipe it.
+                  let existingHost: string | null = null;
+                  try {
+                    existingHost = normalizeHerettoHost(JSON.parse(fs.readFileSync(herettoConfigPath, 'utf-8')).host);
+                  } catch { /* no existing file */ }
+                  const nextHost = normalizeHerettoHost(host) ?? existingHost;
+                  fs.writeFileSync(herettoConfigPath, JSON.stringify({ host: nextHost ?? '', email, token }, null, 2));
                   // Update the in-memory auth header (mutates object property
                   // so the proxy closure picks up the new value immediately)
                   if (email && token) {
                     herettoState.auth = 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
+                  }
+                  if (nextHost !== herettoState.host) {
+                    console.warn(`[DITA Architect] Heretto host changed to "${nextHost ?? ''}" — restart the dev server for the proxy to use it`);
+                    herettoState.host = nextHost;
                   }
                   res.writeHead(200, { 'Content-Type': 'application/json' });
                   res.end(JSON.stringify({ ok: true }));

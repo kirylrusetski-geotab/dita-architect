@@ -21,6 +21,35 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.4',
+    date: '2026-10-19',
+    title: 'Connect to any Heretto instance: the host is now a setting, not a constant.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'The Heretto Settings panel has a new `Heretto host` field above `Email`. Enter your instance hostname (for example `yourcompany.heretto.com`) and the app proxies every Heretto request there. Before, the hostname was fixed in the app and could not be changed without editing source code.',
+          '`~/heretto.json` accepts a `host` key alongside `email` and `token`. You can paste the hostname with or without `https://` or a trailing slash; both are stripped before use.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'If no host is configured, the native app now answers Heretto requests with a clear `Heretto host not configured` message that points you to Settings. Before, requests went to a hostname you could not see or change.',
+          'Saving credentials from an older client that sends only email and token no longer wipes the host already stored on disk.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'The dev server reads the host once at startup, so after changing it you need to restart `npm run dev`. The native app reloads it on every request.',
+          'The Heretto content-root folder UUID is still a constant (FR-062, slice 2). Browse, search, and the connection check depend on it, so a second Heretto instance will not show as connected yet.',
+          'The repository is now public under an all-rights-reserved LICENSE. FR-060 (Windows and Linux shells), FR-061 (rename the Geotab theme to Navy), and FR-062 (Heretto instance agnosticism) were filed.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.3',
     date: '2026-08-04',
     title: 'PUT now shows a diff — AI-drafted content goes to review, not straight into the document.',

@@ -1,6 +1,6 @@
 # DITA Architect Backlog
 
-**Last updated:** 2026-08-04 — v0.9.3 shipped (FR-057: PUT now stages a review; ADR-008; insert-section suggesting-mode guard removed; saveTab guard added). FR-058 filed. Full history in [Changelog](#changelog) at the end of this file.
+**Last updated:** 2026-10-19 — v0.9.4 shipped (FR-062 slice 1: configurable Heretto host). Repos made public with an all-rights-reserved LICENSE; v0.9.0–v0.9.3 pushed and tagged; FR-060/061/062 filed. Full history in [Changelog](#changelog) at the end of this file.
 
 This backlog has two lists — **Bugs** and **Features** — because they need different handling. Bugs arrive on their own and get cleared reactively, in batches; features are chosen deliberately and sequenced by dependency. Most rows carry a **model weight** (Haiku / Sonnet / Opus / Multi-agent, in bold) and any dependency chain.
 
@@ -107,6 +107,8 @@ Build order: **P2-39 (establishes the JS-bridge surface) → P2-41 → P2-40**
 | FR-054 | Heretto folder tree view in browser modal | Feature | Replace the breadcrumb-drill-down folder browser with a lazy-expanding indented tree (Finder-style) inside the modal. Scratch the pain point that navigating deeply nested folder structures requires many clicks and obscures the overall repository shape. Scope: tree rendering with disclosure on expand (fetches folder children via `/heretto-api/all-files/{uuid}` cached), file selection (opens topic), optional keyboard nav (arrow keys, Enter), read-only (no drag, no file moves). **Not in scope:** file operations, ditamap integration (see FR-035), persistent sidebar. Implementation: `buildFolderTree()` helper reusing `herettoFolderCache`, new `FolderTreeView.tsx` component, optional toggle between "Tree" and "Search" views in the existing modal. **Sonnet.** Full scope in [FR-054](feature-requests.md#fr-054-heretto-folder-tree-view-in-browser-modal). |
 | FR-058 | Ingest API whole-document replace as tracked marks | Feature | FR-057 delivers an XML-level diff with all-or-nothing Accept/Reject. This item delivers per-change review in the visual editor and ChangeListPanel — diff old vs new XML and synthesise `TrackedTextNode` marks so each AI edit appears inline. Depends on FR-051 (marks must survive save/reload to be useful across a review session). See [FR-058](feature-requests.md#fr-058-ingest-api-whole-document-replace-as-tracked-marks). **Fable** (round-trip contract + tracked-changes machinery simultaneously). |
 | FR-060 | Native Windows and Linux app shells | Feature | Filed 2026-10-19 when the repos went public. The native shell (`macos/`) is Swift/WebKit-only, and per ADR-007 the Vite dev server exposes only the load-content queue — so the tab API and the whole AI-review loop are macOS-only today. First slice is **tab-API parity, not menu-bar parity**: pick one cross-platform shell (Tauri 2 preferred; Electron or a Node sidecar as alternatives), keep `window.__ditaApi` as the sole transport and `API.md` shapes unchanged, replace the `dita:`-protocol gate with a platform-neutral native flag. ADR required (new run-mode surface). Post-1.0 unless a non-Mac user materialises. See [FR-060](feature-requests.md#fr-060-native-windows-and-linux-app-shells). **Fable.** |
+| FR-061 | Rename the Geotab theme to Navy | Polish | Filed 2026-10-19. The sixth theme is a blue-navy palette carrying a company name — the last tenant-specific label in the product surface now that the repo is public. Rename `geotab` → `navy` in `index.css`, `Toolbar.tsx`, `MonacoDitaEditor.tsx`, `useEditorUi.ts`, `API.md`, README; **migrate stored `localStorage` value `geotab` → `navy`** so existing users keep their theme; update six theme test files and pin the migration. Release-note history is not rewritten. See [FR-061](feature-requests.md#fr-061-rename-the-geotab-theme-to-navy). **Sonnet.** |
+| FR-062 | Heretto instance agnosticism | Feature | Filed 2026-10-19 after a code audit showed the integration only worked against one tenant. **Slice 1 shipped 2026-10-19:** `host` in `~/heretto.json` drives both proxies (`vite.config.ts`, `DITASchemeHandler.swift`), Settings modal gained a host field, PUT preserves host when omitted. **Open — slice 2 (Sonnet):** `constants/heretto.ts` `HERETTO_ROOT_UUID` is a single tenant's content-root folder used by the connection probe, browse/search start, and image-path fallback (~12 call sites in `useHerettoCms.ts` / `HerettoBrowserModal.tsx`); make it `rootUuid` in `heretto.json`, held in hook state, with a folder-independent probe. **Slice 3 (Opus, optional):** auto-discover the root from the Heretto REST top-level listing. **Fixture hygiene (Haiku):** scrub the real author email from `tests/sync/fixtures/journey-definition.dita` and regenerate the byte-stability expectation. See [FR-062](feature-requests.md#fr-062-heretto-instance-agnosticism). |
 
 ---
 
@@ -128,6 +130,17 @@ Not scheduled. Each carries an explicit unblock condition — revisit only when 
 ---
 
 ## Completed
+
+### Shipped in v0.9.4 (2026-10-19)
+
+Configurable Heretto host (FR-062 slice 1). Public-repo housekeeping.
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| FR-062 (slice 1) | Heretto host is read from `~/heretto.json` instead of being hardcoded | Feature | `vite.config.ts` proxy target and `DITASchemeHandler.swift` upstream host both come from a new `host` key (scheme and trailing slash normalised). `HerettoStatusModal` gained a `Heretto host` field; `useHerettoCms` credential state carries `host`; `GET /heretto-credentials` returns it; a PUT without `host` preserves the on-disk value. Native mode answers `400 Heretto host not configured` when absent; dev mode logs a startup warning and disables the proxy (target is fixed at startup, restart required after a change). READMEs, CLAUDE.md, and the stable repo README de-tenanted. Slices 2–3 (root folder UUID, discovery) and fixture hygiene remain open under FR-062. Suite 56 files / 1056 passed / 3 skipped; tsc clean; app rebuilt. |
+| — | Public-repo housekeeping | Chore | Both GitHub repos made public 2026-10-19. Added an all-rights-reserved `LICENSE` to each; `package.json` `license: UNLICENSED`. Pushed v0.9.1–v0.9.3 (previously local-only) and tagged `v0.9.0`, `v0.9.1`, `v0.9.3`. `package-lock.json` version re-synced (had been stuck at 0.9.1). ADR-008 promoted to Accepted. |
+
+---
 
 ### Shipped in v0.9.3 (2026-08-04)
 

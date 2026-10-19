@@ -54,20 +54,23 @@ See [`macos/README.md`](macos/README.md) for build instructions. The native app 
 
 ## Connecting to Heretto
 
-You'll need your Heretto API token. Generate one at [Heretto Token Management](https://geotab.heretto.com/tools/token-management/tokens.xql) (log in first).
+DITA Architect works with any Heretto CMS instance. You'll need your instance hostname and a Heretto API token — generate one in your Heretto instance under Token Management (`https://<your-heretto-host>/tools/token-management/tokens.xql`, log in first).
 
 Connect in two ways:
 
-1. **From the app:** Click the Heretto icon in the toolbar and enter your email and API token.
+1. **From the app:** Click the Heretto icon in the toolbar and enter your Heretto host, email, and API token.
 
 2. **From a file:** Create `~/heretto.json` with your credentials:
 
 ```json
 {
-  "email": "your.name@geotab.com",
+  "host": "yourcompany.heretto.com",
+  "email": "your.name@example.com",
   "token": "your-heretto-api-token"
 }
 ```
+
+`host` is the bare hostname (a leading `https://` or trailing `/` is tolerated and stripped). In dev-server mode the proxy target is read at startup, so restart `npm run dev` after changing the host.
 
 Without a Heretto connection the editor still works — create topics from templates, open local `.dita` files by dragging them into the browser, and save files locally.
 

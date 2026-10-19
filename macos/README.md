@@ -35,8 +35,8 @@ AppDelegate
 
 DITASchemeHandler          — serves all requests the web app makes
  ├─ /                      → dist/index.html  (static files from bundle)
- ├─ /heretto-api/*         → proxied to https://geotab.heretto.com/rest/*
- │                           with Basic auth injected from ~/heretto.json
+ ├─ /heretto-api/*         → proxied to https://<host>/rest/*
+ │                           host + Basic auth read from ~/heretto.json
  ├─ /heretto-credentials   → reads/writes ~/heretto.json
  └─ /api/*                 → 404 (handled by HttpServer instead)
 
@@ -58,7 +58,7 @@ The web app loads under the `dita://` scheme rather than `file://` or `http://`.
 
 ### Heretto proxy
 
-All requests the web app makes to `/heretto-api/*` are transparently forwarded to `https://geotab.heretto.com/rest/*` with Basic auth injected from `~/heretto.json`. Credentials are reloaded from disk on every request, so changes made through the in-app Settings panel take effect immediately without a restart.
+All requests the web app makes to `/heretto-api/*` are transparently forwarded to `https://<host>/rest/*`, where `<host>` and the Basic auth credentials come from `~/heretto.json`. Host and credentials are reloaded from disk on every request, so changes made through the in-app Settings panel take effect immediately without a restart. If no host is configured the proxy answers `400` with a message pointing at Settings.
 
 ### External HTTP API
 
@@ -121,7 +121,8 @@ Credentials are read from `~/heretto.json`:
 
 ```json
 {
-  "email": "your.name@geotab.com",
+  "host": "yourcompany.heretto.com",
+  "email": "your.name@example.com",
   "token": "your-heretto-api-token"
 }
 ```

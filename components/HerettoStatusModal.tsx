@@ -11,8 +11,8 @@ const HerettoLogo = ({ className, style }: { className?: string; style?: React.C
 interface HerettoStatusModalProps {
   herettoConnected: boolean;
   herettoStatusChecking: boolean;
-  herettoCredentials: { email: string; token: string };
-  setHerettoCredentials: React.Dispatch<React.SetStateAction<{ email: string; token: string }>>;
+  herettoCredentials: { host: string; email: string; token: string };
+  setHerettoCredentials: React.Dispatch<React.SetStateAction<{ host: string; email: string; token: string }>>;
   testHerettoConnection: () => void;
   saveHerettoCredentials: () => void;
   onClose: () => void;
@@ -75,13 +75,34 @@ export const HerettoStatusModal = ({
         </button>
       </div>
 
+      {/* Host */}
+      <label htmlFor="heretto-host-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
+        Heretto host
+      </label>
+      <input
+        id="heretto-host-input"
+        autoFocus
+        type="text"
+        value={herettoCredentials.host}
+        onChange={e => setHerettoCredentials(prev => ({ ...prev, host: e.target.value }))}
+        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-4"
+        style={{
+          backgroundColor: 'var(--app-surface-raised)',
+          border: '1px solid var(--app-border-subtle)',
+          color: 'var(--app-text-primary)',
+        }}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
+        placeholder="yourcompany.heretto.com"
+        spellCheck={false}
+      />
+
       {/* Email */}
       <label htmlFor="heretto-email-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
         Email
       </label>
       <input
         id="heretto-email-input"
-        autoFocus
         type="text"
         value={herettoCredentials.email}
         onChange={e => setHerettoCredentials(prev => ({ ...prev, email: e.target.value }))}
