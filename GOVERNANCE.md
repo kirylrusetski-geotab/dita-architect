@@ -4,8 +4,8 @@ How a change gets from idea to merged, in a way that resists bloat, spaghetti, a
 the **process** layer; the **quality** layer is [REVIEW-CRITERIA.md](./REVIEW-CRITERIA.md) and the
 **intent** lives in [CLAUDE.md](./CLAUDE.md) ("What This Is" + engineering culture).
 
-This is a shared model — Cadence (`~/ai-projects/Cadence/`) runs the same five stages. The two
-projects keep their governance vocabulary aligned on purpose. Much of this codifies what DITA
+This is a shared model — a sibling project of the maintainer's runs the same five stages, and the two
+keep their governance vocabulary aligned on purpose. Much of this codifies what DITA
 Architect already does (the Fix Now / Batch triage, model weights, the session-start grooming check,
 the multi-agent pipeline); the genuinely new pieces are **Gate 7**, the **ADR log**, and the
 **anti-entropy cadence**.

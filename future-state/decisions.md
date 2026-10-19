@@ -94,7 +94,7 @@ per-gate "Pipeline owner" notes).
 the live tree on every keystroke (diff-and-paint). This is the single root cause behind every
 reported Edit Mode failure (blind to inline/attribute edits, node-key churn, the 50ms API-insert
 race, accept-doesn't-persist). Prior fixes (FR-042/043, P1-16/17/18) were band-aids on this
-foundation. Full analysis: [`../bugreports/BUG-edit-mode-architecture.md`](../bugreports/BUG-edit-mode-architecture.md).
+foundation. Full analysis: `../bugreports/BUG-edit-mode-architecture.md` (bug report file deleted at v0.9.0 per the version-bump checklist; the analysis is summarised in ADR-004).
 
 **Decision** — Rebuild as **marks-as-data** (the SuperDoc pattern): tracked changes are stored as
 data on the model, not derived by diffing text. Two tracks: **FR-045** (Monaco-diff review for API

@@ -214,7 +214,7 @@ Avoid developer-internal framing unless the entry is in **Under the Hood**. A bu
 
 ## Alignment with Geotab Written Style Guide
 
-This guide extends the [Geotab Written Style Guide](https://docs.google.com/document/d/1NNJcLMaqFqsx0ZqYwdyI6aHziX73gNSSARLY-MdeWyk/edit) (v7.1, April 2025). Where this guide is silent, defer to Geotab's guide. Key rules carried over:
+This guide extends the Geotab Written Style Guide (v7.1, April 2025; an internal document, not linked here). Where this guide is silent, defer to it. Key rules carried over:
 
 - American English spelling (`color`, not `colour`).
 - Active voice preferred over passive.

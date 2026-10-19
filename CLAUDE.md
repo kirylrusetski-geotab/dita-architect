@@ -82,12 +82,13 @@ Use port **3001** when running the native app, **3000** for dev server.
 | `constants/keyboard-shortcuts.ts` | Single-source shortcut registry (drives cheat sheet modal) |
 | `types/tab.ts` | `Tab` interface — all per-tab state |
 | `vite.config.ts` | All Vite `/api/*` middleware endpoints |
-| `future-state/BACKLOG.md` | Prioritized backlog — read before starting any session |
+| `future-state/BACKLOG.md` | Open work only: lanes, chains, parked items, scheduling model — read before starting any session |
+| `future-state/HISTORY.md` | Shipped work by version + the dated changelog (split out of BACKLOG 2026-10-19) |
 | `future-state/feature-requests.md` | Feature request detail and FR status |
-| `PROJECT_LOG.md` | Per-session implementation log |
+| `future-state/decisions.md` | ADR log |
+| `PROJECT_LOG.md` | Per-session implementation log (git-ignored; the multi-agent pipeline appends to it) |
 | `API.md` | Full HTTP API reference |
-| `bugreports/` | One file per filed bug; shipped bugs noted in backlog Completed |
-| `future-state/acquired-products/` | Historical builds (dita-doer-v1, dita-doer-v3) — kept intentionally for reference; not imported by the current app |
+| `bugreports/` | One file per filed bug (git-ignored); deleted at version-bump time once the bug ships and its resolution is in HISTORY.md |
 | `textAnalysis.ts` | Flesch-Kincaid readability engine — powers the status bar score in `BottomToolbar.tsx`; also earmarked for the pending `GET /api/tabs/:id/stats` endpoint (FR) |
 | `agents/run.ts` | Multi-agent pipeline entry point |
 | `agents/orchestrator.ts` | Pipeline coordinator — runs all 9 steps, manages retries and checkpoints |
@@ -103,9 +104,10 @@ Use port **3001** when running the native app, **3000** for dev server.
 Longer-form planning and session artifacts live outside the repo in
 `/Users/kirylrusetski/Documents/Obsidian/geotab-work/DITA Architect/`:
 
-- **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline). It supersedes the Roadmap block in the Versioning Policy below; consult it when choosing the next feature session, and update it at milestone boundaries.
-- **`Remediation Plan — Codebase Review v0.8.4 (2026-07-17).md`** — the full 8-item remediation plan (all items executed).
-- **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 session log (v0.8.5 → v0.9.0 arc).
+- **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline, public-repo standing rules). Consult it when choosing the next feature session; update it at milestone boundaries.
+- **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 codebase-review and remediation record (v0.8.5 → v0.9.0 arc, incl. the BUG-20 post-mortem). The separate Remediation Plan note was folded into it and deleted 2026-10-19.
+- **`Session Log — FR-057 Real-Scenario Context (2026-08-04).md`** — the three-attempt live authoring session that drove v0.9.2/v0.9.3; the FR-057 build plan was deleted 2026-10-19 (its reasoning is ADR-008).
+- **`dita-architect-market-analysis.md`** — March 2026 competitive positioning; the roadmap's strategic lens is derived from it.
 
 Session logs and plans that need to survive context-window limits are written there, not to the repo. `PROJECT_LOG.md` (in-repo) remains the per-session implementation log.
 
@@ -165,24 +167,11 @@ Work directly for:
 
 ## HTTP API
 
-All endpoints return JSON. No authentication required.
+[API.md](./API.md) is the contract: every endpoint, request/response shape, the `success` + `httpStatus` envelope, and worked examples. The three facts that shape any change here:
 
-**The tab API is native-only (port 3001)** — `/api/status`, `/api/tabs`, `/api/tabs/:id/*` read and write the live editor state through the Swift↔JS bridge. The dev server (port 3000) cannot reach editor state (separate browser / Vite-Node realms, no transport — **ADR-007**) and serves **only** `/api/load-content` + `/api/pending-loads`. Full detail in [API.md](./API.md).
-
-| Endpoint | Method | Port | Description |
-|---|---|---|---|
-| `/api/status` | GET | 3001 | Version, Heretto connection status, tab count, active tab ID, theme |
-| `/api/tabs` | GET | 3001 | All open tabs with metadata (id, fileName, herettoFile, dirty, xmlErrorCount) |
-| `/api/tabs/:id/content` | GET | 3001 | Full DITA XML + validation errors for a tab |
-| `/api/tabs/:id/content` | PUT | 3001 | Replace tab XML (validates structure before applying; 400 on malformed XML) |
-| `/api/tabs/:id/save` | POST | 3001 | Save tab to Heretto CMS (tab must have `herettoFile`) |
-| `/api/tabs/:id/insert-section` | POST | 3001 | Stage a block-level fragment as a pending review — the XML pane shows a read-only Monaco diff with Accept/Reject (FR-045); Accept commits the reviewed text byte-for-byte. Body: `{ xml, replaceId? }`. `replaceId` not found is an error. |
-| `/api/load-content` | POST | 3000 + 3001 | Open DITA XML as a new tab. Body: `{ xml, fileName, herettoTargetUuid? }`. Native: immediate; Dev: queued. |
-| `/api/pending-loads` | GET | 3000 + 3001 | Returns queued loads and clears queue atomically. Always empty on port 3001. |
-
-### `insert-section` accepted block elements
-
-`<p>`, `<ul>`, `<ol>`, `<note>`, `<codeblock>`, `<table>`, `<simpletable>`, `<fig>`, `<image>`, `<dl>`, `<example>`, `<prereq>`, `<context>`, `<result>`, `<postreq>`, `<steps>`. `<section>` is also accepted — its children are unwrapped before insertion.
+- **The tab API is native-only (port 3001)** — `/api/status`, `/api/tabs`, `/api/tabs/:id/*` reach live editor state only through the Swift↔JS bridge (`window.__ditaApi`, ADR-007). The dev server (port 3000) serves **only** `/api/load-content` + `/api/pending-loads`.
+- **Writes propose, they do not apply** — `PUT /api/tabs/:id/content` and `POST /api/tabs/:id/insert-section` both stage a `pendingReview` that the author accepts or rejects in the XML pane (ADR-008); `POST /api/tabs/:id/save` is refused while a review is pending.
+- No authentication; the listener is loopback-bound with a 30 s idle timeout.
 
 ---
 
@@ -208,26 +197,7 @@ Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexic
 
 ## Current Backlog Summary
 
-Full detail and the scheduling model are in `future-state/BACKLOG.md`. The backlog is split into **Bugs** and **Features**; priority tiers (P0–P3) are retired — old `P#-NN` IDs persist only as stable labels. Schedule by the two-lane rule: **Fix Now** (blocks use / corrupts data) vs **Batch** (bug sweeps + deliberate feature sessions).
-
-### Bugs
-
-| Lane | Items |
-|---|---|
-| 🔴 **Blocking now** (corrupts data — fix immediately) | — (cleared; BUG-03 shipped v0.8.5) |
-| 🟡 **Sweep-ready** (batch into next sweep) | — (cleared 2026-10-19 in the v0.9.5 sweep: BUG-21 idle timeout, BUG-22 shared Modal for all 11 dialogs, BUG-23 `httpStatus` in API.md, BUG-24 Heretto regression tests) |
-| 🔵 **Larger** (own session) | — (cleared 2026-07-17: **BUG-02** closed by FR-045 v0.8.8 + FR-046 v0.9.0, ADR-004 Accepted; **BUG-04** closed by Sessions 4A/4B, ADR-006; **BUG-05** closed by ADR-007) |
-
-### Features (sequenced by dependency)
-
-| Chain / group | Items |
-|---|---|
-| **Inline element insertion** (biggest authoring gap) | P2-36 content model map (Sonnet — downgraded 2026-07-17) → P2-28 + P2-29 (`+` menu shell + catalog) → P2-37 context-aware filtering (Opus) → P2-38 recently used / P3-45 insertion modes (Sonnet) |
-| **Edit-mode rebuild** (resolves BUG-02) | FR-045 Monaco-diff API review incl. propose-replace (Fable single-session, gates kept) → FR-046 marks-as-data tracked changes (Fable — own sessions) |
-| **macOS native menu bar** | P2-39 File menu (Multi-agent, establishes the `__ditaApi` surface) → P2-41 app menu → P2-40 View menu (Sonnet) |
-| **Standalone** | P2-25 troubleshooting topic support (Sonnet/Opus); P2-27 "Connect a Map" (Opus); P3-46 Altitude theme (Sonnet); **FR-047** byte-stability corpus + shared test factory (Sonnet — **blocks BUG-04, do first**); **FR-048** test-suite triage / Gate 5 artifacts (Sonnet); **FR-049** true placeholders for template title/shortdesc (Sonnet — Option A design approved); **FR-050** native PDF export + print fidelity, two independent slices (Sonnet each) |
-
-Parked/blocked items (AI extractions, conditional text, map discovery, API auth) sit at the bottom of the backlog with explicit unblock conditions.
+This file does not carry a copy of the backlog; copies go stale (the one that used to live here was two releases behind when it was removed on 2026-10-19). Read `future-state/BACKLOG.md` directly. The shape to expect: **Bugs** in three lanes (Blocking now / Sweep-ready / Larger) and **Features** in dependency chains plus Standalone, scheduled by the two-lane rule (**Fix Now** vs **Batch**); priority tiers P0–P3 are retired and old `P#-NN` IDs are stable labels only. The milestone order for feature sessions is in the Obsidian roadmap (see Versioning Policy below).
 
 ---
 
@@ -266,31 +236,7 @@ DITA Architect uses **Semantic Versioning**: `MAJOR.MINOR.PATCH`
 
 **Roadmap:** the roadmap of record is the Obsidian note `Roadmap — DITA Architect (2026-07-18).md` (see "Obsidian Notes Folder" above). Summary as of 2026-10-19: `0.9.7` displaced items (P2-25 troubleshooting parser, FR-049 placeholders, FR-061 Navy theme) → `0.10.0` wrap-selection inline authoring → `0.11.0` map-aware authoring → `0.12.0` validation → `0.13.0` review carrier → `0.14.0` native menu bar → `1.0.0` daily driver. Consult the note before choosing a feature session; update it at milestone boundaries.
 
-**Version history mapping** (old → new, for reference):
-
-| New | Old | Release | Notes |
-|---|---|---|---|
-| 0.1.0 | 0.5.0 | Foundation | |
-| 0.1.1 | 0.5.1 | Rendering fixes | |
-| 0.2.0 | 0.6.0 | Body element indicators | |
-| 0.2.1 | 0.6.1 | Polish batch (beautify, copy) | BACKLOG only — not in What's New (bundled into 0.3.1) |
-| 0.2.2 | 0.6.2 | Accessibility + empty states | BACKLOG only — not in What's New (bundled into 0.3.1) |
-| 0.3.0 | 0.7.0 | External load API | BACKLOG only — not in What's New (bundled into 0.3.1) |
-| 0.3.1 | 0.7.1 | Replace workflow | What's New entry also covers 0.2.1–0.3.0 content |
-| 0.3.2 | 0.7.2 | P1 bug fixes (word count, sync) | BACKLOG only — not in What's New (bundled into What's New 0.3.2) |
-| 0.3.3 | 0.7.3–0.7.4 | Table context menu + read API | What's New calls this 0.3.2 (combines BACKLOG 0.3.2 + 0.3.3) |
-| 0.4.0 | 0.8.0 | Write API + Insert Table | |
-| 0.5.0 | 0.9.0 | Heretto images + inline validation | |
-| 0.5.1 | 0.9.1 | Link + Replace verification fixes | |
-| 0.6.0 | 0.9.1.1 | Note types, section bars, info chips | |
-| 0.6.1 | 0.9.2 | Empty href xref validation | |
-| 0.6.2 | 0.9.3 | Xref styling, placeholder treatment | |
-| 0.7.0 | 0.9.3.1 | Print / Export PDF | |
-| 0.7.1 | 0.9.4 | Resizable pane, word wrap, QoL | |
-| 0.7.2 | 0.9.5 | Page-canvas layout, block + button | |
-| 0.7.3 | 0.9.6 | Keyboard shortcuts, version browser | |
-| 0.8.0 | 0.9.6.1 | AI insert-section | |
-| 0.8.1 | 0.9.7 | insert-section fixes + block injection | |
+**Version history mapping** (old four-part numbering → SemVer) lives in `future-state/HISTORY.md` under "Version numbering map".
 
 ---
 
@@ -342,7 +288,7 @@ Update the FR `**Status:**` field to `Shipped (vX.Y.Z, YYYY-MM-DD)` at version b
 When bumping the version in `constants/version.ts` and writing release notes:
 
 1. Update the version string in `package.json` and add release notes entry at top of `RELEASE_NOTES` array in `constants/version.ts`
-2. Move shipped backlog items to the Completed section in `future-state/BACKLOG.md`
+2. Move shipped backlog items from `future-state/BACKLOG.md` to the Completed section of `future-state/HISTORY.md`, and add a dated changelog bullet there
 3. **Delete resolved bug reports** — scan `bugreports/` and remove any files for bugs that shipped in this release
 4. **Update feature request statuses** — scan `future-state/feature-requests.md` and update the `**Status:**` field to `Shipped (vX.Y.Z, YYYY-MM-DD)` for any FRs that shipped in this release
 5. **Sync `macos/Sources/DITAArchitect/Info.plist`** — update `CFBundleShortVersionString` to the new version

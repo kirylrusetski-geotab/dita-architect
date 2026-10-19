@@ -26,7 +26,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": [
-    "future-state/acquired-products"
-  ]
+  "exclude": []
 }

@@ -1,7 +1,0 @@
-{
-  "name": "XML Monaco Editor",
-  "description": "A simple and aesthetically pleasing XML code editor powered by the Monaco Editor, built with React and styled with Tailwind CSS.",
-  "requestFramePermissions": [
-    "clipboard-read"
-  ]
-}

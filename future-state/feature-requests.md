@@ -79,6 +79,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
 | 🔴  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Open                      |
 | 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (slices 1–2 shipped v0.9.4/v0.9.6; slice 3 discovery open) |
+| 🔴  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Open |
 
 ---
 
@@ -901,3 +902,37 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 3. The connection indicator turns green against a second Heretto instance given only host, email, token (and `rootUuid` until slice 3). *Code path complete; not yet exercised against a second live tenant.*
 4. ✅ (shipped v0.9.5) No real person's email address appears in any tracked file; byte-stability tests still pass.
 5. ✅ (shipped v0.9.6) `README.md`, `macos/README.md`, and `CLAUDE.md` describe the full `heretto.json` shape.
+
+---
+
+## FR-063: Post-sync structural mismatch warning
+
+**Requested:** 2026-10-19
+**Source:** Salvaged from the deleted `bugreports/BUG-xref-not-serialized-from-visual-editor.md` (P1-13, shipped May 2026). The root-cause fix landed; the UX safety net proposed alongside it never did.
+**Status:** Open
+**Priority:** P3
+**Impact:** Medium — turns the most dangerous serializer failure mode (silent structural drop) into a visible one
+**Model weight:** Sonnet
+
+**Problem:** When the visual editor → XML serializer drops structure, the author gets no signal. P1-13 was the canonical case: a link added in the visual editor looked like a link, the `Last update` indicator confirmed the sync ran, and the XML had no `<xref>`. The fix for that path shipped, but the class of failure remains possible for any future serializer gap (Gate 1 names it as the project's top harm). Today the only defence is tests.
+
+**Signal:** Every serializer content-loss bug in the project's history (P1-13, BUG-04 S1–S6, the two BUG-01 exposures) was silent at the moment it happened and found later by inspection.
+
+**Smallest slice:** After each Lexical → XML serialize, compare cheap structural counts between the Lexical tree and the resulting XML and toast on mismatch:
+
+- `LinkNode` count vs `<xref>` count (the P1-13 case).
+- `originMap` nodes stamped with an `inlineTag` vs occurrences of that tag in the output.
+- Block-level counts per recognized body tag (`p`, `note`, `table`, `dl`, …) between the Lexical body and the serialized body.
+
+Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching xref in the XML — check the source pane.` One toast per sync, throttled; never blocks the sync.
+
+**Serves:** Gate 1 (round-trip fidelity) and Gate 2 (Heretto-safe output) by making violations visible to the author instead of only to the test suite. Writer experience: the tool stops confirming a sync that quietly lost their work.
+
+**Not in scope:** fixing any mismatch automatically; running the check on the XML → Lexical direction (the parser direction is covered by the byte-stability corpus).
+
+### Acceptance criteria
+
+1. Adding a link in the visual editor and forcing a serializer path that drops it (test-only hook or fixture) produces the toast; the normal path produces none.
+2. The check adds no measurable latency on the FR-047 byte-stability corpus (counts, not diffs).
+3. No false positives across the byte-stability corpus and the round-trip suite (a pinned test asserts zero warnings for every fixture).
+4. The warning is advisory: the sync still completes and the XML pane updates.
