@@ -446,6 +446,12 @@ Features shipped before the backlog was formalized. Added retroactively for trac
 
 Reverse-chronological. Newest day first; within a day, entries read in the order they happened.
 
+### 2026-10-20
+
+- **FR-055 closed as already shipped.** It asked for a tab-content read endpoint; `GET /api/tabs/:id/content` has existed since v0.3.3 and was verified live. Both recorded failures used a non-existent URL (`/api/tab-content?tabId=`). Caller-side fix only.
+- **FR-059 given a backlog row** (readability score in the content response). It had an FR entry since 2026-08-12 but was invisible to the grooming check.
+- **Document review completed** (commit `123db47`): prototypes removed, HISTORY.md split out of BACKLOG.md, CLAUDE.md trimmed, shipped bug reports and two superseded Obsidian plans deleted, FR-063 salvaged from the P1-13 report.
+
 ### 2026-10-19
 
 - **v0.9.1–v0.9.3 pushed** — they had been local-only since 2026-08-04 (main was at v0.9.0 on GitHub). `main` fast-forwarded over `release/v0.9.1`; tags `v0.9.0`, `v0.9.1`, `v0.9.3` created retroactively.

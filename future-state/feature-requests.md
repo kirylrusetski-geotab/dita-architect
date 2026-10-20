@@ -71,7 +71,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
 | 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
-| 🔴  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Open                      |
+| 🟢  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Closed 2026-10-20 — already shipped (`GET /api/tabs/:id/content`, v0.3.3) |
 | 🟢  | FR-056                                                                                          | API content loads flush into suggesting mode                                      | 2026-08-04 | Shipped v0.9.2            |
 | 🟢  | FR-057                                                                                          | API whole-document replace rendered as a reviewable diff                          | 2026-08-04 | Shipped v0.9.3            |
 | 🔴  | [FR-058](#fr-058-ingest-api-whole-document-replace-as-tracked-marks)                           | Ingest API whole-document replace as tracked marks                                | 2026-08-04 | Open                      |
@@ -615,7 +615,7 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 
 **Requested:** 2026-07-30
 **Source:** Kiryl Rusetski — hit when trying to review in-editor changes via GIA
-**Status:** Open
+**Status:** Closed 2026-10-20 — **already shipped.** `GET /api/tabs/:id/content` has returned the live XML of any open tab since the v0.3.3 read API (API.md, commit `051c9fc`, 2026-03-17) and was verified live on 2026-10-20 (`HTTP 200`, body `{ success, httpStatus, id, fileName, herettoFile, dirty, xmlErrors, xml }`). The two failures recorded below happened because the caller requested `/api/tab-content?tabId=…`, a URL that has never existed (404), rather than the documented path. No new endpoint is needed; the fix is on the caller side (point the skill/agent at API.md). If a 404 on the documented path ever recurs, check that the native app is the instance answering on 3001 (dev server port 3000 has no tab API — ADR-007).
 **Priority:** P2
 **Impact:** High for AI-assisted workflows
 
