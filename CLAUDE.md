@@ -104,7 +104,8 @@ Use port **3001** when running the native app, **3000** for dev server.
 Longer-form planning and session artifacts live outside the repo in
 `/Users/kirylrusetski/Documents/Obsidian/geotab-work/DITA Architect/`:
 
-- **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline, public-repo standing rules). Consult it when choosing the next feature session; update it at milestone boundaries.
+- **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline, the milestone-session checklist, public-repo standing rules). Consult it when choosing the next feature session; update it at milestone boundaries.
+- **`Execution Plan — Roadmap to 1.0 (2026-10-20).md`** — the ladder as eight sessions: which model to use, invariants to pin before code, steps, exit criteria, risks, and gap fillers. **Read the current session's block at session start** and append to its status log at session end.
 - **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 codebase-review and remediation record (v0.8.5 → v0.9.0 arc, incl. the BUG-20 post-mortem). The separate Remediation Plan note was folded into it and deleted 2026-10-19.
 - **`Session Log — FR-057 Real-Scenario Context (2026-08-04).md`** — the three-attempt live authoring session that drove v0.9.2/v0.9.3; the FR-057 build plan was deleted 2026-10-19 (its reasoning is ADR-008).
 - **`dita-architect-market-analysis.md`** — March 2026 competitive positioning; the roadmap's strategic lens is derived from it.
