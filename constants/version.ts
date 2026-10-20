@@ -21,6 +21,45 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.7',
+    date: '2026-10-20',
+    title: 'Troubleshooting topics open and round-trip, new topics start truly blank, and the Geotab theme is now Navy.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'DITA troubleshooting topics now open with their content. Before, a topic whose body was `<troublebody>` opened as an empty editor, and saving would have written that emptiness back to Heretto. The parser now reads `<condition>`, `<troubleSolution>`, `<cause>`, and `<remedy>`, and each condition, cause, and remedy starts with a small uppercase label so you can see where one ends and the next begins. Edits you make inside a cause stay in that cause when you save. Verified against every troubleshooting topic in the Heretto repository.',
+          'Remedies can use any of the three DITA step lists: `<steps>`, `<steps-unordered>` (shown as bullets), and `<steps-informal>`. A new list you create inside a remedy is saved as `<steps>` or `<steps-unordered>`, never as `<ol>` or `<ul>`, which the troubleshooting DTD does not allow there.',
+          'New topics start with a genuinely empty title and short description. The grey prompt (`Enter your task title`, `Enter a short description of the task.`) is drawn by the editor, not stored in the document. Click into the field and type: your text starts at the beginning, the prompt disappears as soon as the field has content, and it comes back if you delete everything. Before, the prompt was real text, so typing appended to it (`Enter your task title.qwerty`) and an untouched template saved its prompt prose to Heretto.',
+        ],
+      },
+      {
+        heading: 'Changes',
+        items: [
+          'The `Geotab` theme is now called `Navy`, and its tooltip reads `Deep blue-navy palette for low-light work` instead of `Geotab brand colors`. The colours are unchanged. If you had the Geotab theme selected, the app switches you to Navy on first launch and remembers that choice. The API reports it as `theme: "navy"`.',
+          'The demo topic the app opens with no longer depends on the template text. It is its own small task about setting up a widget.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'A paragraph that wraps a list, which Heretto writes as `<p>text<ul>…</ul></p>`, no longer loses its wrapper when you save. Before, even an unedited round-trip rewrote it as `<p>text</p><ul>` and dropped the paragraph\'s attributes. This affected every topic type, not only troubleshooting topics, and had gone unnoticed because no test fixture used the pattern. The wrapper is now patched in place: the list is updated through the normal path and the surrounding text is rewritten only if you changed it.',
+          'Two ordered lists in different troubleshooting containers no longer merge into one when a topic opens. Lexical joins any two neighbouring lists of the same type; the new container labels sit between them and keep them apart. The same merge can still happen to two adjacent lists inside one container or body (BUG-26, filed).',
+          'The XML pane no longer warns that `<troubleshooting>` is not a standard topic type, and the topic badge in the toolbar recognises it.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-009 records the design: containers flatten to body-level nodes stamped with `originMap.containerPath` (`troubleSolution#1/remedy#0`); the serializer groups by path and recurses into the preserved element; empty containers are preserved rather than deleted; `DitaContainerBoundaryNode` is the visual-only marker and the list-merge guard. The `<p>`-wrapper fix uses a sibling mechanism, `originMap.pWrapperId`. Two byte-stability fixtures added: the smallest real Heretto troubleshooting topic and a synthetic one with three solutions.',
+          'Known limits of this slice, each stated rather than half-built: deleting a whole condition, cause, or remedy in the visual editor is not written back (use the XML pane); `<responsibleParty>` and `<choices>` inside a remedy are preserved but not shown; the `Troubleshooting` template as a fourth New Topic option is still to come (P2-25 slice 2).',
+          'The 19-pattern placeholder-prose detector in the parser is gone, and topic-type conversion no longer swaps prompt text, because there is none to swap. `resolveStoredTheme` in `useEditorUi` owns the theme-name migration and is pinned by test.',
+          'Suite: 60 files, 1101 tests passing, 3 skipped. 32 new tests across troubleshooting round-trips, `<p>`-wrapper patching, true placeholders, and the theme migration.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.6',
     date: '2026-10-19',
     title: 'The Heretto content root is now a setting. Nothing about your Heretto instance is baked into the app anymore.',

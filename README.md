@@ -24,7 +24,7 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **Spot unresolved references.** Conkeyrefs, keyrefs, and conrefs that can't be resolved show up as labeled chips (e.g., `[conkeyref: glossary/term]`) instead of blank space.
 
-**Choose your theme.** 5 app themes (Dark, Light, Claude, Nord, Solarized, Geotab) and 7 syntax themes for the XML pane.
+**Choose your theme.** 6 app themes (Dark, Light, Claude, Nord, Solarized, Navy) and 7 syntax themes for the XML pane.
 
 ## Setup — Browser App
 

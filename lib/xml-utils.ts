@@ -13,7 +13,6 @@
  * - Time formatting utilities
  */
 import { RECOGNIZED_ELEMENTS, STRUCTURAL_CONTAINERS } from '../constants/heretto';
-import { DITA_PLACEHOLDER_TITLES, DITA_PLACEHOLDER_SHORTDESCS } from '../constants/dita';
 // ── XML Formatting ──────────────────────────────────────────────────────────
 
 type XmlToken = { type: 'opening' | 'closing' | 'self-closing' | 'text' | 'comment' | 'pi' | 'doctype'; text: string };
@@ -301,7 +300,6 @@ export const compareXml = (a: string, b: string): 'identical' | 'formatting' | '
   return nodesEqual(docA.documentElement, docB.documentElement) ? 'formatting' : 'different';
 };
 
-import { DITA_TEMPLATES } from '../constants/dita';
 import type { DitaTopicType } from '../constants/dita';
 export type { DitaTopicType };
 
@@ -341,17 +339,6 @@ export function withUpdatedTopicId(xml: string, newId: string): string {
   const idMatch = xml.match(/(<(?:task|concept|reference|topic)[^>]*\bid=")([^"]+)"/);
   if (!idMatch || !DEFAULT_TOPIC_IDS.has(idMatch[2])) return xml;
   return xml.replace(idMatch[0], `${idMatch[1]}${newId}"`);
-}
-
-/** Extract title and shortdesc placeholder strings from a DITA_TEMPLATES entry. */
-function getPlaceholders(type: DitaTopicType): { title: string; shortdesc: string } {
-  const xml = DITA_TEMPLATES[type];
-  const titleMatch = xml.match(/<title>(.+?)<\/title>/);
-  const shortdescMatch = xml.match(/<shortdesc>(.+?)<\/shortdesc>/);
-  return {
-    title: titleMatch?.[1] ?? '',
-    shortdesc: shortdescMatch?.[1] ?? '',
-  };
 }
 
 const BODY_TAG_MAP: Record<string, string> = {
@@ -482,15 +469,8 @@ export function convertDitaTopic(
     }
   }
 
-  // Swap placeholder title/shortdesc if the writer hasn't edited them yet
-  const titleEl = newRoot.querySelector('title');
-  if (titleEl && titleEl.textContent === DITA_PLACEHOLDER_TITLES[currentType as DitaTopicType]) {
-    titleEl.textContent = DITA_PLACEHOLDER_TITLES[targetType];
-  }
-  const shortdescEl = newRoot.querySelector('shortdesc');
-  if (shortdescEl && shortdescEl.textContent === DITA_PLACEHOLDER_SHORTDESCS[currentType as DitaTopicType]) {
-    shortdescEl.textContent = DITA_PLACEHOLDER_SHORTDESCS[targetType];
-  }
+  // FR-049: title/shortdesc are empty until the writer types, so there is no
+  // template prose to swap between topic types any more.
 
   const serializer = new XMLSerializer();
   const newXml =

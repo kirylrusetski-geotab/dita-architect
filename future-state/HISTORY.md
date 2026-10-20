@@ -6,6 +6,21 @@ Shipped work by version (newest first) and the dated changelog. Split out of [BA
 
 ## Completed
 
+### Shipped in v0.9.7 (2026-10-20)
+
+The three items the roadmap re-slotted ahead of v0.10.0, plus one pre-existing serializer bug found on the way.
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| P2-25 (slice 1) | DITA troubleshooting topics open, render, and round-trip | Feature | ADR-009. `troublebody` added to the body selector; `condition`/`troubleSolution`/`cause`/`remedy`/`steps-informal` flatten to body-level nodes stamped with `originMap.containerPath`; serializer groups by path and recurses into the preserved element (`patchContainer`), never deleting an unconsumed container. `DitaContainerBoundaryNode` labels each condition/cause/remedy and blocks Lexical's same-type list merge across containers. `steps-unordered` both ways; lists created in a remedy emit steps/steps-unordered. `troubleshooting` accepted by `validateDitaXml`, the XML-pane root check, the tab badge, and the import element lists. Grammar verified against all 22 live Heretto troubleshooting topics; the real median topic round-trips byte-stable and loads in the native app. Fixtures: `troubleshooting-skeleton.dita` (real), `troubleshooting-rich.dita` (synthetic). Slice 2 (template) remains open. |
+| BUG-25 | `<p>` wrapping a block lost its wrapper and attributes on an unedited round-trip (any topic type) | Bug | Pre-existing; surfaced by the troubleshooting fixtures. `originMap.pWrapperId` ties the flattened run to its source `<p>`; `patchPWrapper` patches blocks through the normal walk (wrapper grouping off, base path carried) and rewrites an inline segment only when its text changed; falls back to rebuilding the wrapper when the shapes no longer align. `<p><dl>` keeps the dl path. 4 tests. |
+| FR-049 | True placeholders for template title/shortdesc | Feature | Templates ship `<title/>`/`<shortdesc/>`; `ShortdescPlugin` sets `data-placeholder` + class on empty nodes (topic-type-aware prompts, generic fallback); CSS `::before { content: attr(data-placeholder) }`. Parser's 19-pattern prose detector deleted; `convertDitaTopic` prose swap deleted; `INITIAL_DITA` made standalone. Optional save guard deliberately not built (shared with the API save path). 12 tests. |
+| FR-061 | Rename the Geotab theme to Navy | Polish | Label `Navy`, tooltip `Deep blue-navy palette for low-light work`, `[data-theme="navy"]`, Monaco `bgColors.navy`, API enum, README. `resolveStoredTheme` maps a stored `geotab` to `navy` and rewrites localStorage. Six theme test files renamed/updated; `tests/theme-migration.test.ts` added. Palette unchanged. |
+
+Suite 60 files / 1101 passed / 3 skipped; tsc + eslint clean on touched files; app rebuilt and relaunched.
+
+---
+
 ### Shipped in v0.9.6 (2026-10-19)
 
 FR-062 slice 2 — the content root folder is configuration, not a constant.
@@ -447,6 +462,8 @@ Features shipped before the backlog was formalized. Added retroactively for trac
 Reverse-chronological. Newest day first; within a day, entries read in the order they happened.
 
 ### 2026-10-20
+
+- **v0.9.7 released** — P2-25 slice 1 (troubleshooting topics, ADR-009), FR-049 (true placeholders), FR-061 (Navy theme), BUG-25 fixed. Live verification: all 22 Heretto troubleshooting topics enumerated via the REST listings (`<resource type="Troubleshooting Topic">`); the median one round-trips byte-stable and loads in the native app with every cause rendered. **BUG-26 filed** (adjacent same-type lists merge inside one container — the cross-container case is fixed by the boundary node).
 
 - **FR-055 closed as already shipped.** It asked for a tab-content read endpoint; `GET /api/tabs/:id/content` has existed since v0.3.3 and was verified live. Both recorded failures used a non-existent URL (`/api/tab-content?tabId=`). Caller-side fix only.
 - **FR-059 given a backlog row** (readability score in the content response). It had an FR entry since 2026-08-12 but was invisible to the grooming check.

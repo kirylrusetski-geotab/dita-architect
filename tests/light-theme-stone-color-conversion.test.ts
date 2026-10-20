@@ -180,7 +180,7 @@ describe('Light theme Stone color palette conversion', () => {
   describe('theme-specific Stone color application', () => {
     it('validates that Stone colors only affect light theme, not other themes', () => {
       // Other themes should retain their original color schemes
-      const otherThemes = ['dark', 'claude', 'nord', 'solarized', 'geotab'];
+      const otherThemes = ['dark', 'claude', 'nord', 'solarized', 'navy'];
 
       // Dark theme (root) should still use its original colors
       expect(cssContent).toContain(':root {'); // Dark theme exists

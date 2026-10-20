@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 /** Mirror of the theme validation logic from useEditorUi.ts line 23 */
 function validateStoredTheme(stored: string | null): string {
-  if (stored === 'light' || stored === 'claude' || stored === 'nord' || stored === 'solarized' || stored === 'geotab' || stored === 'dark') {
+  if (stored === 'light' || stored === 'claude' || stored === 'nord' || stored === 'solarized' || stored === 'navy' || stored === 'dark') {
     return stored;
   }
   return 'dark';
@@ -60,8 +60,8 @@ describe('theme validation — localStorage persistence logic', () => {
       expect(validateStoredTheme('solarized')).toBe('solarized');
     });
 
-    it('accepts geotab theme as valid — new theme from Jamie\'s implementation', () => {
-      expect(validateStoredTheme('geotab')).toBe('geotab');
+    it('accepts navy theme as valid — new theme from Jamie\'s implementation', () => {
+      expect(validateStoredTheme('navy')).toBe('navy');
     });
 
     it('accepts dark theme as valid — Elena noted this was previously missing', () => {
@@ -81,7 +81,7 @@ describe('theme validation — localStorage persistence logic', () => {
     });
 
     it('rejects theme names with wrong casing', () => {
-      expect(validateStoredTheme('GEOTAB')).toBe('dark');
+      expect(validateStoredTheme('NAVY')).toBe('dark');
       expect(validateStoredTheme('Light')).toBe('dark');
       expect(validateStoredTheme('Dark')).toBe('dark');
     });
@@ -94,15 +94,15 @@ describe('theme validation — localStorage persistence logic', () => {
   });
 
   describe('localStorage theme persistence — end-to-end behavior', () => {
-    it('persists geotab theme selection across sessions', () => {
-      // User selects Geotab theme
-      localStorage.setItem('dita-architect-theme', 'geotab');
+    it('persists navy theme selection across sessions', () => {
+      // User selects Navy theme
+      localStorage.setItem('dita-architect-theme', 'navy');
 
       // App loads and validates stored theme
       const stored = localStorage.getItem('dita-architect-theme');
       const validatedTheme = validateStoredTheme(stored);
 
-      expect(validatedTheme).toBe('geotab');
+      expect(validatedTheme).toBe('navy');
     });
 
     it('persists dark theme selection across sessions — regression test for Elena\'s bug report', () => {
@@ -139,15 +139,15 @@ describe('theme validation — localStorage persistence logic', () => {
     it('uses correct localStorage key for theme persistence', () => {
       const themeKey = 'dita-architect-theme';
 
-      localStorage.setItem(themeKey, 'geotab');
+      localStorage.setItem(themeKey, 'navy');
       const retrieved = localStorage.getItem(themeKey);
 
-      expect(retrieved).toBe('geotab');
+      expect(retrieved).toBe('navy');
     });
   });
 
   describe('all valid themes — comprehensive validation', () => {
-    const validThemes = ['light', 'claude', 'nord', 'solarized', 'geotab', 'dark'];
+    const validThemes = ['light', 'claude', 'nord', 'solarized', 'navy', 'dark'];
 
     it('accepts all six valid themes', () => {
       validThemes.forEach(theme => {
@@ -157,7 +157,7 @@ describe('theme validation — localStorage persistence logic', () => {
 
     it('matches exactly the themes available in THEME_OPTIONS', () => {
       // This ensures theme validation stays in sync with available options
-      const expectedThemes = ['dark', 'light', 'claude', 'nord', 'solarized', 'geotab'];
+      const expectedThemes = ['dark', 'light', 'claude', 'nord', 'solarized', 'navy'];
 
       expectedThemes.forEach(theme => {
         expect(validateStoredTheme(theme)).toBe(theme);

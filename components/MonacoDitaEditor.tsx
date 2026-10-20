@@ -107,7 +107,7 @@ const bgColors: Record<ThemeName, { bg: string; lineHighlight: string; lineNumbe
   claude:    { bg: '#1f150f', lineHighlight: '#3d2e24', lineNumber: '#8a7568' },
   nord:      { bg: '#242933', lineHighlight: '#3b4252', lineNumber: '#616e88' },
   solarized: { bg: '#001e28', lineHighlight: '#073642', lineNumber: '#586e75' },
-  geotab:    { bg: '#1e2332', lineHighlight: '#25477b', lineNumber: '#8a9ba8' },
+  navy:      { bg: '#1e2332', lineHighlight: '#25477b', lineNumber: '#8a9ba8' },
 };
 
 function buildThemeName(appTheme: ThemeName, syntax: SyntaxThemeName): string {

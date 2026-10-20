@@ -4,11 +4,11 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // ---------------------------------------------------------------------------
-// Integration tests for Geotab theme — verifies Anna's plan implementation
+// Integration tests for the Navy theme (formerly "geotab", renamed FR-061) — verifies Anna's plan implementation
 // Tests CSS variables, theme consistency, and end-to-end integration.
 // ---------------------------------------------------------------------------
 
-describe('Geotab theme integration — comprehensive implementation verification', () => {
+describe('Navy theme integration — comprehensive implementation verification', () => {
   let cssContent: string;
 
   beforeEach(() => {
@@ -18,8 +18,8 @@ describe('Geotab theme integration — comprehensive implementation verification
   });
 
   describe('CSS theme variables — index.css implementation', () => {
-    it('defines [data-theme="geotab"] CSS selector', () => {
-      expect(cssContent).toContain('[data-theme="geotab"]');
+    it('defines [data-theme="navy"] CSS selector', () => {
+      expect(cssContent).toContain('[data-theme="navy"]');
     });
 
     it('includes all required app-level CSS variables for consistent theming', () => {
@@ -32,7 +32,7 @@ describe('Geotab theme integration — comprehensive implementation verification
       ];
 
       requiredAppVariables.forEach(variable => {
-        expect(cssContent).toMatch(new RegExp(`\\[data-theme="geotab"\\][^}]*${variable}:`));
+        expect(cssContent).toMatch(new RegExp(`\\[data-theme="navy"\\][^}]*${variable}:`));
       });
     });
 
@@ -44,7 +44,7 @@ describe('Geotab theme integration — comprehensive implementation verification
       ];
 
       textVariables.forEach(variable => {
-        expect(cssContent).toMatch(new RegExp(`\\[data-theme="geotab"\\][^}]*${variable}:`));
+        expect(cssContent).toMatch(new RegExp(`\\[data-theme="navy"\\][^}]*${variable}:`));
       });
     });
 
@@ -57,7 +57,7 @@ describe('Geotab theme integration — comprehensive implementation verification
       ];
 
       uiVariables.forEach(variable => {
-        expect(cssContent).toMatch(new RegExp(`\\[data-theme="geotab"\\][^}]*${variable}:`));
+        expect(cssContent).toMatch(new RegExp(`\\[data-theme="navy"\\][^}]*${variable}:`));
       });
     });
 
@@ -75,23 +75,23 @@ describe('Geotab theme integration — comprehensive implementation verification
       ];
 
       badgeVariables.forEach(variable => {
-        expect(cssContent).toMatch(new RegExp(`\\[data-theme="geotab"\\][^}]*${variable}:`));
+        expect(cssContent).toMatch(new RegExp(`\\[data-theme="navy"\\][^}]*${variable}:`));
       });
     });
 
     it('uses Geotab brand colors as foundation per Anna\'s plan', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/)?.[1] || '';
 
       // Test for specific Geotab brand colors mentioned in Anna's plan
-      expect(geotabSection).toContain('#25477b'); // Geotab Blue
-      expect(geotabSection).toContain('#3c5164'); // Dark Gray
+      expect(navySection).toContain('#25477b'); // Geotab Blue
+      expect(navySection).toContain('#3c5164'); // Dark Gray
     });
 
     it('provides light text colors for contrast against dark theme backgrounds', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/)?.[1] || '';
 
       // Should contain light colors for text on dark backgrounds
-      expect(geotabSection).toMatch(/#[def][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i);
+      expect(navySection).toMatch(/#[def][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i);
     });
   });
 
@@ -106,23 +106,23 @@ describe('Geotab theme integration — comprehensive implementation verification
         return variables ? variables.length : 0;
       };
 
-      const geotabVarCount = extractVariableCount('geotab');
+      const navyVarCount = extractVariableCount('navy');
       const nordVarCount = extractVariableCount('nord');
       const solarizedVarCount = extractVariableCount('solarized');
 
-      // Geotab should have the same number of variables as other complete themes
-      expect(geotabVarCount).toBeGreaterThan(30); // Should have 40+ variables
-      expect(geotabVarCount).toBe(nordVarCount);
-      expect(geotabVarCount).toBe(solarizedVarCount);
+      // Navy should have the same number of variables as other complete themes
+      expect(navyVarCount).toBeGreaterThan(30); // Should have 40+ variables
+      expect(navyVarCount).toBe(nordVarCount);
+      expect(navyVarCount).toBe(solarizedVarCount);
     });
 
     it('follows the same variable naming pattern as existing themes', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Should contain all the standard variable prefixes
-      expect(geotabSection).toMatch(/--app-/);
-      expect(geotabSection).toMatch(/--editor-/);
-      expect(geotabSection).toMatch(/--badge-/);
+      expect(navySection).toMatch(/--app-/);
+      expect(navySection).toMatch(/--editor-/);
+      expect(navySection).toMatch(/--badge-/);
     });
   });
 
@@ -134,46 +134,46 @@ describe('Geotab theme integration — comprehensive implementation verification
 
     it('theme selector affects DOM when data-theme attribute is set', () => {
       const testElement = document.createElement('div');
-      testElement.setAttribute('data-theme', 'geotab');
+      testElement.setAttribute('data-theme', 'navy');
       document.body.appendChild(testElement);
 
-      // The CSS should be loaded and affect elements with data-theme="geotab"
-      const computedStyle = getComputedStyle(testElement);
+      // The CSS should be loaded and affect elements with data-theme="navy"
+      const _computedStyle = getComputedStyle(testElement); // jsdom cannot evaluate the stylesheet; kept to exercise the call path
 
       // Clean up
       document.body.removeChild(testElement);
 
       // At minimum, the style should exist (even if we can't easily test computed values in JSDOM)
-      expect(testElement.getAttribute('data-theme')).toBe('geotab');
+      expect(testElement.getAttribute('data-theme')).toBe('navy');
     });
 
     it('theme name matches across all implementation files', () => {
-      // This test ensures the theme name 'geotab' is consistent everywhere it's used
-      const themeName = 'geotab';
+      // This test ensures the theme name 'navy' is consistent everywhere it's used
+      const themeName = 'navy';
 
       // Already verified in CSS
       expect(cssContent).toContain(`[data-theme="${themeName}"]`);
 
       // Theme name should be simple and match the brand (case-insensitive in business context)
-      expect(themeName.toLowerCase()).toBe('geotab');
+      expect(themeName.toLowerCase()).toBe('navy');
     });
   });
 
   describe('accessibility and contrast — WCAG compliance verification', () => {
     it('provides accessible color combinations per Anna\'s plan requirements', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Should use very light text colors on dark backgrounds for contrast
       // Anna's plan specifically mentions #ffffff and #f0f0f0 for accessibility
-      expect(geotabSection).toMatch(/#f[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i);
+      expect(navySection).toMatch(/#f[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i);
     });
 
     it('uses appropriate contrast ratios between backgrounds and text', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Dark backgrounds should be paired with light text
-      const hasDarkBg = /#[0-3][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i.test(geotabSection);
-      const hasLightText = /#[def][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i.test(geotabSection);
+      const hasDarkBg = /#[0-3][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i.test(navySection);
+      const hasLightText = /#[def][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/i.test(navySection);
 
       expect(hasDarkBg).toBe(true);
       expect(hasLightText).toBe(true);
@@ -182,29 +182,29 @@ describe('Geotab theme integration — comprehensive implementation verification
 
   describe('Geotab brand color integration', () => {
     it('incorporates Geotab Blue (#0078d3) as accent color per Anna\'s plan', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Innovation Blue should be used sparingly as accent
-      expect(geotabSection).toContain('#0078d3');
+      expect(navySection).toContain('#0078d3');
     });
 
     it('uses professional dark theme approach as planned', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Should have multiple dark color values indicating a dark theme
-      const darkColorMatches = geotabSection.match(/#[0-3][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/gi);
+      const darkColorMatches = navySection.match(/#[0-3][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/gi);
       expect(darkColorMatches).toBeTruthy();
       expect(darkColorMatches!.length).toBeGreaterThan(5); // Multiple dark colors for various elements
     });
 
     it('maintains professional appearance suitable for technical/automotive industry', () => {
-      const geotabSection = cssContent.match(/\[data-theme="geotab"\]\s*\{([^}]+)\}/s)?.[1] || '';
+      const navySection = cssContent.match(/\[data-theme="navy"\]\s*\{([^}]+)\}/s)?.[1] || '';
 
       // Should avoid bright or playful colors — professional dark blues and grays
       // No bright red, bright green, bright yellow (professional appearance)
-      expect(geotabSection).not.toMatch(/#ff0000/i);
-      expect(geotabSection).not.toMatch(/#00ff00/i);
-      expect(geotabSection).not.toMatch(/#ffff00/i);
+      expect(navySection).not.toMatch(/#ff0000/i);
+      expect(navySection).not.toMatch(/#00ff00/i);
+      expect(navySection).not.toMatch(/#ffff00/i);
     });
   });
 
@@ -220,10 +220,10 @@ describe('Geotab theme integration — comprehensive implementation verification
     it('follows established CSS structure and patterns', () => {
       // Should be positioned after other themes as specified in Anna's plan
       const cssLines = cssContent.split('\n');
-      const geotabLineIndex = cssLines.findIndex(line => line.includes('[data-theme="geotab"]'));
+      const navyLineIndex = cssLines.findIndex(line => line.includes('[data-theme="navy"]'));
       const solarizedLineIndex = cssLines.findIndex(line => line.includes('[data-theme="solarized"]'));
 
-      expect(geotabLineIndex).toBeGreaterThan(solarizedLineIndex);
+      expect(navyLineIndex).toBeGreaterThan(solarizedLineIndex);
     });
   });
 });

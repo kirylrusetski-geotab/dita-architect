@@ -1176,7 +1176,7 @@ export default function ProfessionalDitaEditor() {
                     suspendSync={tab.documentMode === 'suggesting'}
                     onValidationTrigger={() => updateTab(tab.id, { validationTrigger: tab.validationTrigger + 1 })}
                   >
-                    <ShortdescPlugin />
+                    <ShortdescPlugin topicType={currentTopicType} />
                     <InsertElementPlugin suggesting={tab.documentMode === 'suggesting'} />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}

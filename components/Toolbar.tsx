@@ -31,7 +31,7 @@ export const THEME_OPTIONS = [
   { value: 'claude', label: 'Claude' },
   { value: 'nord', label: 'Nord' },
   { value: 'solarized', label: 'Solarized' },
-  { value: 'geotab', label: 'Geotab' },
+  { value: 'navy', label: 'Navy' },
 ] as const;
 
 export type ThemeName = typeof THEME_OPTIONS[number]['value'];
@@ -42,7 +42,7 @@ export const THEME_DESCRIPTIONS: Record<ThemeName, string> = {
   claude: 'Familiar Claude.ai colors',
   nord: 'Muted arctic palette for focus',
   solarized: 'Reduced eye strain color science',
-  geotab: 'Geotab brand colors',
+  navy: 'Deep blue-navy palette for low-light work',
 };
 
 interface ToolbarProps {

@@ -50,42 +50,10 @@ const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] => 
       text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
 
       if (text) {
-        // Detect template placeholder text and mark with special class
-        const placeholderPatterns = [
-          /^Task title$/i,
-          /^Enter your task title$/i,
-          /^Short description of the task\.?$/i,
-          /^Enter a short description of the task\.?$/i,
-          /^Concept title$/i,
-          /^Enter your concept title$/i,
-          /^Short description of the concept\.?$/i,
-          /^Enter a short description of the concept\.?$/i,
-          /^Reference title$/i,
-          /^Enter your reference title$/i,
-          /^Short description of the reference\.?$/i,
-          /^Enter a short description of the reference\.?$/i,
-          /^Brief task description$/i,
-          /^Brief description$/i,
-          /^Enter task title here$/i,
-          /^Enter short description here$/i,
-          /^Task description$/i,
-          /^Task description goes here$/i,
-          /^Short task description$/i
-        ];
-
-        const isPlaceholder = placeholderPatterns.some(pattern => pattern.test(text.trim()));
-
-        if (isPlaceholder) {
-          // Plain TextNode — no format/style. The parent element gets
-          // dita-editor-placeholder-title / dita-editor-placeholder-shortdesc
-          // via ShortdescPlugin CSS classes, which provide the muted/italic
-          // appearance without affecting Lexical's format state. Setting
-          // format/style here causes newly typed characters to inherit
-          // the muted italic appearance (Lexical format inheritance bug).
-          nodes.push($createTextNode(text.trim()));
-        } else {
-          nodes.push($createTextNode(text));
-        }
+        // FR-049: placeholder-ness is a property of emptiness, decided by
+        // ShortdescPlugin at render time. Text is always real content here —
+        // the old 19-pattern template-prose detector is gone.
+        nodes.push($createTextNode(text));
       }
     } else if (child.nodeType === Node.ELEMENT_NODE) {
       parseInlineElement(child as Element, originMap).forEach(n => nodes.push(n));

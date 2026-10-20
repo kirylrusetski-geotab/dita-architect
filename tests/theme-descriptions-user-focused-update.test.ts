@@ -7,7 +7,7 @@
  * Environment: vitest + jsdom
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { THEME_DESCRIPTIONS, THEME_OPTIONS } from '../components/Toolbar';
 
 describe('Theme descriptions user-focused update', () => {
@@ -32,8 +32,8 @@ describe('Theme descriptions user-focused update', () => {
       expect(THEME_DESCRIPTIONS.solarized).toBe('Reduced eye strain color science');
     });
 
-    it('provides user-focused description for geotab theme', () => {
-      expect(THEME_DESCRIPTIONS.geotab).toBe('Geotab brand colors');
+    it('provides user-focused description for navy theme', () => {
+      expect(THEME_DESCRIPTIONS.navy).toBe('Deep blue-navy palette for low-light work');
     });
   });
 
@@ -68,7 +68,7 @@ describe('Theme descriptions user-focused update', () => {
       expect(THEME_DESCRIPTIONS.claude).toContain('Familiar');
       expect(THEME_DESCRIPTIONS.nord).toContain('Muted arctic');
       expect(THEME_DESCRIPTIONS.solarized).toContain('color science');
-      expect(THEME_DESCRIPTIONS.geotab).toContain('brand colors');
+      expect(THEME_DESCRIPTIONS.navy).toContain('palette');
     });
 
     it('keeps descriptions concise while being informative', () => {
@@ -175,12 +175,12 @@ describe('Theme descriptions user-focused update', () => {
       expect(THEME_DESCRIPTIONS.solarized).toContain('color science');
     });
 
-    it('characterizes geotab theme for brand consistency', () => {
-      expect(THEME_DESCRIPTIONS.geotab).toBe('Geotab brand colors');
+    it('characterizes navy theme by its palette', () => {
+      expect(THEME_DESCRIPTIONS.navy).toBe('Deep blue-navy palette for low-light work');
 
       // Should emphasize brand alignment
-      expect(THEME_DESCRIPTIONS.geotab).toContain('Geotab');
-      expect(THEME_DESCRIPTIONS.geotab).toContain('brand');
+      expect(THEME_DESCRIPTIONS.navy).toContain('navy');
+      expect(THEME_DESCRIPTIONS.navy).toContain('palette');
     });
   });
 
@@ -209,7 +209,7 @@ describe('Theme descriptions user-focused update', () => {
       expect(descriptions.filter(d => d.includes('familiar') || d.includes('Claude'))).toHaveLength(1);
       expect(descriptions.filter(d => d.includes('focus'))).toHaveLength(1);
       expect(descriptions.filter(d => d.includes('eye strain'))).toHaveLength(1);
-      expect(descriptions.filter(d => d.includes('brand'))).toHaveLength(1);
+      expect(descriptions.filter(d => d.includes('navy'))).toHaveLength(1);
     });
   });
 
@@ -254,11 +254,11 @@ describe('Theme descriptions user-focused update', () => {
       expect(THEME_DESCRIPTIONS.claude).toBe('Familiar Claude.ai colors');
       expect(THEME_DESCRIPTIONS.nord).toBe('Muted arctic palette for focus');
       expect(THEME_DESCRIPTIONS.solarized).toBe('Reduced eye strain color science');
-      expect(THEME_DESCRIPTIONS.geotab).toBe('Geotab brand colors');
+      expect(THEME_DESCRIPTIONS.navy).toBe('Deep blue-navy palette for low-light work');
     });
 
     it('does not introduce any additional theme options', () => {
-      const expectedThemes = ['dark', 'light', 'claude', 'nord', 'solarized', 'geotab'];
+      const expectedThemes = ['dark', 'light', 'claude', 'nord', 'solarized', 'navy'];
       const actualThemes = Object.keys(THEME_DESCRIPTIONS).sort();
 
       expect(actualThemes).toEqual(expectedThemes.sort());

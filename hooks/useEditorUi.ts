@@ -12,6 +12,17 @@ interface UseEditorUiParams {
   setIsHerettoDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+/**
+ * FR-061: map a stored theme preference to a valid ThemeName. The "geotab"
+ * theme was renamed "navy" in v0.9.7; a stored `geotab` resolves to `navy` so
+ * existing users keep their palette. Anything unrecognised falls back to dark.
+ */
+export const resolveStoredTheme = (stored: string | null): ThemeName => {
+  if (stored === 'geotab') return 'navy';
+  if (stored === 'light' || stored === 'claude' || stored === 'nord' || stored === 'solarized' || stored === 'navy' || stored === 'dark') return stored;
+  return 'dark';
+};
+
 export function useEditorUi({
   activeTabId,
   tabs,
@@ -21,8 +32,10 @@ export function useEditorUi({
 }: UseEditorUiParams) {
   const [theme, setTheme] = useState<ThemeName>(() => {
     const stored = localStorage.getItem('dita-architect-theme');
-    if (stored === 'light' || stored === 'claude' || stored === 'nord' || stored === 'solarized' || stored === 'geotab' || stored === 'dark') return stored;
-    return 'dark';
+    const resolved = resolveStoredTheme(stored);
+    // FR-061: persist the migrated name so the legacy value does not linger.
+    if (stored !== null && stored !== resolved) localStorage.setItem('dita-architect-theme', resolved);
+    return resolved;
   });
 
   const handleThemeChange = useCallback((newTheme: ThemeName) => {

@@ -65,7 +65,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | FR-046                                                                                          | Marks-as-data tracked changes in Lexical (suggesting mode)                        | 2026-06-04 | Shipped v0.9.0            |
 | 🔴  | [FR-047](#fr-047-byte-stability-test-corpus--shared-test-editor-factory)                        | Byte-stability test corpus + shared test editor factory                           | 2026-07-17 | Open (P1 — blocks BUG-04) |
 | 🔴  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Open                      |
-| 🔴  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Open                      |
+| 🟢  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Shipped v0.9.7            |
 | 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
 | 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Open                      |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
@@ -77,7 +77,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-058](#fr-058-ingest-api-whole-document-replace-as-tracked-marks)                           | Ingest API whole-document replace as tracked marks                                | 2026-08-04 | Open                      |
 | 🔴  | [FR-059](#fr-059-expose-readability-score-via-api)                                             | Expose readability score via API                                                  | 2026-08-12 | Open                      |
 | 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
-| 🔴  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Open                      |
+| 🟢  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Shipped v0.9.7 |
 | 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (slices 1–2 shipped v0.9.4/v0.9.6; slice 3 discovery open) |
 | 🔴  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Open |
 
@@ -500,7 +500,7 @@ Must land **before** the BUG-04 sessions — the point is that all six S-bugs ar
 ## FR-049: True placeholders for template title/shortdesc (empty node + CSS decoration)
 
 **Requested:** 2026-07-17
-**Status:** Open
+**Status:** Shipped (v0.9.7, 2026-10-20) — Option A as designed: empty `<title/>`/`<shortdesc/>` templates, `data-placeholder` + `::before` decoration in `ShortdescPlugin`, topic-type-aware prompts, parser detector deleted, conversion swap deleted, `INITIAL_DITA` made standalone. The optional save guard (item 6) was **not** built: `handleHerettoSave` is also the API `saveTab` path, and a confirm modal there would stall automated saves with a false success. File separately as a UI-only guard if wanted.
 **Priority:** P2
 **Impact:** High for first-run UX
 **Model weight:** Sonnet
@@ -844,7 +844,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 
 **Requested:** 2026-10-19
 **Source:** Kiryl — filed when the repos went public; the theme is a colour palette, not an integration, and should not carry a company name
-**Status:** Open
+**Status:** Shipped (v0.9.7, 2026-10-20) — label `Navy`, tooltip `Deep blue-navy palette for low-light work`, CSS selector, Monaco key, API enum, README; `resolveStoredTheme` migrates a stored `geotab` to `navy` and rewrites localStorage; six theme test files updated, `tests/theme-migration.test.ts` added. Palette unchanged; release-note history not rewritten.
 **Priority:** P3
 **Impact:** Low — cosmetic, but it is user-visible in the theme dropdown, the API `theme` field, and `localStorage`
 **Model weight:** Sonnet (one rename with a persisted-value migration and six test files to update)

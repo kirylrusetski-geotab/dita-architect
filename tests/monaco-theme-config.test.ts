@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Extract and test Monaco editor theme configuration from MonacoDitaEditor.tsx
-// This tests the bgColors object that Jamie updated to include Geotab theme.
+// This tests the bgColors object, including the navy theme (formerly "geotab", renamed FR-061).
 // ---------------------------------------------------------------------------
 
 /** Mirror of the bgColors configuration from MonacoDitaEditor.tsx line 104 */
@@ -12,14 +12,14 @@ const bgColors = {
   claude:    { bg: '#1f150f', lineHighlight: '#3d2e24', lineNumber: '#8a7568' },
   nord:      { bg: '#242933', lineHighlight: '#3b4252', lineNumber: '#616e88' },
   solarized: { bg: '#001e28', lineHighlight: '#073642', lineNumber: '#586e75' },
-  geotab:    { bg: '#1e2332', lineHighlight: '#25477b', lineNumber: '#8a9ba8' },
+  navy:      { bg: '#1e2332', lineHighlight: '#25477b', lineNumber: '#8a9ba8' },
 } as const;
 
 describe('Monaco editor theme configuration — bgColors object', () => {
   it('includes configurations for all six supported themes', () => {
     const themeNames = Object.keys(bgColors);
     expect(themeNames).toHaveLength(6);
-    expect(themeNames).toEqual(['dark', 'light', 'claude', 'nord', 'solarized', 'geotab']);
+    expect(themeNames).toEqual(['dark', 'light', 'claude', 'nord', 'solarized', 'navy']);
   });
 
   it('provides complete color configuration for each theme', () => {
@@ -33,26 +33,26 @@ describe('Monaco editor theme configuration — bgColors object', () => {
     });
   });
 
-  describe('Geotab theme configuration — Jamie\'s implementation', () => {
-    it('includes geotab theme in the bgColors object', () => {
-      expect(bgColors).toHaveProperty('geotab');
+  describe('Navy theme configuration', () => {
+    it('includes navy theme in the bgColors object', () => {
+      expect(bgColors).toHaveProperty('navy');
     });
 
     it('uses appropriate dark background derived from Geotab brand colors', () => {
-      expect(bgColors.geotab.bg).toBe('#1e2332');
+      expect(bgColors.navy.bg).toBe('#1e2332');
     });
 
     it('uses Geotab Blue for line highlight to provide visual feedback', () => {
-      expect(bgColors.geotab.lineHighlight).toBe('#25477b');
+      expect(bgColors.navy.lineHighlight).toBe('#25477b');
     });
 
     it('uses muted color for line numbers to avoid distraction', () => {
-      expect(bgColors.geotab.lineNumber).toBe('#8a9ba8');
+      expect(bgColors.navy.lineNumber).toBe('#8a9ba8');
     });
 
     it('provides complete configuration object with all required properties', () => {
-      const geotabConfig = bgColors.geotab;
-      expect(geotabConfig).toEqual({
+      const navyConfig = bgColors.navy;
+      expect(navyConfig).toEqual({
         bg: '#1e2332',
         lineHighlight: '#25477b',
         lineNumber: '#8a9ba8'
@@ -83,9 +83,9 @@ describe('Monaco editor theme configuration — bgColors object', () => {
   });
 
   describe('theme consistency — color relationships', () => {
-    it('geotab theme uses darker background than line highlight for proper contrast', () => {
-      const bg = bgColors.geotab.bg;        // #1e2332
-      const highlight = bgColors.geotab.lineHighlight;  // #25477b
+    it('navy theme uses darker background than line highlight for proper contrast', () => {
+      const bg = bgColors.navy.bg;        // #1e2332
+      const highlight = bgColors.navy.lineHighlight;  // #25477b
 
       // Convert to numeric values for comparison (crude but effective for these specific colors)
       const bgValue = parseInt(bg.slice(1), 16);
@@ -101,8 +101,8 @@ describe('Monaco editor theme configuration — bgColors object', () => {
       expect(uniqueBackgrounds.size).toBe(backgrounds.length);
     });
 
-    it('geotab colors align with brand identity — darker professional appearance', () => {
-      const { bg, lineHighlight } = bgColors.geotab;
+    it('navy colors align with brand identity — darker professional appearance', () => {
+      const { bg, lineHighlight } = bgColors.navy;
 
       // These specific colors should match the Geotab brand-derived colors from Anna's plan
       expect(bg).toBe('#1e2332');           // Dark background derived from brand colors

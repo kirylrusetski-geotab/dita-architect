@@ -61,7 +61,7 @@ curl -s http://localhost:3001/api/status | jq
 | `herettoConnected` | boolean | Whether the editor has valid Heretto CMS credentials configured |
 | `tabCount` | number | How many tabs are currently open |
 | `activeTabId` | string | The ID of the tab the author is currently looking at |
-| `theme` | string | The active app theme (`dark`, `light`, `claude`, `nord`, `solarized`, `geotab`) |
+| `theme` | string | The active app theme (`dark`, `light`, `claude`, `nord`, `solarized`, `navy`). `navy` was called `geotab` before v0.9.7. |
 
 **When to use this:** Before doing anything else — confirm the editor is alive and check if Heretto is connected.
 

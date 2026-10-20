@@ -26,24 +26,24 @@ describe('THEME_OPTIONS — available themes in dropdown selector', () => {
     expect(THEME_OPTIONS[4]).toEqual({ value: 'solarized', label: 'Solarized' });
   });
 
-  it('includes Geotab theme as sixth option — new theme added per Anna\'s plan', () => {
-    expect(THEME_OPTIONS[5]).toEqual({ value: 'geotab', label: 'Geotab' });
+  it('includes Navy theme as sixth option — new theme added per Anna\'s plan', () => {
+    expect(THEME_OPTIONS[5]).toEqual({ value: 'navy', label: 'Navy' });
   });
 
   it('contains expected theme values that can be used as data-theme attributes', () => {
     const values = THEME_OPTIONS.map(option => option.value);
-    expect(values).toEqual(['dark', 'light', 'claude', 'nord', 'solarized', 'geotab']);
+    expect(values).toEqual(['dark', 'light', 'claude', 'nord', 'solarized', 'navy']);
   });
 
   it('contains human-readable labels for the theme dropdown UI', () => {
     const labels = THEME_OPTIONS.map(option => option.label);
-    expect(labels).toEqual(['Dark', 'Light', 'Claude', 'Nord', 'Solarized', 'Geotab']);
+    expect(labels).toEqual(['Dark', 'Light', 'Claude', 'Nord', 'Solarized', 'Navy']);
   });
 
-  it('geotab value matches the CSS data-theme selector in index.css', () => {
+  it('navy value matches the CSS data-theme selector in index.css', () => {
     // This ensures the theme value will properly activate the CSS variables
-    const geotabTheme = THEME_OPTIONS.find(option => option.label === 'Geotab');
-    expect(geotabTheme?.value).toBe('geotab');
+    const navyTheme = THEME_OPTIONS.find(option => option.label === 'Navy');
+    expect(navyTheme?.value).toBe('navy');
   });
 
   it('all theme values are valid TypeScript ThemeName type members', () => {
@@ -73,8 +73,8 @@ describe('THEME_DESCRIPTIONS — theme tooltip content for accessibility', () =>
     });
   });
 
-  it('includes description for geotab theme specifically', () => {
-    expect(THEME_DESCRIPTIONS.geotab).toBeDefined();
-    expect(THEME_DESCRIPTIONS.geotab).toContain('Geotab');
+  it('includes description for navy theme specifically', () => {
+    expect(THEME_DESCRIPTIONS.navy).toBeDefined();
+    expect(THEME_DESCRIPTIONS.navy).toContain('navy');
   });
 });

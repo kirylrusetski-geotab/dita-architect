@@ -433,7 +433,7 @@ body {
   --validation-unresolved-keyref-bg: rgba(181, 137, 0, 0.15);
 }
 
-[data-theme="geotab"] {
+[data-theme="navy"] {
   --app-bg: #0f1419;
   --app-surface: #1a2332;
   --app-surface-raised: #3c5164;
@@ -563,12 +563,21 @@ body {
   margin-bottom: 0.5rem;
   line-height: 1.2;
 }
-.dita-editor-placeholder-title {
-  color: var(--app-text-muted) !important;
+/* FR-049: true placeholders. The element is genuinely empty (Lexical renders a
+   <br> inside it, so :empty cannot be used); the prompt is drawn by ::before
+   from data-placeholder set by ShortdescPlugin. Typing inserts real text at
+   caret 0 and the plugin clears the class the moment the node is non-empty. */
+.dita-editor-placeholder-title::before,
+.dita-editor-placeholder-shortdesc::before {
+  content: attr(data-placeholder);
+  color: var(--app-text-muted);
   font-style: italic;
+  font-weight: 400;
+  pointer-events: none;
+  user-select: none;
 }
-.dita-editor-placeholder-shortdesc {
-  opacity: 0.5;
+.dita-editor-placeholder-shortdesc::before {
+  opacity: 0.7;
 }
 .dita-editor-h2 {
   font-size: 1.5rem;

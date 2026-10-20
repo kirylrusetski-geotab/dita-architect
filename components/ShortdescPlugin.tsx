@@ -13,20 +13,35 @@ import {
 } from 'lexical';
 import { $isHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { useSyncContext } from '../sync';
-import { DITA_PLACEHOLDER_TITLES, DITA_PLACEHOLDER_SHORTDESCS } from '../constants/dita';
+import {
+  DITA_PLACEHOLDER_TITLES,
+  DITA_PLACEHOLDER_SHORTDESCS,
+  GENERIC_PLACEHOLDER_TITLE,
+  GENERIC_PLACEHOLDER_SHORTDESC,
+  type DitaTopicType,
+} from '../constants/dita';
 
-const ALL_PLACEHOLDER_TITLES = new Set([
-  ...Object.values(DITA_PLACEHOLDER_TITLES),
-  'Task title',
-  'Concept title',
-  'Reference title',
-]);
-const ALL_PLACEHOLDER_SHORTDESCS = new Set([
-  ...Object.values(DITA_PLACEHOLDER_SHORTDESCS),
-  'Short description of the task.',
-  'Short description of the concept.',
-  'Short description of the reference.',
-]);
+// FR-049: a placeholder is an EMPTY title/shortdesc node. The prompt is CSS
+// (`::before { content: attr(data-placeholder) }`), never document text, so it
+// cannot be appended to and never reaches Heretto. Topic-type aware when the
+// type is known.
+const isKnownTopicType = (t: string | undefined): t is DitaTopicType =>
+  t === 'task' || t === 'concept' || t === 'reference';
+const titlePrompt = (topicType?: string) =>
+  isKnownTopicType(topicType) ? DITA_PLACEHOLDER_TITLES[topicType] : GENERIC_PLACEHOLDER_TITLE;
+const shortdescPrompt = (topicType?: string) =>
+  isKnownTopicType(topicType) ? DITA_PLACEHOLDER_SHORTDESCS[topicType] : GENERIC_PLACEHOLDER_SHORTDESC;
+
+/** Apply or clear the empty-node placeholder decoration on a DOM element. */
+const decoratePlaceholder = (el: HTMLElement, className: string, isEmpty: boolean, prompt: string) => {
+  if (isEmpty) {
+    el.classList.add(className);
+    el.setAttribute('data-placeholder', prompt);
+  } else {
+    el.classList.remove(className);
+    el.removeAttribute('data-placeholder');
+  }
+};
 
 const BODY_TAG_CLASSES: Record<string, string> = {
   shortdesc: 'dita-editor-shortdesc',
@@ -69,7 +84,12 @@ const ALL_NOTE_TYPE_CLASSES = Object.values(NOTE_TYPE_CLASSES);
  * exists yet, the new paragraph is tagged as 'shortdesc' and gets a
  * visual indicator via a CSS class applied through a mutation listener.
  */
-export const ShortdescPlugin = () => {
+interface ShortdescPluginProps {
+  /** FR-049: current topic type, so empty title/shortdesc prompts can be type-aware. */
+  topicType?: string;
+}
+
+export const ShortdescPlugin = ({ topicType }: ShortdescPluginProps = {}) => {
   const [editor] = useLexicalComposerContext();
   const { nodeOriginMap } = useSyncContext();
 
@@ -160,13 +180,17 @@ export const ShortdescPlugin = () => {
             // Add the appropriate class if origin tag matches
             if (origin?.tag && BODY_TAG_CLASSES[origin.tag]) {
               domElement.classList.add(BODY_TAG_CLASSES[origin.tag]);
-              // Mark shortdesc as placeholder when it still contains template text
+              // FR-049: an EMPTY shortdesc shows the prompt as CSS decoration.
               if (origin.tag === 'shortdesc') {
-                const text = node.getTextContent();
-                if (ALL_PLACEHOLDER_SHORTDESCS.has(text)) {
-                  domElement.classList.add('dita-editor-placeholder-shortdesc');
-                }
+                decoratePlaceholder(
+                  domElement,
+                  'dita-editor-placeholder-shortdesc',
+                  node.getTextContent().trim() === '',
+                  shortdescPrompt(topicType),
+                );
               }
+            } else {
+              domElement.removeAttribute('data-placeholder');
             }
           });
         });
@@ -228,12 +252,14 @@ export const ShortdescPlugin = () => {
             }
 
             if (node.getTag() === 'h1') {
-              const text = node.getTextContent();
-              if (ALL_PLACEHOLDER_TITLES.has(text)) {
-                domElement.classList.add('dita-editor-placeholder-title');
-              } else {
-                domElement.classList.remove('dita-editor-placeholder-title');
-              }
+              // FR-049: the topic title (first root child) shows a prompt while empty.
+              const isTopicTitle = root.getFirstChild()?.getKey() === key;
+              decoratePlaceholder(
+                domElement,
+                'dita-editor-placeholder-title',
+                isTopicTitle && node.getTextContent().trim() === '',
+                titlePrompt(topicType),
+              );
             }
           });
         });
@@ -246,7 +272,7 @@ export const ShortdescPlugin = () => {
       removeQuoteMutationListener();
       removeHeadingMutationListener();
     };
-  }, [editor, nodeOriginMap]);
+  }, [editor, nodeOriginMap, topicType]);
 
   return null;
 };
