@@ -20,7 +20,14 @@ export const createXmlMetaCache = (): XmlMetaCache => ({ source: '', meta: null 
 
 const RECOGNIZED_BODY_TAGS = new Set([
   'p', 'note', 'section', 'steps', 'ol', 'ul', 'prereq', 'context', 'result', 'postreq', 'table', 'simpletable', 'codeblock', 'dl',
+  // Troubleshooting topics (ADR-009). Lowercase because the walk lowercases domTag.
+  'condition', 'cause', 'remedy', 'troublesolution', 'steps-informal', 'steps-unordered',
 ]);
+
+// ADR-009: containers the walk patches by recursion (parser stamps containerPath).
+// Never deleted when unconsumed — an empty <cause/> or <condition/> is legitimate
+// authoring state and must survive a no-edit round-trip byte-for-byte.
+const TROUBLE_CONTAINER_TAGS_LOWER = new Set(['troublesolution', 'condition', 'cause', 'remedy', 'steps-informal']);
 
 // FR-046 tripwire: tracked marks are resolved before serialization by design
 // (sync suspended during suggesting mode). Warn once — not per node — if one
@@ -60,6 +67,9 @@ const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
     } else if (rootTag === 'topic') {
       bodyTag = 'body';
       doctype = '<!DOCTYPE topic PUBLIC "-//OASIS//DTD DITA Topic//EN" "topic.dtd">';
+    } else if (rootTag === 'troubleshooting') {
+      bodyTag = 'troublebody';
+      doctype = '<!DOCTYPE troubleshooting PUBLIC "-//OASIS//DTD DITA Troubleshooting//EN" "troubleshooting.dtd">';
     }
   }
 
@@ -92,6 +102,7 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
     // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
     // The original <info> DOM is left byte-stable by the patch path.
     if (child.getType() === 'dita-info-preview') return;
+    if (child.getType() === 'dita-container-boundary') return; // ADR-009 visual-only marker
     // FR-046 defensive guard: tracked marks must be resolved (accepted or
     // rejected) before serialization — sync is suspended during suggesting
     // mode, so this path is unreachable in practice. If a mark does slip
@@ -433,6 +444,7 @@ const buildLexicalInlineRuns = (lexicalNode: any, originMap?: NodeOriginMapType)
   for (const child of lexicalNode.getChildren()) {
     const type = child.getType();
     if (type === 'dita-info-preview') continue; // visual-only, never serialized
+    if (type === 'dita-container-boundary') continue; // visual-only, never serialized
     if (type !== 'text') return null;
     if (originMap?.get(child.getKey())?.inlineTag) return null;
     let fmt = 0;
@@ -570,13 +582,19 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
 
   if (type === 'list') {
     const isOrdered = lexicalNode.getListType() === 'number';
-    const tag = isOrdered ? (rootTag === 'task' ? 'steps' : 'ol') : 'ul';
-    const childTag = tag === 'steps' ? 'step' : 'li';
+    // Inside a troubleshooting <remedy> the only valid list children are
+    // <steps> / <steps-unordered> (ADR-009), never <ol>/<ul>.
+    const inRemedy = /(^|\/)remedy#\d+$/.test(origin?.containerPath ?? '');
+    const tag = isOrdered
+      ? (rootTag === 'task' || inRemedy ? 'steps' : 'ol')
+      : (inRemedy ? 'steps-unordered' : 'ul');
+    const isStepList = tag === 'steps' || tag === 'steps-unordered';
+    const childTag = isStepList ? 'step' : 'li';
     const el = doc.createElement(tag);
 
     lexicalNode.getChildren().forEach((li: any) => {
       const liEl = doc.createElement(childTag);
-      if (tag === 'steps') {
+      if (isStepList) {
         const cmd = doc.createElement('cmd');
         serializeInlineContent(li, doc, originMap).forEach(n => cmd.appendChild(n));
         liEl.appendChild(cmd);
@@ -703,7 +721,7 @@ const createTableFromLexical = (tableNode: any, doc: Document, originMap?: NodeO
  */
 const patchListElement = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   const tag = domEl.tagName.toLowerCase();
-  const isSteps = tag === 'steps';
+  const isSteps = tag === 'steps' || tag === 'steps-unordered';
   const childTag = isSteps ? 'step' : 'li';
 
   const domItems = Array.from(domEl.children).filter(
@@ -1099,10 +1117,12 @@ const patchBodyChildren = (
   doc: Document,
   rootTag: string,
   originMap: NodeOriginMapType,
-  options?: { groupDl?: boolean },
+  options?: { groupDl?: boolean; basePath?: string; groupPWrap?: boolean },
 ) => {
   const groupDl = options?.groupDl !== false;
-  const groups = groupBodyNodesForSections(lexicalNodes, originMap, groupDl);
+  const basePath = options?.basePath ?? '';
+  const groupPWrap = options?.groupPWrap !== false;
+  const groups = groupBodyNodesForSections(lexicalNodes, originMap, groupDl, basePath, groupPWrap);
 
   const recognizedDomChildren = domChildren.filter(
     c => RECOGNIZED_BODY_TAGS.has(c.tagName.toLowerCase())
@@ -1144,6 +1164,51 @@ const patchBodyChildren = (
         const sectionEl = createSectionFromLexical(group.nodes, doc, rootTag, originMap);
         parentEl.insertBefore(sectionEl, domChild);
         parentEl.removeChild(domChild);
+      }
+      gIdx++;
+    } else if (group.type === 'pwrap') {
+      // BUG-25: a <p> wrapping blocks — patch the wrapper in place.
+      if (domTag === 'p') {
+        patchPWrapper(domChild, group.nodes, doc, rootTag, originMap, basePath);
+        consumed.add(domChild);
+      } else {
+        const el = createPWrapperFromLexical(group.nodes, doc, rootTag, originMap);
+        parentEl.insertBefore(el, domChild);
+        parentEl.removeChild(domChild);
+      }
+      gIdx++;
+    } else if (group.type === 'container') {
+      // ADR-009: a troubleshooting container. Patch the matching DOM element in
+      // place by recursing; if the DOM child is a different container (the
+      // author added one), create it and let the walk realign.
+      const wantTag = group.tag!.toLowerCase();
+      if (domTag === wantTag) {
+        patchContainer(domChild, group, doc, rootTag, originMap);
+        consumed.add(domChild);
+      } else {
+        // Look ahead: the matching container may sit behind an empty sibling
+        // that produced no Lexical nodes (an empty <cause/> before a <remedy>).
+        // Preserved containers in between are left alone; anything else in
+        // between is deleted content and falls to the removal pass.
+        let targetIdx = -1;
+        for (let j = domIdx + 1; j < recognizedDomChildren.length; j++) {
+          const c = recognizedDomChildren[j];
+          if (c.parentNode !== parentEl || consumed.has(c)) continue;
+          if (c.tagName.toLowerCase() === wantTag) { targetIdx = j; break; }
+        }
+        if (targetIdx !== -1) {
+          for (let j = domIdx; j < targetIdx; j++) {
+            if (TROUBLE_CONTAINER_TAGS_LOWER.has(recognizedDomChildren[j].tagName.toLowerCase())) consumed.add(recognizedDomChildren[j]);
+          }
+          patchContainer(recognizedDomChildren[targetIdx], group, doc, rootTag, originMap);
+          consumed.add(recognizedDomChildren[targetIdx]);
+          domIdx = targetIdx;
+        } else {
+          const el = createContainerFromLexical(group, doc, rootTag, originMap);
+          parentEl.insertBefore(el, domChild);
+          if (!TROUBLE_CONTAINER_TAGS_LOWER.has(domTag)) parentEl.removeChild(domChild);
+          else domIdx--; // the preserved container is still ahead; re-examine it for the next group
+        }
       }
       gIdx++;
     } else {
@@ -1209,6 +1274,9 @@ const patchBodyChildren = (
   // paragraphs with 1 note must not leave the 2 old paragraphs behind).
   for (const child of recognizedDomChildren) {
     if (!consumed.has(child) && child.parentNode === parentEl) {
+      // ADR-009: empty troubleshooting containers produce no Lexical nodes and
+      // are legitimate authoring state — preserve, never delete.
+      if (TROUBLE_CONTAINER_TAGS_LOWER.has(child.tagName.toLowerCase())) continue;
       parentEl.removeChild(child);
     }
   }
@@ -1218,6 +1286,10 @@ const patchBodyChildren = (
     const group = groups[i];
     if (group.type === 'section') {
       parentEl.appendChild(createSectionFromLexical(group.nodes, doc, rootTag, originMap));
+    } else if (group.type === 'container') {
+      parentEl.appendChild(createContainerFromLexical(group, doc, rootTag, originMap));
+    } else if (group.type === 'pwrap') {
+      parentEl.appendChild(createPWrapperFromLexical(group.nodes, doc, rootTag, originMap));
     } else if (group.type === 'dl') {
       parentEl.appendChild(createDlFromLexical(group.nodes, doc, rootTag, originMap));
     } else {
@@ -1245,6 +1317,7 @@ const areTypesCompatible = (
   // element is preserved as-is (non-recreatable node contract, ADR-006/S1).
   if (domTag === 'note' && lexType === 'ditaphref') return true;
   if (domTag === 'steps' && lexType === 'list') return true;
+  if (domTag === 'steps-unordered' && lexType === 'list') return true;
   if (domTag === 'ol' && lexType === 'list') return true;
   if (domTag === 'ul' && lexType === 'list') return true;
   if (domTag === 'table' && lexType === 'table') return true;
@@ -1267,7 +1340,7 @@ const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document,
     // element stays byte-stable, never patched from the chip's display text.
     if (lexicalNode.getType() === 'ditaphref') return;
     patchElementContent(domEl, lexicalNode, doc, originMap);
-  } else if (tag === 'steps' || tag === 'ol' || tag === 'ul') {
+  } else if (tag === 'steps' || tag === 'steps-unordered' || tag === 'ol' || tag === 'ul') {
     patchListElement(domEl, lexicalNode, doc, originMap);
   } else if (tag === 'table' || tag === 'simpletable') {
     patchTableElement(domEl, lexicalNode, doc, originMap);
@@ -1413,17 +1486,76 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
  * includes all following nodes until the next h2 or end.
  */
 interface NodeGroup {
-  type: 'single' | 'section' | 'dl';
+  type: 'single' | 'section' | 'dl' | 'container' | 'pwrap';
   nodes: any[];
+  /** container groups only (ADR-009): element tag in source case, and the full path of this container */
+  tag?: string;
+  path?: string;
 }
 
-const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapType, groupDl: boolean = true): NodeGroup[] => {
+/** ADR-009: visual-only markers never take part in the DOM walk. */
+const isVisualOnly = (node: any): boolean => {
+  const t = node?.getType?.();
+  return t === 'dita-container-boundary' || t === 'dita-info-preview';
+};
+
+/** ADR-009: the next "tag#ordinal" segment of `containerPath` below `basePath`, or null if the node is not inside a deeper container. */
+const nextContainerSegment = (containerPath: string | undefined, basePath: string): { segment: string; path: string } | null => {
+  if (!containerPath) return null;
+  let rest: string;
+  if (basePath === '') rest = containerPath;
+  else if (containerPath.startsWith(basePath + '/')) rest = containerPath.slice(basePath.length + 1);
+  else return null; // at or above basePath → treated as a direct child of this level
+  if (!rest) return null;
+  const segment = rest.split('/')[0];
+  return { segment, path: basePath === '' ? segment : `${basePath}/${segment}` };
+};
+
+const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapType, groupDl: boolean = true, basePath: string = '', groupPWrap: boolean = true): NodeGroup[] => {
   const groups: NodeGroup[] = [];
   let i = 0;
 
   while (i < bodyNodes.length) {
     const node = bodyNodes[i];
     const origin = originMap?.get(node.getKey());
+
+    // Troubleshooting container group (ADR-009): a run of nodes whose
+    // containerPath descends into the same next container below basePath.
+    // Takes precedence over section/dl grouping so an h2 title inside a
+    // <condition> cannot swallow the following <troubleSolution>.
+    const next = nextContainerSegment(origin?.containerPath, basePath);
+    if (next) {
+      const containerNodes: any[] = [node];
+      i++;
+      while (i < bodyNodes.length) {
+        const n = nextContainerSegment(originMap?.get(bodyNodes[i].getKey())?.containerPath, basePath);
+        if (!n || n.path !== next.path) break;
+        containerNodes.push(bodyNodes[i]);
+        i++;
+      }
+      groups.push({ type: 'container', nodes: containerNodes, tag: next.segment.split('#')[0], path: next.path });
+      continue;
+    }
+
+    // BUG-25: a <p> that wrapped block children. A run of nodes sharing a
+    // pWrapperId (inline runs as paragraphs, blocks as themselves) is patched
+    // back into the one source <p>. Nodes that also carry dlEntryIndex belong
+    // to the <p><dl> path below, which predates this and must keep winning.
+    // Disabled inside patchPWrapper's own block walk (groupPWrap=false), where
+    // every node carries the wrapper's id by construction.
+    if (groupPWrap && origin?.pWrapperId !== undefined && origin.dlEntryIndex === undefined) {
+      const id = origin.pWrapperId;
+      const wrapNodes: any[] = [node];
+      i++;
+      while (i < bodyNodes.length) {
+        const o = originMap?.get(bodyNodes[i].getKey());
+        if (o?.pWrapperId !== id || o.dlEntryIndex !== undefined) break;
+        wrapNodes.push(bodyNodes[i]);
+        i++;
+      }
+      groups.push({ type: 'pwrap', nodes: wrapNodes });
+      continue;
+    }
 
     // Definition-list group: a run of nodes carrying dlEntryIndex (one <dt>
     // paragraph + the <dd>'s block children, repeated per <dlentry>). A fresh
@@ -1482,6 +1614,131 @@ const createSectionFromLexical = (nodes: any[], doc: Document, rootTag: string, 
   });
 
   return section;
+};
+
+/**
+ * ADR-009: patch a troubleshooting container (<condition>, <cause>, <remedy>,
+ * <troubleSolution>, <steps-informal>) in place. An optional leading h2 is the
+ * container's <title>; everything else is walked by patchBodyChildren with the
+ * container's path as the new base, so nested containers recurse naturally.
+ */
+const patchContainer = (
+  containerEl: Element,
+  group: NodeGroup,
+  doc: Document,
+  rootTag: string,
+  originMap: NodeOriginMapType,
+) => {
+  let bodyNodes: any[] = group.nodes.filter(n => !isVisualOnly(n));
+  const first = bodyNodes[0];
+  if (first && first.getType() === 'heading' && first.getTag() === 'h2') {
+    const title = containerEl.querySelector(':scope > title');
+    if (title) patchElementContent(title, first, doc, originMap);
+    bodyNodes = bodyNodes.slice(1);
+  }
+  const children = Array.from(containerEl.children).filter(c => c.tagName.toLowerCase() !== 'title');
+  patchBodyChildren(children, containerEl, bodyNodes, doc, rootTag, originMap, { basePath: group.path });
+};
+
+/**
+ * BUG-25: patch a <p> that wraps block children. The DOM <p> alternates inline
+ * segments (text + inline elements) with block elements; the Lexical run
+ * alternates paragraphs (the inline segments) with block nodes. Blocks are
+ * patched through the normal walk; an inline segment is rewritten only when
+ * its text actually changed. If the two shapes no longer line up (the author
+ * restructured the paragraph), the wrapper is rebuilt from Lexical.
+ */
+const patchPWrapper = (
+  pEl: Element,
+  nodes: any[],
+  doc: Document,
+  rootTag: string,
+  originMap: NodeOriginMapType,
+  basePath: string = '',
+) => {
+  const isBlockEl = (n: Node): n is Element =>
+    n.nodeType === Node.ELEMENT_NODE && RECOGNIZED_BODY_TAGS.has((n as Element).tagName.toLowerCase());
+
+  // Partition DOM children into inline segments and block elements, in order.
+  type Segment = { kind: 'inline'; nodes: Node[] } | { kind: 'block'; el: Element };
+  const segments: Segment[] = [];
+  let currentInline: Node[] = [];
+  const flush = () => {
+    const hasContent = currentInline.some(n =>
+      n.nodeType === Node.ELEMENT_NODE || (n.textContent ?? '').trim().length > 0,
+    );
+    if (hasContent) segments.push({ kind: 'inline', nodes: currentInline });
+    currentInline = [];
+  };
+  Array.from(pEl.childNodes).forEach(n => {
+    if (isBlockEl(n)) { flush(); segments.push({ kind: 'block', el: n }); }
+    else currentInline.push(n);
+  });
+  flush();
+
+  const lexInline = nodes.filter(n => n.getType() === 'paragraph');
+  const lexBlocks = nodes.filter(n => n.getType() !== 'paragraph');
+  const domInline = segments.filter(s => s.kind === 'inline') as Extract<Segment, { kind: 'inline' }>[];
+  const domBlocks = segments.filter(s => s.kind === 'block').map(s => (s as Extract<Segment, { kind: 'block' }>).el);
+
+  const shapesAlign =
+    lexInline.length === domInline.length &&
+    segments.map(s => s.kind).join() === nodes.map(n => (n.getType() === 'paragraph' ? 'inline' : 'block')).join();
+
+  if (!shapesAlign) {
+    // Rebuild the wrapper: keep the <p>'s own attributes, regenerate children.
+    while (pEl.firstChild) pEl.removeChild(pEl.firstChild);
+    nodes.forEach(n => {
+      if (n.getType() === 'paragraph') serializeInlineContent(n, doc, originMap).forEach(x => pEl.appendChild(x));
+      else { const el = createElementFromLexical(n, doc, rootTag, originMap); if (el) pEl.appendChild(el); }
+    });
+    return;
+  }
+
+  // Blocks: the ordinary walk, scoped to this <p> (wrapper grouping off — these
+  // nodes all carry this wrapper's id).
+  patchBodyChildren(domBlocks, pEl, lexBlocks, doc, rootTag, originMap, { groupPWrap: false, basePath });
+
+  // Inline segments: rewrite only when text changed (whitespace-insensitive,
+  // like the S3 rule — the parser collapses inter-node whitespace).
+  const stripWs = (s: string) => s.replace(/\s+/g, '');
+  domInline.forEach((seg, i) => {
+    const lex = lexInline[i];
+    const domText = seg.nodes.map(n => n.textContent ?? '').join('');
+    if (stripWs(domText) === stripWs(lex.getTextContent())) return;
+    const anchor = seg.nodes[seg.nodes.length - 1].nextSibling;
+    seg.nodes.forEach(n => { if (n.parentNode === pEl) pEl.removeChild(n); });
+    serializeInlineContent(lex, doc, originMap).forEach(x => pEl.insertBefore(x, anchor));
+  });
+};
+
+/** BUG-25: create a block-wrapping <p> from scratch. */
+const createPWrapperFromLexical = (nodes: any[], doc: Document, rootTag: string, originMap: NodeOriginMapType): Element => {
+  const p = doc.createElement('p');
+  nodes.forEach(n => {
+    if (n.getType() === 'paragraph') serializeInlineContent(n, doc, originMap).forEach(x => p.appendChild(x));
+    else { const el = createElementFromLexical(n, doc, rootTag, originMap); if (el) p.appendChild(el); }
+  });
+  return p;
+};
+
+/**
+ * ADR-009: create a troubleshooting container from scratch (author added one in
+ * the visual editor, or the master lacks it). Children are produced by the same
+ * walk with an empty DOM, so nested containers are created recursively.
+ */
+const createContainerFromLexical = (group: NodeGroup, doc: Document, rootTag: string, originMap: NodeOriginMapType): Element => {
+  const el = doc.createElement(group.tag!);
+  let bodyNodes: any[] = group.nodes.filter(n => !isVisualOnly(n));
+  const first = bodyNodes[0];
+  if (first && first.getType() === 'heading' && first.getTag() === 'h2') {
+    const title = doc.createElement('title');
+    serializeInlineContent(first, doc, originMap).forEach(n => title.appendChild(n));
+    el.appendChild(title);
+    bodyNodes = bodyNodes.slice(1);
+  }
+  patchBodyChildren([], el, bodyNodes, doc, rootTag, originMap, { basePath: group.path });
+  return el;
 };
 
 /**

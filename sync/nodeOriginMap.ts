@@ -20,6 +20,21 @@ export interface NodeOrigin {
   // (e.g. a <note> or <table>) keep their own tag/noteType identity.
   dlEntryIndex?: number;  // index of the <dlentry> within the <dl>
   ddFirst?: boolean;      // marks the first node produced from a <dd>
+  // Troubleshooting-topic container membership (ADR-009). <troublebody> nests
+  // its content in section-class containers (<condition>, <cause>, <remedy>),
+  // a bodydiv wrapper (<troubleSolution>), and <steps-informal>. Each is
+  // flattened to body-level Lexical nodes; containerPath records the chain of
+  // enclosing containers as "tag#ordinal" segments joined by "/", e.g.
+  // "troubleSolution#1/remedy#0". The serializer groups consecutive nodes by
+  // path and patches the preserved container elements in place. Merged onto
+  // the node's existing origin like dlEntryIndex.
+  containerPath?: string;
+  // A <p> that wraps block children (Heretto authors <p>text<ul>…</ul></p>)
+  // flattens to a run of nodes: the inline runs as paragraphs, the blocks as
+  // themselves. pWrapperId ties the run back to its source <p> so the
+  // serializer patches the wrapper in place instead of splitting it into
+  // <p>text</p><ul/> and dropping its attributes (BUG-25). Unique per parse.
+  pWrapperId?: number;
 }
 
 // Factory to create a per-editor-instance map.

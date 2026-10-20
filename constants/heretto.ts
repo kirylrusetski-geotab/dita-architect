@@ -58,10 +58,14 @@ export const RECOGNIZED_ELEMENTS = new Set([
   'note', 'steps', 'ol', 'ul', 'step', 'li', 'table', 'simpletable', 'section',
   'xref', 'b', 'strong', 'i', 'em', 'ph', 'codeph', 'codeblock', 'fig', 'image',
   'term', 'uicontrol', 'wintitle', 'option', 'alt',
+  // Troubleshooting topics (P2-25 / ADR-009) + inline leaves the generic
+  // inlineTag path (BUG-04/M1) already round-trips.
+  'condition', 'cause', 'remedy', 'steps-unordered', 'steps-informal',
+  'keyword', 'filepath', 'cite', 'varname', 'cmdname', 'parmname', 'apiname',
 ]);
 
 export const STRUCTURAL_CONTAINERS = new Set([
-  'task', 'concept', 'reference', 'topic', 'taskbody', 'conbody', 'refbody',
-  'body', 'tgroup', 'thead', 'tbody', 'row', 'entry', 'sthead', 'strow',
+  'task', 'concept', 'reference', 'topic', 'troubleshooting', 'taskbody', 'conbody', 'refbody',
+  'troublebody', 'troubleSolution', 'body', 'tgroup', 'thead', 'tbody', 'row', 'entry', 'sthead', 'strow',
   'stentry',
 ]);

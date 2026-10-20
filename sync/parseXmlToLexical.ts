@@ -18,6 +18,7 @@ import { $createDitaCodeBlockNode } from '../components/DitaCodeBlockNode';
 import { $createDitaImageNode } from '../components/DitaImageNode';
 import { $createDitaPhRefNode } from '../components/DitaPhRefNode';
 import { $createDitaInfoPreviewNode, buildInfoModel } from '../components/DitaInfoPreviewNode';
+import { $createDitaContainerBoundaryNode } from '../components/DitaContainerBoundaryNode';
 
 // ---------------------------------------------------------------------------
 // Shared parsing helpers — module-level so parseSectionFragment can reuse them
@@ -197,6 +198,33 @@ const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =
   return nodes;
 };
 
+// Troubleshooting-topic containers (ADR-009). Each flattens to body-level
+// nodes stamped with a containerPath so the serializer can patch the
+// preserved element in place. DOM tagName case is kept (`troubleSolution`).
+export const TROUBLE_CONTAINER_TAGS = new Set(['troubleSolution', 'condition', 'cause', 'remedy', 'steps-informal']);
+const SECTION_LIKE_TITLE_PARENTS = new Set(['section', 'condition', 'cause', 'remedy']);
+
+/** "tag#ordinal" for `el` among its parent's same-tag children. */
+const containerSegment = (el: Element): string => {
+  const siblings = el.parentElement ? Array.from(el.parentElement.children).filter(c => c.tagName === el.tagName) : [el];
+  return `${el.tagName}#${siblings.indexOf(el)}`;
+};
+
+/** Full container path for `el` itself: every enclosing container from the outermost down to `el`. */
+const containerPathFor = (el: Element): string => {
+  const segments: string[] = [];
+  let cur: Element | null = el;
+  while (cur && TROUBLE_CONTAINER_TAGS.has(cur.tagName)) {
+    segments.unshift(containerSegment(cur));
+    cur = cur.parentElement;
+  }
+  return segments.join('/');
+};
+
+// BUG-25: counter for pWrapperId, reset at the start of every parse so ids are
+// deterministic per document.
+let pWrapperCounter = 0;
+
 const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, bodyIndex?: number): any | any[] | null => {
   const tagName = xmlNode.tagName.toLowerCase();
   const xmlId = xmlNode.getAttribute('id') || undefined;
@@ -213,7 +241,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
 
   switch (tagName) {
     case 'title': {
-      const level = xmlNode.parentElement?.tagName.toLowerCase() === 'section' ? 'h2' : 'h1';
+      const level = SECTION_LIKE_TITLE_PARENTS.has(xmlNode.parentElement?.tagName ?? '') ? 'h2' : 'h1';
       const heading = $createHeadingNode(level);
       parseTextNodes(xmlNode, originMap).forEach(n => heading.append(n));
       if (level === 'h2') {
@@ -288,6 +316,10 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         // Split into inline runs and block children
         const results: any[] = [];
         let inlineNodes: any[] = [];
+        // BUG-25: a <p> wrapping blocks — tie every resulting node to this <p>
+        // so the serializer patches the wrapper in place. <p><dl> keeps using
+        // the dl path (the serializer's dl grouping takes precedence there).
+        const pWrapperId = tagName === 'p' ? ++pWrapperCounter : undefined;
 
         const flushInline = () => {
           if (inlineNodes.length > 0) {
@@ -297,8 +329,8 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               originMap.set(p.getKey(), { tag: 'shortdesc', bodyIndex: -2 });
             } else if (tagName === 'prereq' || tagName === 'context' || tagName === 'result' || tagName === 'postreq') {
               originMap.set(p.getKey(), { tag: tagName, bodyIndex: bodyIndex ?? -1 });
-            } else if (tagName === 'p' && bodyIndex !== undefined) {
-              originMap.set(p.getKey(), { tag: 'p', bodyIndex });
+            } else if (tagName === 'p') {
+              originMap.set(p.getKey(), { tag: 'p', bodyIndex: bodyIndex ?? -1, pWrapperId });
             }
             results.push(p);
             inlineNodes = [];
@@ -318,8 +350,15 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               flushInline();
               const blockResult = traverseXmlElement(el, originMap);
               if (blockResult) {
-                if (Array.isArray(blockResult)) results.push(...blockResult);
-                else results.push(blockResult);
+                const blocks = Array.isArray(blockResult) ? blockResult : [blockResult];
+                if (pWrapperId !== undefined) {
+                  blocks.forEach(b => {
+                    if (!b || typeof b.getKey !== 'function') return;
+                    const existing = originMap.get(b.getKey());
+                    originMap.set(b.getKey(), { ...(existing ?? { tag: b.getType(), bodyIndex: -1 }), pWrapperId });
+                  });
+                }
+                results.push(...blocks);
               }
             } else {
               // Inline element — parse as text nodes
@@ -346,8 +385,10 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
     }
 
     case 'steps':
+    case 'steps-unordered':
     case 'ol': {
-      const ol = $createListNode('number');
+      // <steps-unordered> (troubleshooting remedies) is a bullet list of <step>s.
+      const ol = $createListNode(tagName === 'steps-unordered' ? 'bullet' : 'number');
       Array.from(xmlNode.children).forEach(child => {
         if (child.tagName === 'step' || child.tagName === 'li') {
           const li = $createListItemNode();
@@ -565,6 +606,40 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       return tableNode;
     }
 
+    case 'troublesolution': // tagName is lowercased for the switch; containerPathFor uses the DOM's original case
+    case 'condition':
+    case 'cause':
+    case 'remedy':
+    case 'steps-informal': {
+      // ADR-009: flatten the container's children to body-level nodes (its
+      // optional <title> becomes an h2 via the title case above) and stamp each
+      // top-level result with this container's path. Nodes produced by a nested
+      // container already carry a deeper path; keep theirs.
+      const path = containerPathFor(xmlNode);
+      const nodes: any[] = [];
+      // Section-class containers open with a boundary marker: the author's only
+      // cue of the structure, and the guard against Lexical merging a list in
+      // this container with a same-type list at the end of the previous one.
+      if (tagName === 'condition' || tagName === 'cause' || tagName === 'remedy') {
+        nodes.push($createDitaContainerBoundaryNode(tagName));
+      }
+      Array.from(xmlNode.children).forEach(child => {
+        const result = traverseXmlElement(child, originMap);
+        if (!result) return;
+        if (Array.isArray(result)) nodes.push(...result); else nodes.push(result);
+      });
+      nodes.forEach(n => {
+        if (!n || typeof n.getKey !== 'function') return;
+        const existing = originMap.get(n.getKey());
+        originMap.set(n.getKey(), {
+          ...(existing ?? { tag: n.getType(), bodyIndex: -1 }),
+          containerPath: existing?.containerPath ?? path,
+        });
+      });
+      if (nodes.length > 0) stampId(nodes[0]);
+      return nodes;
+    }
+
     case 'section': {
       const sectionNodes: any[] = [];
       Array.from(xmlNode.children).forEach(child => {
@@ -727,6 +802,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
 // ---------------------------------------------------------------------------
 
 export const parseXmlToLexical = (xmlString: string, editor: any, originMap: NodeOriginMapType, skipSelection?: boolean): boolean => {
+  pWrapperCounter = 0; // BUG-25: deterministic wrapper ids per document
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'text/xml');
 
@@ -749,7 +825,7 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
     };
 
     // Get the topic root element
-    const topicElement = doc.querySelector('task, concept, reference, topic');
+    const topicElement = doc.querySelector('task, concept, reference, troubleshooting, topic');
 
     // Find title as direct child of topic element
     const title = topicElement?.querySelector(':scope > title');
@@ -761,7 +837,8 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
     const shortdesc = topicElement?.querySelector(':scope > shortdesc');
     if (shortdesc) appendResult(traverseXmlElement(shortdesc, originMap));
 
-    const body = doc.querySelector('taskbody, conbody, refbody, body');
+    // troublebody: DITA 1.3 troubleshooting topics (P2-25 / ADR-009).
+    const body = doc.querySelector('taskbody, conbody, refbody, troublebody, body');
     if (body) {
       Array.from(body.children).forEach(child => {
         appendResult(traverseXmlElement(child, originMap));

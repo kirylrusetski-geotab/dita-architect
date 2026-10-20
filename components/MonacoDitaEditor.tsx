@@ -730,12 +730,12 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
     const rootMatch = content.match(/<(?![?!])(\w+)(?:\s+[^>]*)?>/);
     if (rootMatch) {
       const rootTag = rootMatch[1];
-      const validRoots = ['task', 'concept', 'reference', 'topic'];
+      const validRoots = ['task', 'concept', 'reference', 'topic', 'troubleshooting'];
       if (!validRoots.includes(rootTag)) {
         markers.push({
           startLineNumber: 1, startColumn: 1,
           endLineNumber: 1, endColumn: 1,
-          message: `Root tag <${rootTag}> is not a standard DITA topic type (task, concept, reference).`,
+          message: `Root tag <${rootTag}> is not a standard DITA topic type (task, concept, reference, troubleshooting).`,
           severity: monaco.MarkerSeverity.Warning,
         });
       }

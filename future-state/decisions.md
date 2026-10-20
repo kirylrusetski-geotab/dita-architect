@@ -316,3 +316,91 @@ to serve. Heuristics about "is this document meaningful" earn their complexity n
 not merit: it is the better end state, but it depends on FR-051 and is Fable-weight, while this
 reuses a surface that already ships. FR-058 supersedes the diff surface for whole-doc PUTs if and
 when it lands).
+
+---
+
+## ADR-009 — Troubleshooting topics: flatten containers, group by `containerPath`, mark boundaries
+
+**Date:** 2026-10-20 · **Status:** Accepted (implemented for P2-25 slice 1, ships in v0.9.7)
+
+**Context** — DITA 1.3 troubleshooting topics nest body content two levels deeper than the other
+three topic types: `<troublebody>` → `<condition>` and one or more `<troubleSolution>` wrappers, each
+holding `<cause>` and `<remedy>`; `<remedy>` holds `<steps>`, `<steps-unordered>`, or
+`<steps-informal>`. Verified against all 22 "Troubleshooting Topic" resources in the live Heretto
+repository (2026-10-20); the backlog's `troubleshootingbody` never existed. The parser's body
+selector (`taskbody, conbody, refbody, body`) did not match `troublebody`, so these topics opened
+with an empty editor — silent data loss on the first keystroke-and-save.
+
+The serializer (ADR-006) is a single parallel walk over DOM children and body-level Lexical nodes,
+grouped where one DOM element maps to many Lexical nodes (`<section>` by its h2, `<dl>` by
+`dlEntryIndex`). It has no notion of an element that both *contains* body-level content *and* has no
+heading, nor of a wrapper (`<troubleSolution>`) that contains such elements.
+
+Two pre-existing defects surfaced while building the fixtures, both invisible until now because no
+fixture had the pattern:
+
+- **BUG-25** — a `<p>` wrapping a block (`<p>text<ul>…</ul></p>`, which Heretto authors freely and
+  which appears in most troubleshooting causes) was split on parse into a paragraph plus a list and
+  then serialized as `<p>text</p><ul>`: wrapper attributes lost on an *unedited* round-trip. Only the
+  `<p><dl>` special case was handled.
+- **BUG-26** — Lexical merges adjacent same-type lists (`ListNode.transform()` →
+  `mergeNextSiblingListIfSameType`, `@lexical/list` 0.16.0). A remedy's `<steps>` following another
+  remedy's `<ol>` was swallowed on parse and re-emitted as an extra `<li>` of the first list.
+
+**Decision**
+
+1. **Flatten, don't nest.** `condition`, `troubleSolution`, `cause`, `remedy`, and `steps-informal`
+   are parsed like `<section>`: their children become body-level Lexical nodes, an optional `<title>`
+   becomes an h2. No new ElementNode containers in Lexical — the editor's flat body model, the
+   ShortdescPlugin class mapping, and every existing plugin keep working unchanged.
+2. **`originMap.containerPath`** records the chain of enclosing containers as `tag#ordinal`
+   segments (`troubleSolution#1/remedy#0`), ordinal = index among same-tag siblings, merged onto
+   each node's existing origin exactly like `dlEntryIndex`. The serializer groups consecutive nodes
+   by the next path segment below the current base path and recurses into the matching DOM element
+   (`patchContainer` → `patchBodyChildren` with the container's path as the new base). Container
+   grouping takes precedence over h2/section and dl grouping, so a titled `<condition>` cannot
+   swallow the following `<troubleSolution>`. Unconsumed container elements are **preserved, never
+   deleted** — an empty `<cause/>` is legitimate authoring state and must round-trip byte-for-byte
+   (consequence: deleting a whole cause in the visual editor does not propagate; use the XML pane).
+3. **`DitaContainerBoundaryNode`** — a visual-only `DecoratorNode` emitted at the start of every
+   `condition`/`cause`/`remedy` run. It renders the container's label (the author's only cue that a
+   flattened structure exists), has `getTextContent() === ''`, is filtered out of every serializer
+   walk, and — the structural reason it exists — sits between two lists so Lexical's merge transform
+   never sees them as siblings (BUG-26 across containers). The class-level transform cannot be
+   unregistered; a non-list sibling is the only reliable guard.
+4. **`originMap.pWrapperId`** (BUG-25) — the block-split branch for `<p>` stamps every result with a
+   per-parse unique id; the serializer groups the run and `patchPWrapper` partitions the DOM `<p>`
+   into inline segments and block elements, patches blocks through the normal walk (wrapper grouping
+   off, base path carried through), and rewrites an inline segment only when its whitespace-stripped
+   text changed. If the Lexical run no longer matches the DOM shape (author restructured the
+   paragraph) the wrapper is rebuilt from Lexical, keeping the `<p>`'s own attributes. `<p><dl>` keeps
+   using the dl path (nodes carrying `dlEntryIndex` are excluded).
+5. Supporting changes: `troubleshooting` accepted by `validateDitaXml`, the XML-pane root check, the
+   tab-type badge, and the import-verification element lists; `steps-unordered` is a bullet list of
+   `<step>`s in both directions; new lists created inside a `<remedy>` emit `<steps>`/
+   `<steps-unordered>`, never `<ol>`/`<ul>`.
+
+**Consequences** — Troubleshooting topics open, render with labelled Condition/Cause/Remedy
+regions, and round-trip byte-stable (two fixtures: the smallest real Heretto topic and a synthetic
+rich one with three solutions and all three step-list kinds). Edits land in the right container.
+`<p>`-wrapped lists now survive in every topic type. The walk gained two grouping dimensions
+(`containerPath`, `pWrapperId`) on top of `dlEntryIndex`; all three are "a run of body-level nodes
+maps to one DOM element", and the pattern is now general enough that a fourth would be suspicious.
+
+Known v1 limits (honest exclusions): deleting an entire container in the visual editor is not
+propagated (preserved); `<responsibleParty>` and `<choices>` inside a remedy are preserved but not
+rendered (unrecognized elements, 1 occurrence each in the repository); two adjacent same-type lists
+*inside one container* still merge (BUG-26's general case, filed); only paragraphs get the container
+bar class — lists and tables inside a cause rely on the boundary label.
+
+**Alternatives considered** — **(B)** Custom Lexical ElementNodes for each container (rejected: every
+plugin that walks `$getRoot().getChildren()` — ShortdescPlugin, SuggestionPlugin, the stats bar,
+insert-section — assumes a flat body; nesting would be a rebuild of the body model for one topic
+type). **(C)** Parse `troublebody` children only, treating containers as `DitaOpaqueNode`s
+(rejected: that is the "visible but uneditable" failure mode the project left behind at v0.8; the
+content *is* the point). **(D)** For BUG-26, subclass `ListNode` via node replacement to drop the
+merge transform (rejected: Lexical registers the class transform under the node type, so the
+original class's transform still runs for the same type; verified in `LexicalList.dev.mjs:1021`).
+**(E)** For BUG-25, keep splitting and teach the serializer to re-wrap on the way out (rejected:
+without an id tying the run to its source `<p>` there is no way to know which following blocks were
+inside the wrapper versus after it).

@@ -72,6 +72,19 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
     expectByteStable('dl-multi-paragraph-dd.dita');
   });
 
+  // P2-25 slice 1 / ADR-009 — troubleshooting topics. The skeleton is a real
+  // Heretto topic (empty placeholders, trailing self-closed <cause/>, whitespace
+  // -only <p>); the rich one exercises titled containers, a <p> that wraps a
+  // <ul>, <steps-unordered> with <info>, <steps-informal>, and three
+  // <troubleSolution>s so container ordinals matter.
+  it('troubleshooting-skeleton.dita — real Heretto troubleshooting topic with empty containers', () => {
+    expectByteStable('troubleshooting-skeleton.dita');
+  });
+
+  it('troubleshooting-rich.dita — titled condition/remedy, nested solutions, all three step list kinds', () => {
+    expectByteStable('troubleshooting-rich.dita');
+  });
+
   it('corpus completeness — every fixture on disk has a test above', () => {
     const onDisk = readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.dita')).sort();
     const tested = [
@@ -82,6 +95,8 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
       'section-dl.dita',
       'tables.dita',
       'task-info.dita',
+      'troubleshooting-rich.dita',
+      'troubleshooting-skeleton.dita',
       'xref-in-note.dita',
     ].sort();
     expect(onDisk).toEqual(tested);

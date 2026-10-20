@@ -216,7 +216,7 @@ export const validateDitaXml = (content: string): { valid: boolean; error?: stri
 
   const root = doc.documentElement;
   const rootTag = root.tagName.toLowerCase();
-  const validRoots = ['task', 'concept', 'reference', 'topic'];
+  const validRoots = ['task', 'concept', 'reference', 'topic', 'troubleshooting'];
   if (!validRoots.includes(rootTag)) {
     return { valid: false, error: `Root element <${rootTag}> is not a valid DITA topic type` };
   }

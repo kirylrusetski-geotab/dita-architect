@@ -31,8 +31,8 @@ export function useTabManager({
     if (!root || root.tagName === 'html' || root.tagName === 'parsererror') return 'undefined' as const;
 
     const tagName = root.tagName.toLowerCase();
-    if (['task', 'concept', 'reference', 'topic'].includes(tagName)) {
-      return tagName as 'task' | 'concept' | 'reference' | 'topic';
+    if (['task', 'concept', 'reference', 'topic', 'troubleshooting'].includes(tagName)) {
+      return tagName as 'task' | 'concept' | 'reference' | 'topic' | 'troubleshooting';
     }
     return 'undefined' as const;
   }, [activeTab.xmlContent]);

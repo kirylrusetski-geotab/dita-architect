@@ -37,7 +37,21 @@ const BODY_TAG_CLASSES: Record<string, string> = {
   dt: 'dita-editor-dt',
   dd: 'dita-editor-dd',
 };
-const ALL_BODY_CLASSES = Object.values(BODY_TAG_CLASSES);
+// ADR-009: troubleshooting containers mark every paragraph they contain. The
+// innermost section-class container wins (a <p> inside <troubleSolution>/<cause>
+// is a cause paragraph).
+const TROUBLE_SECTION_CLASSES: Record<string, string> = {
+  condition: 'dita-editor-condition',
+  cause: 'dita-editor-cause',
+  remedy: 'dita-editor-remedy',
+};
+const troubleSectionClass = (containerPath: string | undefined): string | null => {
+  if (!containerPath) return null;
+  const matches = containerPath.match(/(condition|cause|remedy)#\d+/g);
+  if (!matches) return null;
+  return TROUBLE_SECTION_CLASSES[matches[matches.length - 1].split('#')[0]] ?? null;
+};
+const ALL_BODY_CLASSES = [...Object.values(BODY_TAG_CLASSES), ...Object.values(TROUBLE_SECTION_CLASSES)];
 
 const NOTE_TYPE_CLASSES: Record<string, string> = {
   WARNING: 'dita-editor-note-warning',
@@ -138,6 +152,10 @@ export const ShortdescPlugin = () => {
               domElement.classList.remove(className);
             });
             domElement.classList.remove('dita-editor-placeholder-shortdesc');
+
+            // Troubleshooting container membership (ADR-009)
+            const troubleClass = troubleSectionClass(origin?.containerPath);
+            if (troubleClass) domElement.classList.add(troubleClass);
 
             // Add the appropriate class if origin tag matches
             if (origin?.tag && BODY_TAG_CLASSES[origin.tag]) {
