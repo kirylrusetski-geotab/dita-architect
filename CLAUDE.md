@@ -117,7 +117,7 @@ The Obsidian folder also contains **symlinks** to `future-state/BACKLOG.md` and 
 
 ## Multi-Agent Pipeline
 
-A 9-step pipeline built on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). Run it for large or cross-file tasks that benefit from plan → implement → review → verify sequencing.
+A 9-step pipeline built on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). **It is a tool, not the default.** Every release since v0.8.5 was built directly with Gates 1–7 applied by hand; the pipeline has not run since March 2026. See "When to use the pipeline vs. working directly" below for the rule, and dry-run it on a disposable task before trusting it on a milestone.
 
 ### How to invoke
 
@@ -153,15 +153,20 @@ Each step writes its output to a report file in `agents/shared/` via `file-comm.
 
 ### When to use the pipeline vs. working directly
 
-Use the pipeline for:
-- Features that touch 3+ files
-- Anything with Swift + TypeScript simultaneously
-- Tasks tagged **Multi-agent** in the backlog
+*Rewritten 2026-10-20 to match how the project actually works.* The pipeline earns its overhead when you need **independent review**, not **breadth**. Breadth across Swift and TypeScript is held better by one Fable session, because the pipeline's hand-offs lose context between agents (that is why the Fable weight exists).
 
-Work directly for:
-- Haiku/Sonnet-weight bugs (one or two files, contained fix)
-- Version bumps and release note updates
-- Backlog/FR file updates
+Use the pipeline when:
+- The task is **well specified and mechanical across files** and the risk is sloppiness, not a wrong idea. A fixed list of items each needing a Swift selector and a bridge method, with a one-line exit test (the v0.14 menu bar), is the canonical case.
+- You want a **reviewer who did not write the code**. Running only the Elena (review) step on a finished diff is the fresh-context adversarial review the roadmap requires for Fable milestones (v0.13, v0.14).
+- It is the **per-minor anti-entropy consolidation pass** (GOVERNANCE Stage 5): a sweep for duplication that files debt as BACKLOG rows.
+- You need **parallel investigation of independent subsystems**, like the 2026-07-17 codebase review.
+
+Work directly (gates applied by hand) when:
+- The **invariants are still being discovered** — serializer contract changes, tracked-changes machinery, anything where one wrong assumption ships silent corruption. One context must hold everything (v0.9.7's troubleshooting work changed design three times as live facts arrived).
+- The work is **discovery**: probing the Heretto REST API, reading Lexical source, counting real occurrences.
+- It is **Haiku or Sonnet weight**, a version bump, or a backlog/FR update.
+
+Before the first real use: run `npx tsx agents/run.ts` on a trivial, disposable request and confirm all nine steps complete, the reports land in `agents/shared/`, and the `pipeline/<timestamp>` branch is created. Budget half an hour; the Agent SDK has moved since the pipeline last ran.
 
 ---
 
@@ -292,4 +297,7 @@ When bumping the version in `constants/version.ts` and writing release notes:
 3. **Delete resolved bug reports** — scan `bugreports/` and remove any files for bugs that shipped in this release
 4. **Update feature request statuses** — scan `future-state/feature-requests.md` and update the `**Status:**` field to `Shipped (vX.Y.Z, YYYY-MM-DD)` for any FRs that shipped in this release
 5. **Sync `macos/Sources/DITAArchitect/Info.plist`** — update `CFBundleShortVersionString` to the new version
-6. Run `npm run build:app` to rebuild `dist/` and copy into `DITA Architect.app/Contents/Resources/dist/`
+6. Run `macos/build.sh` (web bundle + Swift shell + Info.plist) — `npm run build:app` alone does not recompile Swift or refresh the bundled Info.plist
+7. If the serializer or parser changed: confirm every fixture in `tests/sync/fixtures/` (including `sampled/`, FR-064) is still byte-stable, and add a fixture for any new structure the release handles
+8. Relaunch the app and run the 10-minute smoke pass; record it in the HISTORY row
+9. Commit, tag `vX.Y.Z`, `git push origin main --follow-tags`, confirm the tag on GitHub

@@ -80,6 +80,8 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Shipped v0.9.7 |
 | 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (slices 1–2 shipped v0.9.4/v0.9.6; slice 3 discovery open) |
 | 🔴  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Open |
+| 🔴  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Open — before any serializer work |
+| 🔴  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Open |
 
 ---
 
@@ -936,3 +938,65 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 2. The check adds no measurable latency on the FR-047 byte-stability corpus (counts, not diffs).
 3. No false positives across the byte-stability corpus and the round-trip suite (a pinned test asserts zero warnings for every fixture).
 4. The warning is advisory: the sync still completes and the XML pane updates.
+
+---
+
+## FR-064: Sampled real-topic byte-stability corpus
+
+**Requested:** 2026-10-20
+**Source:** Kiryl / v0.9.7 retrospective — two serializer bugs (BUG-25, BUG-26) had existed since at least v0.8.3 because no fixture contained a pattern that appears in most real Heretto topics
+**Status:** Open — **do before any further serializer work (v0.10.0 onward)**
+**Priority:** P1
+**Impact:** High — Gate 1 is the project's top acceptance criterion and its enforcement is only as wide as the fixture corpus
+**Model weight:** Sonnet (one short session; the enumeration script already exists in spirit from the 2026-10-20 session)
+
+**Problem:** The FR-047 corpus has 10 fixtures, 2 of them real Heretto topics. Every other fixture is synthetic, written to pin a bug after it was found. Synthetic fixtures encode what the author already knows to worry about. `<p>text<ul>…</ul></p>` is how Heretto writes a paragraph that introduces a list; it is in most troubleshooting causes and many concept topics; it was in zero fixtures, and the unedited round-trip rewrote it as `<p>text</p><ul>` for months.
+
+**Signal:** BUG-25 and BUG-26, both found on 2026-10-20 only because a troubleshooting fixture happened to contain the patterns. The repository has 4,255 resources; the live enumeration (39 s over 862 folders via `/rest/all-files/<uuid>`) classifies every one by `type` attribute.
+
+**Smallest slice:** A script (`scripts/sample-heretto-corpus.py` or `.ts`, reading `~/heretto.json`) that:
+
+1. Enumerates the repository and groups `.dita` resources by `type` (Concept 1406, Task 840, Reference 320, Topic 68, Troubleshooting Topic 22, Glossary Entry 46 as of 2026-10-20).
+2. Samples **N per type** (default 5; seeded, so re-runs are stable) plus every topic that contains a structure not yet in the corpus (detect by tag set: `dl`, `simpletable`, `fig`, `choices`, `substeps`, `stepxmp`, `example`, nested `section`, `p` containing a block child, adjacent same-type lists, review PIs, `conref`/`conkeyref` on blocks).
+3. **Scrubs personal data:** `<author>` content, any `@geotab.com` or other email, `<prolog>` metadata values; keeps structure and class attributes byte-exact.
+4. Writes to `tests/sync/fixtures/sampled/<type>/<slug>.dita` with a `MANIFEST.md` (source UUID, type, structures present, scrub applied) so a fixture can be refreshed from Heretto.
+5. `byte-stability.test.ts` iterates the `sampled/` directory automatically; new failures start as `it.fails` with a filed BUG id, exactly as FR-047 did.
+
+**Serves:** Gate 1 (round-trip fidelity) and Gate 2 (Heretto-safe output). Moat 1 depends on the serializer never corrupting what the AI did not touch.
+
+**Not in scope:** fixing whatever the corpus finds (file as bugs); publishing Geotab content — fixtures carry product documentation text; the repo is public, so **the sample must exclude anything the Content_Warehouses, DITAVALs, and internal-only folders hold, and the manifest should name which folders were sampled** so the choice is reviewable.
+
+### Acceptance criteria
+
+1. `npm run corpus:sample` (or equivalent) regenerates the sampled corpus deterministically from a seed, with the manifest.
+2. No real person's name or email in any fixture (`git grep -E '@[a-z]+\.(com|ca)'` over `tests/sync/fixtures/` returns only `example.com`).
+3. The byte-stability suite runs every sampled fixture; the first run's failures are filed as BUG rows before the fixtures are marked `it.fails`.
+4. REVIEW-CRITERIA Gate 1 names the sampled corpus (done 2026-10-20) and the version-bump checklist gains "refresh the corpus if the serializer changed".
+
+---
+
+## FR-065: Heretto suggestion-PI grammar discovery (prerequisite for v0.13.0)
+
+**Requested:** 2026-10-20 (the roadmap has said "file it" since 2026-07-18)
+**Source:** Roadmap v0.13.0 prerequisite; pulled forward 2026-10-20 so the hardest remaining milestone starts from facts
+**Status:** Open
+**Priority:** P2
+**Impact:** High for v0.13.0 (review carrier); zero risk to the product — read-only investigation
+**Model weight:** Sonnet, half-session
+
+**Problem:** FR-051's carrier slice serializes `TrackedTextNode` marks into Heretto's review processing instructions so suggestions survive save/reload and appear in Heretto's Review tab. The *comment* grammar (`<?ezd-review-start …?>` / `<?ezd-review-end …?>`) already round-trips. The *suggestion* grammar (`<?ezd-review-change …?>` or whatever Heretto actually emits for insertions, deletions, and replacements) is not publicly documented and has never been observed in this project.
+
+**Smallest slice:** Empirically derive and document it:
+
+1. In a scratch topic in Heretto's editor, make one of each suggestion kind: insert text, delete text, replace text, split a paragraph, delete a whole element, insert a whole element, format toggle.
+2. Fetch the raw XML via `GET /rest/all-files/<uuid>/content` after each, and diff.
+3. Record the grammar in a new `future-state/heretto-review-pi-grammar.md`: PI names, attribute set (author, date, change id, kind), how a deletion keeps its text, how nested/overlapping suggestions nest, what accept and reject in Heretto do to the XML.
+4. Note which of FR-046's `TrackedMark` fields map 1:1 and which need a translation.
+
+**Serves:** Moat 1. Without this, v0.13.0 is designed from guesses about a grammar that owns the round-trip contract.
+
+### Acceptance criteria
+
+1. The grammar document exists with at least one raw XML sample per suggestion kind, scrubbed of personal data.
+2. A table maps `TrackedMark {changeId, kind, author, date}` to the PI attributes, with gaps named.
+3. The scratch topic is deleted from Heretto afterwards (or lives in a sandbox folder the manifest names).

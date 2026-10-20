@@ -25,8 +25,11 @@ content, or drifting between the two run modes.
 - Inline elements (`ph`, `uicontrol`, `xref`, `term`, `codeph`, conkeyref/keyref chips) and block
   elements survive editing — no silent dropping of siblings on block-split, no flattening.
 - This is the **top acceptance criterion** — WYSIWYG/DITA parity outranks every other consideration.
-- **Review check:** `tests/sync/round-trip.test.ts` green; for any element the change touches, a
-  round-trip fixture proves no loss. **Pipeline owner:** Elena (review) + Taylor (tests).
+- **Review check:** `tests/sync/round-trip.test.ts` green; `tests/sync/byte-stability.test.ts` green
+  over the fixture corpus; for any element or structure the change touches, a byte-stability fixture
+  exists **before** the serializer is touched. The corpus must include **sampled real Heretto topics**
+  (FR-064), not only synthetic ones: BUG-25 and BUG-26 survived for months because no fixture had a
+  pattern that most real topics contain. **Pipeline owner:** Elena (review) + Taylor (tests).
 
 ## Gate 2 — No data corruption / Heretto-safe output
 

@@ -80,9 +80,10 @@ On top of the architecture-specific Gates 1–6, every change is checked for **c
 does it reuse an existing pattern (the parser's `originMap`, `useHerettoCms`, the state bridges, the
 `@lexical/table` commands) instead of inventing a parallel one, is it the smallest slice that solves
 the captured Problem, does it match its ADR (if architectural), and does it avoid duplicating an
-existing surface? See [REVIEW-CRITERIA.md](./REVIEW-CRITERIA.md) Gate 7. The multi-agent pipeline's
-Elena (review) step owns this gate alongside Gates 1–6 for pipeline work; it applies equally to
-direct work.
+existing surface? See [REVIEW-CRITERIA.md](./REVIEW-CRITERIA.md) Gate 7. Direct work (the norm since
+v0.8.5) applies all seven gates by hand; when the pipeline is used, its Elena (review) step owns this
+gate alongside Gates 1–6. The rule for choosing between the two is in CLAUDE.md "When to use the
+pipeline vs. working directly".
 
 ---
 
