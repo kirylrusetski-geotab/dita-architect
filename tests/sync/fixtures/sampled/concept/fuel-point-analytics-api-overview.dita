@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="fuel-point-analytics-overview" xml:lang="en-us" class="- topic/topic concept/concept ">
+  <title class="- topic/title ">Fuel Point Analytics API Overview</title>
+  <shortdesc class="- topic/shortdesc ">The Altitude Fuel Point Analytics API enables users to detect and analyze refueling events using Geotab first-party telematics data.</shortdesc>
+  <prolog class="- topic/prolog ">
+    <author translate="no" type="creator" class="- topic/author ">Example Author &lt;author@example.com&gt;</author>
+    <metadata class="- topic/metadata ">
+      <keywords class="- topic/keywords "/>
+      <prodinfo class="- topic/prodinfo ">
+        <prodname class="- topic/prodname "/>
+        <vrmlist class="- topic/vrmlist ">
+          <vrm modification="" release="" version="" class="- topic/vrm "/>
+        </vrmlist>
+      </prodinfo>
+    </metadata>
+  </prolog>
+  <conbody class="- topic/body  concept/conbody ">
+    <p class="- topic/p ">Altitude is enhancing the Stop Analytics module with the addition of Refuel Detection. Leveraging Geotab's first-party telematics, this feature distinguishes refueling events from general stops using fuel signals, dwell time, and POI matching.</p>
+    <p class="- topic/p ">This API uses the <codeph class="+ topic/ph pr-d/codeph ">queryType</codeph> parameter to retrieve fuel point analytics data. The Fuel Point Analytics API shares its stops infrastructure with the Stop Analytics API, and each <codeph class="+ topic/ph pr-d/codeph ">queryType</codeph> is a distinct request.</p>
+  </conbody>
+</concept>

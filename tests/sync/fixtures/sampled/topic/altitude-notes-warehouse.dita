@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic PUBLIC "-//OASIS//DTD DITA Topic//EN" "topic.dtd">
+<topic id="topic-290" xml:lang="en-us" class="- topic/topic "><title class="- topic/title ">Altitude Notes Warehouse</title><shortdesc class="- topic/shortdesc ">Reusable Notes.</shortdesc><body class="- topic/body "><section class="- topic/section ">
+            <title class="- topic/title ">User Guide</title>
+            <p class="- topic/p ">
+                <table class="- topic/table "><tgroup cols="2" class="- topic/tgroup "><colspec colname="c1" colnum="1" colwidth="1*" class="- topic/colspec "/><colspec colname="c2" colnum="2" class="- topic/colspec "/><thead class="- topic/thead "><row class="- topic/row "><entry class="- topic/entry ">Note</entry><entry class="- topic/entry ">NoteID</entry></row></thead><tbody class="- topic/tbody "><row class="- topic/row "><entry class="- topic/entry ">
+                                    <note id="noteAltitudeFiltersExpansion" class="- topic/note ">
+                                        <p class="- topic/p ">This category is not part of <ph conkeyref="varsAltitude/ProdNameShort" class="- topic/ph "/> filters outside of Expansion.</p>
+                                    </note>
+                                </entry><entry class="- topic/entry ">noteAltitudeFiltersExpansion</entry></row><row class="- topic/row "><entry class="- topic/entry ">
+                                    <note id="noteExpansionFactorsUSA" class="- topic/note ">
+                                        <p class="- topic/p ">Expansion Factors are only available in the USA.</p>
+                                    </note>
+                                </entry><entry class="- topic/entry ">noteExpansionFactorsUSA</entry></row></tbody></tgroup></table>
+            </p>
+        </section><section class="- topic/section ">
+            <title class="- topic/title ">API Guide</title>
+            <p class="- topic/p ">
+                <table class="- topic/table "><tgroup cols="1" class="- topic/tgroup "><colspec colname="c1" colnum="1" colwidth="1*" class="- topic/colspec "/><colspec colname="c2" colnum="2" class="- topic/colspec "/><thead class="- topic/thead "><row class="- topic/row "><entry class="- topic/entry ">Note</entry><entry class="- topic/entry ">NoteID</entry></row></thead><tbody class="- topic/tbody "><row class="- topic/row "><entry class="- topic/entry ">
+                                    <note id="noteSpecialCaseAPIs" class="- topic/note ">
+                                        <p class="- topic/p ">See <xref href="../../API_Guide/Special_Cases/Special_Case_Overview.dita#concept-8652" class="- topic/xref ">Special Case APIs</xref> for more information.</p>
+                                    </note>
+                                </entry><entry class="- topic/entry ">noteSpecialCaseAPIs</entry></row><row class="- topic/row "><entry class="- topic/entry ">
+                                    <note id="noteSDKCodeExamples" type="note" class="- topic/note ">The code examples in this article use the <codeph class="+ topic/ph pr-d/codeph ">altitude-sdk</codeph> Python package. For direct REST calls, see <xref href="https://altitudehelp.geotab.com/api-guide/getting-started/making-an-api-request#making-an-api-request-with-a-post-request" scope="external" class="- topic/xref ">Making an API Request with a POST Request</xref>. For the full job submission and polling pattern, see <xref href="https://altitudehelp.geotab.com/api-guide/getting-started/making-an-api-request#making-an-api-request-with-the-altitude-python-package" scope="external" class="- topic/xref ">Making analytical API requests</xref>.</note>
+                                </entry><entry class="- topic/entry ">noteSDKCodeExamples</entry></row></tbody></tgroup></table>
+            </p>
+        </section></body></topic>

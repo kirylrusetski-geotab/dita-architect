@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="j1939-ev-mandatory-signals" props="ai-verified" class="- topic/topic       reference/reference ">
+  <title class="- topic/title ">GO Device Supported PGNs and SPNs - EV Mandatory</title>
+  <shortdesc class="- topic/shortdesc ">Review the signals an EV must send.</shortdesc>
+  <refbody class="- topic/body        reference/refbody ">
+    <section class="- topic/section ">
+      <note class="- topic/note ">
+        <p class="- topic/p ">✱ NOTE: These are the mandatory PGNs and SPNs that the vehicle is required to broadcast on CAN in order to be compatible with the EV features seen on the <keyword conkeyref="varsProductnames/001" class="- topic/keyword "/> portal. All vehicles supported by adopting J1939 EV are required to report these. There is also an <xref keyref="j1939-ev-optional-signals" class="- topic/xref ">expanded signal set</xref> that is optional, and will make more data available on the portal, should you choose to implement it. A full list of all <keyword conkeyref="varsProductnames/go-device" class="- topic/keyword "/> supported J1939 SPNs can be found <ph conkeyref="varsGoDeviceXref/j1939-supported-spns" class="- topic/ph "/>.</p>
+      </note>
+      <table class="- topic/table ">
+        <tgroup cols="6" class="- topic/tgroup ">
+          <colspec colname="c1" colnum="1" class="- topic/colspec "/>
+          <colspec colname="c2" colnum="2" class="- topic/colspec "/>
+          <colspec colname="c3" colnum="3" class="- topic/colspec "/>
+          <colspec colname="c4" colnum="4" class="- topic/colspec "/>
+          <colspec colname="c5" colnum="5" class="- topic/colspec "/>
+          <colspec colname="c6" colnum="6" class="- topic/colspec "/>
+          <thead class="- topic/thead ">
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">PGN</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">SPN</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">SPN Name</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Description of data</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">SPN length</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Bit Resolution (If applicable)</p>
+              </entry>
+            </row>
+          </thead>
+          <tbody class="- topic/tbody ">
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">61584
+(0xF090)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">5919</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">High voltage battery voltage</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">The voltage level of the High Voltage Energy Storage 1 pack (or system). This parameter should be synchronized with SPN 5920 (HVES1 Current) such that a realized power value can be calculated. If the HVES component physically contains the contactors which connect it to the vehicle high voltage system, then this voltage is measured before those contactors.</p>
+                <p class="- topic/p ">Note: The <keyword conkeyref="varsProductnames/go-device" class="- topic/keyword "/> is currently not capable of supporting data collection from multiple energy storage packs.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.05 V / bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">61584
+(0xF090)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">5920</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">High voltage battery current</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">The current in or out of the High Voltage Energy Storage 1 pack (or system). This parameter should be synchronized with SPN 5919 (HVES1 Voltage Level) such that a realized power value can be calculated.This parameter is defined from the high voltage energy storage system's point of view. A positive value represents current into (charging) the energy storage system. A negative value represents current out of (discharging) the energy storage system.</p>
+                <p class="- topic/p ">This parameter provides HVES system level information.</p>
+                <p class="- topic/p ">Note: The <keyword conkeyref="varsProductnames/go-device" class="- topic/keyword "/> is currently not capable of supporting data collection from multiple energy storage packs.</p>
+                <p class="- topic/p ">Sign convention:</p>
+                <p class="- topic/p ">HV Battery Current &gt; 0 = Energy entering the battery</p>
+                <ul class="- topic/ul ">
+                  <li class="- topic/li ">
+                    <p class="- topic/p ">Positive values denote energy flow entering the HV battery</p>
+                  </li>
+                </ul>
+                <p class="- topic/p ">HV Battery Current &lt; 0 = Energy exiting the battery</p>
+                <ul class="- topic/ul ">
+                  <li class="- topic/li ">
+                    <p class="- topic/p ">Negative values denote energy flow exiting the HV battery</p>
+                  </li>
+                </ul>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.05 A / bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">61590
+(0xF096)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">8207</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Internal Charger Status</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">This signal is indicative of AC Charging status. Please see <xref keyref="j1939-ev-charging-status" class="- topic/xref ">this</xref> FAQ for more information. SPN description from the J1939 DA is below.</p>
+                <p class="- topic/p ">Vehicle charging status</p>
+                <p class="- topic/p ">* 0x00 = Charging off</p>
+                <p class="- topic/p ">* 0x01 = Charging on</p>
+                <p class="- topic/p ">* 0x02 = Error</p>
+                <p class="- topic/p ">* 0x03 = Not Available</p>
+                <p class="- topic/p ">If 0x01 sets GENERIC_EV_CHARGING_STATE to 1 (EV_CHARGE_STATE_AC)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bits</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 states/2 bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64706
+(0xFCC2)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">7895</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Generic state of charge</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Stored Energy Source Level indicates the current operating stored energy source capacity.</p>
+                <p class="- topic/p ">In Electric Hybrids, this is the current percentage of the HVES useable capacity. When the state of charge is below the minimum HVES useable capacity, this parameter shall be set to 0 percent. When the state of charge of the HVES is above the maximum HVES useable capacity, this parameter shall be set to 100%. When charging the HVES, this parameter may be used to determine the progress towards the Stored Energy Source Set Point Request (SPN 7892). This parameter may also be used as a "fuel level" indicator for the vehicle operator.</p>
+                <p class="- topic/p ">For example, a HVES manufacturer may define the HVES useable capacity to be between a notional 30% to 70% state of charge (SOC). In this example, the 0% stored energy level would be the equivalent of 30% or lower SOC and the 100% stored energy source level would be the equivalent of 70% or higher SOC.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">1 byte</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.4% / bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64706
+(0xFCC2)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">7315</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Ignition</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Vehicle enabled / ready to drive</p>
+                <p class="- topic/p ">* 0x00 = Not Ready (ignition off)</p>
+                <p class="- topic/p ">* 0x01 = Ready (ignition on)</p>
+                <p class="- topic/p ">* 0x02 = SAE Reserved (treated as ignition off)</p>
+                <p class="- topic/p ">* 0x03 = Not Available (treated as ignition off)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bits</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 states/2 bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64706
+(0xFCC2)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">7898</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">External Energy Source Connection Status</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">This signal is indicative of Vehicle isCharging status. Please see <xref keyref="j1939-ev-charging-status" class="- topic/xref ">this</xref> FAQ for more information. SPN description from the J1939 DA is below.</p>
+                <p class="- topic/p ">External Energy Source Connection Status provides feedback to the External Energy Source Connection Demand (SPN 7890). This parameter allows for status of two external energy source connections. See External Energy Source Connection Demand (SPN 7890) for the detailed state definitions. In the case of a Diesel-Electric Hybrid, this parameter is sent by the hybrid system or Power System manager.</p>
+                <p class="- topic/p ">0000b = No Connection</p>
+                <p class="- topic/p ">0001b = Connection 1 - Error (Verification failed)</p>
+                <p class="- topic/p ">0010b = Connection 1 - Verification in Process</p>
+                <p class="- topic/p ">0011b = Connection 1 - Energy Source and Drain</p>
+                <p class="- topic/p ">0100b = Connection 1 - Energy Source</p>
+                <p class="- topic/p ">0101b = Connection 1 - Energy Drain</p>
+                <p class="- topic/p ">0110b = Connection 2 - Error (Verification failed)</p>
+                <p class="- topic/p ">0111b = Connection 2 - Verification in Process</p>
+                <p class="- topic/p ">1000b = Connection 2 - Energy Source and Drain</p>
+                <p class="- topic/p ">1001b = Connection 2 - Energy Source</p>
+                <p class="- topic/p ">1010b = Connection 2 - Energy Drain</p>
+                <p class="- topic/p ">1011b to 1101b = Reserved</p>
+                <p class="- topic/p ">1110b = Error</p>
+                <p class="- topic/p ">1111b = Not Available</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 bits</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">16 states/4 bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">57344
+(0xE000)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">1856</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Seatbelt switch</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Parameter to indicate seat belt data. Please see <xref keyref="j1939-ev-seat-belt-values" class="- topic/xref ">this</xref> FAQ for more information.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bits</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 states/2 bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">61445
+(0xF005)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">523</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Transmission current gear</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Contains the gear status. Please see <xref keyref="j1939-ev-transmission-gear-payloads" class="- topic/xref ">this</xref> FAQ for more information.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">1 byte</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">1 gear value/bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64212
+(0xFAD4)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">12866</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">EVSE1 AC RMS Current</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">AC RMS current being drawn from the EVSE.</p>
+                <p class="- topic/p ">Negative values indicate power being drained from the vehicle and returned to the grid.</p>
+                <p class="- topic/p ">Sign convention</p>
+                <ul class="- topic/ul ">
+                  <li class="- topic/li ">
+                    <p class="- topic/p ">EVSE1 AC RMS Current &gt; 0 = Energy entering the battery</p>
+                  </li>
+                  <li class="- topic/li ">
+                    <p class="- topic/p ">EVSE1 AC RMS Current &lt; 0 = Energy exiting the battery</p>
+                  </li>
+                </ul>
+                <p class="- topic/p ">Note: Not applicable if the EV only allows for DC charging.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.05 A/bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64212
+(0xFAD4)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">12867</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">EVSE1 AC RMS Voltage</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">AC RMS Voltage of this connected EVSE supply.</p>
+                <p class="- topic/p ">Note: Not applicable if the EV only allows for DC charging.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.05 V/bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">64184
+(0xFAB8)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">13171</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">DC Charging State</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">This signal is indicative of DC Charging status. Please see <xref keyref="j1939-ev-charging-status" class="- topic/xref ">this</xref> FAQ for more information. SPN description from the J1939 DA is below.</p>
+                <p class="- topic/p ">Overall State of the DC charging system</p>
+                <p class="- topic/p ">0 = Idle. No EVSE connected.</p>
+                <p class="- topic/p ">1 = Charging.</p>
+                <p class="- topic/p ">2 = Standby.</p>
+                <p class="- topic/p ">3-9 = reserved</p>
+                <p class="- topic/p ">10 = Initialising</p>
+                <p class="- topic/p ">11 = Pre-charge</p>
+                <p class="- topic/p ">12 = Terminating</p>
+                <p class="- topic/p ">13 = Battery failure. An error condition due to the battery state (high temperature, etc.)</p>
+                <p class="- topic/p ">14 = EVSE fault. An error condition due to the EVSE.</p>
+                <p class="- topic/p ">15 = Not available.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 bits</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">16 states/4 bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">65217
+(0xFEC1)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">917</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">High resolution total vehicle distance</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Contains the total distance covered by the vehicle</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">4 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">5 m/bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">65269
+(0xFEF5)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">171</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Ambient Air Temperature</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Temperature of air surrounding vehicle.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">0.03125 degree C/ bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">65260
+(0xFEEC)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">237</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Vehicle Identification Number (VIN)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Contains vehicle's VIN information. Please see <xref keyref="j1939-ev-vin-request-response" class="- topic/xref ">this</xref> FAQ for more information.</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Multilength</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">NA</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">65265
+(0xFEF1)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">84</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Wheel based vehicle speed</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Speed of the vehicle as calculated from the wheel or tailshaft speed</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">2 bytes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">1/256 km/hr per bit</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">65226
+(0xFECA)</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Active diagnostic trouble codes</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">Multilength</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">NA</p>
+              </entry>
+            </row>
+            <row class="- topic/row ">
+              <entry class="- topic/entry ">
+                <p class="- topic/p ">For additional details, please see the J1939 Digital Annex</p>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+              <entry class="- topic/entry ">
+                <p class="- topic/p "/>
+              </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+      <note class="- topic/note ">
+        <p class="- topic/p ">! Data Quality Reminder: Although J1939 is a low-level protocol, It is very important to consider data quality when implementing the J1939 EV signals specified in this document. The <keyword conkeyref="varsProductnames/go-device" class="- topic/keyword "/> typically does not filter data for validity and user readability. The recorded vehicle side data is presented as-is on the <keyword conkeyref="varsProductnames/001" class="- topic/keyword "/> portal. Hence, in order to ensure users interpret the data correctly and the presented data helps the users manage their vehicles precisely and efficiently, <keyword conkeyref="varsKeyterms/CompanyName" class="- topic/keyword "/> requests that OEMs implement filtered J1939 data.</p>
+      </note>
+      <draft-comment author="ai-content-advisor" class="- topic/draft-comment ">Source review: the required voltage and current entries state that multiple energy storage packs are not supported. Optional signal descriptions discuss system-level and individual-pack messages. Both source statements are retained; confirm collection scope before publication.</draft-comment>
+    </section>
+  </refbody>
+</reference>

@@ -27,7 +27,11 @@ const RECOGNIZED_BODY_TAGS = new Set([
 // ADR-009: containers the walk patches by recursion (parser stamps containerPath).
 // Never deleted when unconsumed — an empty <cause/> or <condition/> is legitimate
 // authoring state and must survive a no-edit round-trip byte-for-byte.
-const TROUBLE_CONTAINER_TAGS_LOWER = new Set(['troublesolution', 'condition', 'cause', 'remedy', 'steps-informal']);
+// BUG-27: prereq/context/result/postreq join the container set whenever the
+// parser routed them through the container path (block-child case) — see
+// parseXmlToLexical.ts. The direct-text case never produces a containerPath,
+// so it keeps matching via areTypesCompatible's taskBodyTags branch below.
+const TROUBLE_CONTAINER_TAGS_LOWER = new Set(['troublesolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq']);
 
 // FR-046 tripwire: tracked marks are resolved before serialization by design
 // (sync suspended during suggesting mode). Warn once — not per node — if one

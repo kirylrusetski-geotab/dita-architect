@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="go-rugged-powered-trailer-tracking" xml:lang="en-us" props="ai-authored" otherprops="draft" class="- topic/topic concept/concept ">
+  <title class="- topic/title ">Powered trailer tracking</title>
+  <shortdesc class="- topic/shortdesc ">Learn what power a trailer needs for tracking and when to use an asset tracker.</shortdesc>
+  <conbody class="- topic/body  concept/conbody ">
+    <p class="- topic/p "><keyword conkeyref="varsProductnames/go-rugged" class="- topic/keyword "/> devices can track powered trailers and assets. Installation typically requires a 3-wire harness with a 12V or 24V power supply.</p>
+    <p class="- topic/p ">For unpowered trailers, an <ph conkeyref="varsGoDeviceXref/asset-trailer-tracking-marketplace" class="- topic/ph "/> is recommended.</p>
+    <p class="- topic/p ">Refer to the <xref keyref="go9-rugged-overview" class="- topic/xref ">GO RUGGED support documentation</xref> for further details.</p>
+  </conbody>
+</concept>

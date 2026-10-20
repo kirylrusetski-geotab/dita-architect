@@ -1,7 +1,7 @@
 {
   "name": "dita-architect",
   "private": true,
-  "version": "0.9.7",
+  "version": "0.9.8",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "corpus:sample": "tsx scripts/sample-heretto-corpus.ts"
   },
   "dependencies": {
     "@lexical/link": "0.16.0",

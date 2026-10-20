@@ -979,7 +979,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-20 (the roadmap has said "file it" since 2026-07-18)
 **Source:** Roadmap v0.13.0 prerequisite; pulled forward 2026-10-20 so the hardest remaining milestone starts from facts
-**Status:** Open
+**Status:** Shipped (2026-10-20) — first pass. `future-state/heretto-review-pi-grammar.md` has the grammar, two worked examples (insert+split sharing one changeId across a paragraph break; Accept All stripping every PI to plain committed XML), and a `TrackedMark` mapping table. **Four gaps named and left unresolved, most importantly the delete kind's raw PI was never captured** (it was accepted before a fetch caught it) — the document says explicitly this must be verified, not inferred, before ADR-012. Re-open or file a small follow-up before starting v0.13.0 if the gaps aren't closed by then.
 **Priority:** P2
 **Impact:** High for v0.13.0 (review carrier); zero risk to the product — read-only investigation
 **Model weight:** Sonnet, half-session

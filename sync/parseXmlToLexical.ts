@@ -169,7 +169,12 @@ const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =
 // Troubleshooting-topic containers (ADR-009). Each flattens to body-level
 // nodes stamped with a containerPath so the serializer can patch the
 // preserved element in place. DOM tagName case is kept (`troubleSolution`).
-export const TROUBLE_CONTAINER_TAGS = new Set(['troubleSolution', 'condition', 'cause', 'remedy', 'steps-informal']);
+// BUG-27 (FR-064 sampled-corpus finding): prereq/context/result/postreq join
+// this set too. They behave like a troubleshooting container whenever they
+// wrap a block child (most commonly a single <p>) rather than holding direct
+// inline text — the direct-text case (task-info.dita) is unaffected, handled
+// separately below where hasBlockChildren is false.
+export const TROUBLE_CONTAINER_TAGS = new Set(['troubleSolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq']);
 const SECTION_LIKE_TITLE_PARENTS = new Set(['section', 'condition', 'cause', 'remedy']);
 
 /** "tag#ordinal" for `el` among its parent's same-tag children. */
@@ -279,6 +284,44 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       const hasBlockChildren = Array.from(xmlNode.children).some(
         child => blockTags.has(child.tagName.toLowerCase())
       );
+
+      // BUG-27 (found via FR-064's sampled real-topic corpus, 2026-10-20):
+      // <prereq>/<context>/<result>/<postreq> wrapping a block child (almost
+      // always a single <p>, e.g. <prereq><p audience="partner">…</p></prereq>)
+      // used to fall into the generic block-split below, which recurses into
+      // the <p> via a bare `traverseXmlElement(el, originMap)` call with no
+      // bodyIndex — the inner <p> comes back completely untagged (the
+      // `tagName === 'p' && bodyIndex !== undefined` guard in the no-block-
+      // children branch below never passes for a recursive call), so the
+      // serializer's `areTypesCompatible` can't match it to the DOM <prereq>,
+      // treats it as a mismatch, deletes the original element, and recreates
+      // a bare <p> with no attributes — losing the wrapper tag, its class,
+      // and even the inner element's own attributes (e.g. `audience`) on an
+      // UNEDITED round-trip. Fixed by handling this exactly like the ADR-009
+      // troubleshooting containers: flatten to body-level nodes stamped with
+      // `containerPath`, so the serializer patches <prereq> et al. in place
+      // via `patchContainer` instead of losing their identity. The
+      // direct-inline-text case (no block children) is untouched — it keeps
+      // using the plain-paragraph `{tag: tagName, bodyIndex}` origin below.
+      if (hasBlockChildren && (tagName === 'prereq' || tagName === 'context' || tagName === 'result' || tagName === 'postreq')) {
+        const path = containerPathFor(xmlNode);
+        const nodes: any[] = [];
+        Array.from(xmlNode.children).forEach(child => {
+          const result = traverseXmlElement(child, originMap);
+          if (!result) return;
+          if (Array.isArray(result)) nodes.push(...result); else nodes.push(result);
+        });
+        nodes.forEach(n => {
+          if (!n || typeof n.getKey !== 'function') return;
+          const existing = originMap.get(n.getKey());
+          originMap.set(n.getKey(), {
+            ...(existing ?? { tag: n.getType?.() ?? 'p', bodyIndex: bodyIndex ?? -1 }),
+            containerPath: existing?.containerPath ?? path,
+          });
+        });
+        if (nodes.length > 0) stampId(nodes[0]);
+        return nodes;
+      }
 
       if (hasBlockChildren) {
         // Split into inline runs and block children

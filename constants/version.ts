@@ -21,6 +21,26 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.8',
+    date: '2026-10-20',
+    title: 'A prerequisite you cannot see fixed a bug you could: content inside a prerequisite or result section used to vanish.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'A task\'s `Prerequisites`, `Context`, `Result`, or `Postrequisite` section now keeps its content and any attributes on it (for example, a partner-only audience restriction) when the section holds a paragraph rather than plain text. Before, saving a topic unchanged could silently replace that whole section with a bare, unstyled paragraph, dropping the audience restriction along with it. This was never a change you made yourself. It happened on an ordinary open-and-save, which is why it had gone unnoticed.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'A new script samples real topics from Heretto, across every topic type and folder, to test the editor against actual content instead of only hand-written examples. Its first run found this bug and three others that are not fixed yet, all documented on the backlog: an untitled section can lose its wrapper, a table cell holding something other than plain text can lose part of it, and two small formatting-only differences (an added XML declaration, and how empty tags or a few special characters are written) that do not lose any content but are not byte-for-byte identical either.',
+          'A first pass at documenting how Heretto represents a pending suggestion (insert, delete, split) was completed against a live scratch topic, laying groundwork for a future release where suggestions made here could round-trip to Heretto\'s own review tool.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.7',
     date: '2026-10-20',
     title: 'Troubleshooting topics open and round-trip, new topics start truly blank, and the Geotab theme is now Navy.',

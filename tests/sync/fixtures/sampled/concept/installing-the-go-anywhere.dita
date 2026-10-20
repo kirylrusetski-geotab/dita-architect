@@ -1,0 +1,33 @@
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="concept-1010" xml:lang="en-us" class="- topic/topic concept/concept "><title class="- topic/title ">Installing the GO Anywhere</title><shortdesc class="- topic/shortdesc ">Install and activate the GO Anywhere device, mount it with the supplied screws or magnets, and validate it with the installation tool.</shortdesc><prolog class="- topic/prolog "><author translate="no" type="creator" class="- topic/author ">Example Author &lt;author@example.com&gt;</author><metadata class="- topic/metadata "><keywords class="- topic/keywords "/><prodinfo class="- topic/prodinfo "><prodname class="- topic/prodname "/><vrmlist class="- topic/vrmlist "><vrm modification="" release="" version="" class="- topic/vrm "/></vrmlist></prodinfo></metadata></prolog><conbody class="- topic/body  concept/conbody "><section class="- topic/section ">
+            <title class="- topic/title ">1. Add assets</title>
+            <p class="- topic/p ">In MyGeotab, navigate to the Assets Page and add the GO Anywhere device. Refer to <xref format="dita" href="../../../MyGeotab/Managing_users_and_vehicles/Assets/Managing_assets/Adding_a_single_asset.dita" scope="peer" class="- topic/xref ">Adding a single asset</xref>.</p>
+        </section><section class="- topic/section ">
+            <title class="- topic/title ">2. Activate</title><p class="- topic/p ">Ensure you are outside, then remove the magnetic strip. The LED will flash. </p>
+            <p class="- topic/p ">
+                <note class="- topic/note "> If activation is unsuccessful, the device will automatically retry. You can manually force a retry by re-applying the magnetic strip and leaving it in place for 5 seconds to initiate a health check or communication. The activation should take 3-5 minutes.</note>
+                <table class="- topic/table "><tgroup cols="2" class="- topic/tgroup "><colspec colname="col1" colnum="1" colwidth="1*" class="- topic/colspec "/><colspec colname="col2" colnum="2" colwidth="3*" class="- topic/colspec "/><thead class="- topic/thead "><row class="- topic/row "><entry class="- topic/entry ">LED state </entry><entry class="- topic/entry ">
+                                    <p class="- topic/p ">What the device is doing and what to do</p>
+                                </entry></row></thead><tbody class="- topic/tbody "><row class="- topic/row "><entry class="- topic/entry "> <image align="left" height="48" href="Images/go_anywhere_led_flashing_green.png" outputclass="no-shadow" width="48" class="- topic/image "/>
+                                    <p class="- topic/p ">Flashing green</p>
+                                </entry><entry class="- topic/entry ">Activation in progress. Do not touch or move the device. </entry></row><row class="- topic/row "><entry class="- topic/entry "> <image align="left" height="48" href="Images/go_anywhere_led_solid_green.png" outputclass="no-shadow" width="48" class="- topic/image "/>
+                                    <p class="- topic/p ">Solid green</p>
+                                </entry><entry class="- topic/entry ">
+                                    <p class="- topic/p ">Activation successful. No action required. </p>
+                                </entry></row><row class="- topic/row "><entry class="- topic/entry "><image align="left" height="48" href="Images/go_anywhere_led_flashing_red.png" outputclass="no-shadow" width="48" class="- topic/image "/>
+                                    <p class="- topic/p ">Flashing red</p>
+                                </entry><entry class="- topic/entry ">
+                                    <p class="- topic/p ">Activation failed. Contact Support.</p>
+                                </entry></row><row class="- topic/row "><entry class="- topic/entry "><image align="left" height="48" href="Images/go_anywhere_led_solid_red.png" outputclass="no-shadow" width="48" class="- topic/image "/><p class="- topic/p ">Solid red</p></entry><entry class="- topic/entry "> Activation failed. Check temperature (operating range: −40 to +60°C) and cell network, then retry. <p class="- topic/p ">Re-try activation: Re-apply magnetic strip and leave it in place for 5 seconds. Remove the magnetic strip and check the LED status. </p></entry></row></tbody></tgroup></table>
+            </p>
+        </section><section class="- topic/section ">
+            <title class="- topic/title ">3. Mount</title>
+            <p class="- topic/p ">Place the device in its desired location using either the provided screws or magnets. Ideal mounting location should have a clear view of the sky with minimal metal obstruction.</p>
+            <p class="- topic/p "><b class="+ topic/ph hi-d/b ">Option 1: Mounting with screws</b></p>
+            <fig class="- topic/fig "><image href="Images/go_anywhere_mount_screws_torque.png" outputclass="no-shadow" width="400" class="- topic/image "/></fig>
+            <p class="- topic/p "><b class="+ topic/ph hi-d/b ">Option 2: Mounting with magnets</b></p>
+            <fig class="- topic/fig "><image href="Images/go_anywhere_mount_magnets_torque.png" outputclass="no-shadow" width="400" class="- topic/image "/></fig>
+        </section><section class="- topic/section ">
+            <title class="- topic/title ">4. Validate</title>
+            <p class="- topic/p ">Validate the installation using the Geotab installation tool at <xref href="https://install.geotab.com/" scope="external" class="- topic/xref ">install.geotab.com</xref>.</p>
+        </section></conbody></concept>
