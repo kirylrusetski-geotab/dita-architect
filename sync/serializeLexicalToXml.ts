@@ -1,6 +1,8 @@
 import { $getRoot } from 'lexical';
 import { TableCellHeaderStates } from '@lexical/table';
 import type { NodeOriginMapType } from './nodeOriginMap';
+import { reconcileInline, type ReconcileDeps, type ReconcileMode } from './inline-reconcile';
+import { NOTE_BLOCK_TAGS, FMT_BOLD as RUN_BOLD, FMT_ITALIC as RUN_ITALIC, FMT_CODE as RUN_CODE } from './inline-units';
 
 interface XmlMeta {
   rootTag: string;
@@ -98,102 +100,123 @@ const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
  * <uicontrol>, <wintitle>) are re-emitted as their original DITA tag instead of
  * the generic <b>/<i> fallback inferred from format flags.
  */
+/** One text run as DITA: plain, <codeph>, <b>, <i>, or <b><i>. Shared by the
+ *  full-rewrite path below and the inline reconciler (ADR-010). */
+const serializeTextRun = (text: string, fmt: number, doc: Document): Node => {
+  if (fmt & RUN_CODE) {
+    const codeph = doc.createElement('codeph');
+    codeph.appendChild(doc.createTextNode(text));
+    return codeph;
+  }
+  const isBold = (fmt & RUN_BOLD) !== 0;
+  const isItalic = (fmt & RUN_ITALIC) !== 0;
+  if (isBold && isItalic) {
+    const b = doc.createElement('b');
+    const i = doc.createElement('i');
+    i.appendChild(doc.createTextNode(text));
+    b.appendChild(i);
+    return b;
+  }
+  if (isBold) {
+    const b = doc.createElement('b');
+    b.appendChild(doc.createTextNode(text));
+    return b;
+  }
+  if (isItalic) {
+    const i = doc.createElement('i');
+    i.appendChild(doc.createTextNode(text));
+    return i;
+  }
+  return doc.createTextNode(text);
+};
+
+const lexicalFmt = (child: any): number =>
+  (child.hasFormat('bold') ? RUN_BOLD : 0) | (child.hasFormat('italic') ? RUN_ITALIC : 0) | (child.hasFormat('code') ? RUN_CODE : 0);
+
+/**
+ * Serialize one inline Lexical child into DOM nodes. The per-child rules live
+ * here once; serializeInlineContent walks a node's children with them and the
+ * reconciler emits only the changed run with them.
+ */
+const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginMapType): Node[] => {
+  const type = child.getType();
+  // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
+  // The original <info> DOM is left byte-stable by the patch path.
+  if (type === 'dita-info-preview') return [];
+  if (type === 'dita-container-boundary') return []; // ADR-009 visual-only marker
+  // FR-046 defensive guard: tracked marks must be resolved (accepted or
+  // rejected) before serialization — sync is suspended during suggesting
+  // mode, so this path is unreachable in practice. If a mark does slip
+  // through: delete/split marks are not document content (skip); insert
+  // marks serialize as the plain text they carry (fall through below).
+  if (type === 'tracked-text') {
+    warnTrackedTextReachedSerializer();
+    if (child.getMark().kind !== 'insert') return [];
+  }
+  if (type === 'text' || type === 'tracked-text') {
+    const text = child.getTextContent();
+    const origin = originMap?.get(child.getKey());
+    if (origin?.inlineTag) {
+      const el = doc.createElement(origin.inlineTag);
+      if (origin.inlineAttrs) {
+        Object.entries(origin.inlineAttrs).forEach(([k, v]) => el.setAttribute(k, v));
+      }
+      el.appendChild(doc.createTextNode(text));
+      return [el];
+    }
+    return [serializeTextRun(text, lexicalFmt(child), doc)];
+  }
+  if (type === 'link') {
+    const xref = doc.createElement('xref');
+    xref.setAttribute('href', child.getURL());
+    const linkOrigin = originMap?.get(child.getKey());
+    if (linkOrigin?.inlineAttrs) {
+      Object.entries(linkOrigin.inlineAttrs).forEach(([k, v]) => xref.setAttribute(k, v));
+    } else {
+      const href = child.getURL();
+      xref.setAttribute('format', href.startsWith('http://') || href.startsWith('https://') ? 'html' : 'dita');
+    }
+    serializeInlineContent(child, doc, originMap).forEach(n => xref.appendChild(n));
+    return [xref];
+  }
+  if (type === 'ditaphref') {
+    if (child.getRefType() === 'info-chip') {
+      return []; // Visual-only affordance chip — not serialized to XML
+    }
+    if (child.getRefType() === 'image') {
+      const img = doc.createElement('image');
+      img.setAttribute('href', child.getRefValue());
+      const altText = child.getTextContent();
+      if (altText) {
+        const alt = doc.createElement('alt');
+        alt.appendChild(doc.createTextNode(altText));
+        img.appendChild(alt);
+      }
+      return [img];
+    }
+    const ph = doc.createElement('ph');
+    ph.setAttribute(child.getRefType(), child.getRefValue());
+    const origText = child.getTextContent();
+    if (origText) ph.appendChild(doc.createTextNode(origText));
+    return [ph];
+  }
+  return [doc.createTextNode(child.getTextContent())];
+};
+
 const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: NodeOriginMapType): Node[] => {
   const nodes: Node[] = [];
   if (!lexicalNode.getChildren) return nodes;
-
   lexicalNode.getChildren().forEach((child: any) => {
-    // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
-    // The original <info> DOM is left byte-stable by the patch path.
-    if (child.getType() === 'dita-info-preview') return;
-    if (child.getType() === 'dita-container-boundary') return; // ADR-009 visual-only marker
-    // FR-046 defensive guard: tracked marks must be resolved (accepted or
-    // rejected) before serialization — sync is suspended during suggesting
-    // mode, so this path is unreachable in practice. If a mark does slip
-    // through: delete/split marks are not document content (skip); insert
-    // marks serialize as the plain text they carry (fall through below).
-    if (child.getType() === 'tracked-text') {
-      warnTrackedTextReachedSerializer();
-      if (child.getMark().kind !== 'insert') return;
-    }
-    if (child.getType() === 'text' || child.getType() === 'tracked-text') {
-      const text = child.getTextContent();
-      const isBold = child.hasFormat('bold');
-      const isItalic = child.hasFormat('italic');
-      const isCode = child.hasFormat('code');
-
-      const origin = originMap?.get(child.getKey());
-      if (origin?.inlineTag) {
-        const el = doc.createElement(origin.inlineTag);
-        if (origin.inlineAttrs) {
-          Object.entries(origin.inlineAttrs).forEach(([k, v]) => el.setAttribute(k, v));
-        }
-        el.appendChild(doc.createTextNode(text));
-        nodes.push(el);
-        return;
-      }
-
-      if (isCode) {
-        const codeph = doc.createElement('codeph');
-        codeph.appendChild(doc.createTextNode(text));
-        nodes.push(codeph);
-      } else if (isBold && isItalic) {
-        const b = doc.createElement('b');
-        const i = doc.createElement('i');
-        i.appendChild(doc.createTextNode(text));
-        b.appendChild(i);
-        nodes.push(b);
-      } else if (isBold) {
-        const b = doc.createElement('b');
-        b.appendChild(doc.createTextNode(text));
-        nodes.push(b);
-      } else if (isItalic) {
-        const i = doc.createElement('i');
-        i.appendChild(doc.createTextNode(text));
-        nodes.push(i);
-      } else {
-        nodes.push(doc.createTextNode(text));
-      }
-    } else if (child.getType() === 'link') {
-      const xref = doc.createElement('xref');
-      xref.setAttribute('href', child.getURL());
-      const linkOrigin = originMap?.get(child.getKey());
-      if (linkOrigin?.inlineAttrs) {
-        Object.entries(linkOrigin.inlineAttrs).forEach(([k, v]) => xref.setAttribute(k, v));
-      } else {
-        const href = child.getURL();
-        xref.setAttribute('format', href.startsWith('http://') || href.startsWith('https://') ? 'html' : 'dita');
-      }
-      const linkChildren = serializeInlineContent(child, doc, originMap);
-      linkChildren.forEach(n => xref.appendChild(n));
-      nodes.push(xref);
-    } else if (child.getType() === 'ditaphref') {
-      if (child.getRefType() === 'info-chip') {
-        // Visual-only affordance chip — not serialized to XML
-      } else if (child.getRefType() === 'image') {
-        const img = doc.createElement('image');
-        img.setAttribute('href', child.getRefValue());
-        const altText = child.getTextContent();
-        if (altText) {
-          const alt = doc.createElement('alt');
-          alt.appendChild(doc.createTextNode(altText));
-          img.appendChild(alt);
-        }
-        nodes.push(img);
-      } else {
-        const ph = doc.createElement('ph');
-        ph.setAttribute(child.getRefType(), child.getRefValue());
-        const origText = child.getTextContent();
-        if (origText) ph.appendChild(doc.createTextNode(origText));
-        nodes.push(ph);
-      }
-    } else {
-      nodes.push(doc.createTextNode(child.getTextContent()));
-    }
+    serializeInlineChild(child, doc, originMap).forEach(n => nodes.push(n));
   });
-
   return nodes;
 };
+
+/** ADR-010: the reconciler's emitters, bound to a document. */
+const reconcileDeps = (doc: Document, originMap?: NodeOriginMapType): ReconcileDeps => ({
+  serializeChild: (child: any) => serializeInlineChild(child, doc, originMap),
+  serializeTextRun: (text: string, fmt: number) => serializeTextRun(text, fmt, doc),
+});
 
 /**
  * Replace all children of a DOM element with inline content from a Lexical node.
@@ -508,6 +531,23 @@ const BLOCKISH_CHILD_TAGS = new Set([
 ]);
 
 const patchElementContent = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType): boolean => {
+  // ADR-010: reconcile inline structure around preserved anchors first. The
+  // text-equality fast path below cannot see a structure-only change (a new
+  // inline element around unchanged text) and the full rewrite it falls to is
+  // lossy for container inlines and chip attributes (BUG-32) — so the
+  // reconciler runs before either. It falls through only when it bails.
+  {
+    const tag = domEl.tagName.toLowerCase();
+    let mode: ReconcileMode = 'trim';
+    if (tag === 'note') {
+      const hasBlocks = Array.from(domEl.children).some(c => NOTE_BLOCK_TAGS.has(c.tagName.toLowerCase()));
+      mode = hasBlocks ? 'note' : 'trim';
+    }
+    const r = reconcileInline(domEl, Array.from(domEl.childNodes), lexicalNode, originMap, mode, reconcileDeps(doc, originMap));
+    if (r === 'untouched') return true;
+    if (r === 'patched') return false;
+  }
+
   const domText = getNormalizedDomText(domEl);
   const lexText = lexicalNode.getTextContent();
 
@@ -996,6 +1036,14 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, ori
       }
     }
   } else {
+    // ADR-010: a cell with direct inline content and one Lexical paragraph is
+    // reconciled with the cell parser's segment rules; bail → legacy below.
+    const cellBlockTags = new Set(['p', 'ul', 'ol', 'li', 'table', 'section', 'div']);
+    const hasCellBlocks = Array.from(domEntry.children).some(c => cellBlockTags.has(c.tagName.toLowerCase()));
+    if (!hasCellBlocks && cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
+      const r = reconcileInline(domEntry, Array.from(domEntry.childNodes), cellChildren[0], originMap, 'segment', reconcileDeps(doc, originMap));
+      if (r !== 'bail') return;
+    }
     // Entry with direct text content — compare and patch as a unit.
     // S2: equal text can still hide a formatting toggle in the cell's single
     // paragraph — same signature check as patchElementContent.
@@ -1708,6 +1756,9 @@ const patchPWrapper = (
   const stripWs = (s: string) => s.replace(/\s+/g, '');
   domInline.forEach((seg, i) => {
     const lex = lexInline[i];
+    // ADR-010: reconcile the segment with the block-split (segment) rules;
+    // only a bail reaches the whitespace-insensitive rewrite below.
+    if (reconcileInline(pEl, seg.nodes, lex, originMap, 'segment', reconcileDeps(doc, originMap)) !== 'bail') return;
     const domText = seg.nodes.map(n => n.textContent ?? '').join('');
     if (stripWs(domText) === stripWs(lex.getTextContent())) return;
     const anchor = seg.nodes[seg.nodes.length - 1].nextSibling;

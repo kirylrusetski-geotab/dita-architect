@@ -21,6 +21,30 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.9',
+    date: '2026-10-21',
+    title: 'Insert Link no longer damages the rest of the paragraph: the editor now rewrites only the run you changed.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Adding a link to a paragraph that also holds a menu path (`<menucascade>`) or a variable chip with extra attributes used to rewrite the whole paragraph on save: the menu path lost its `<menucascade>` wrapper and the chip lost attributes such as `outputclass`. The paragraph is now patched around the parts you did not touch, and those parts come back byte-for-byte.',
+          'A paragraph containing an XML comment silently refused structure-only edits. Adding a link to it never reached the XML, and nothing told you so. The link now lands and the comment stays exactly where it was.',
+          'Making text bold or italic in a paragraph that also contains a variable chip, a UI control, or a cross-reference was dropped on save, to protect those elements from a lossy rewrite. Both now hold: the formatting is saved and the elements are untouched.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-010 slice A. `sync/inline-units.ts` is the one scanner both the parser and the serializer read, so the serializer\'s picture of what a paragraph should contain can no longer drift from what the parser built. `sync/inline-reconcile.ts` matches unchanged inline elements as anchors (a longest common subsequence over element signatures) and splices only the changed run, splitting text nodes at raw offsets so formatting whitespace the parser trimmed survives. Processing instructions, comments, and the boundaries between a `<note>`\'s paragraphs are fixed points: a change that would have to cross one makes the reconciler bail to the previous code path and log one console warning, rather than guess.',
+          'Across the 52-fixture byte-stability corpus the reconciler made 691 decisions on unedited topics: 686 `untouched`, 5 `patched` (all inside the one fixture already failing for BUG-29, where the parser hands the serializer a misaligned pair), 0 bails. Fixes BUG-32 and BUG-33. BUG-34 filed: an edit to the text inside a `<menucascade>` still rewrites the whole menu path.',
+          'This is the serializer half of the wrap-selection feature planned for v0.10.0. A `<uicontrol>` or `<codeph>` wrapped around selected text already serializes correctly (pinned by test); the toolbar entry is what remains.',
+          'Suite: 61 files, 1208 tests passing, 3 skipped. New suite `tests/sync/inline-reconcile.test.ts` pins the ADR-010 invariants R1 to R6. The S2 test that asserted a dropped toggle beside a `<ph conkeyref>` now asserts the opposite.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.8',
     date: '2026-10-20',
     title: 'A prerequisite you cannot see fixed a bug you could: content inside a prerequisite or result section used to vanish.',

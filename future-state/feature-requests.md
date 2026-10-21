@@ -945,7 +945,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-20
 **Source:** Kiryl / v0.9.7 retrospective — two serializer bugs (BUG-25, BUG-26) had existed since at least v0.8.3 because no fixture contained a pattern that appears in most real Heretto topics
-**Status:** Open — **do before any further serializer work (v0.10.0 onward)**
+**Status:** Shipped (v0.9.8, 2026-10-20) — 40 sampled real topics in `tests/sync/fixtures/sampled/`; see HISTORY.md
 **Priority:** P1
 **Impact:** High — Gate 1 is the project's top acceptance criterion and its enforcement is only as wide as the fixture corpus
 **Model weight:** Sonnet (one short session; the enumeration script already exists in spirit from the 2026-10-20 session)
@@ -979,7 +979,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-20 (the roadmap has said "file it" since 2026-07-18)
 **Source:** Roadmap v0.13.0 prerequisite; pulled forward 2026-10-20 so the hardest remaining milestone starts from facts
-**Status:** Shipped (2026-10-20) — first pass. `future-state/heretto-review-pi-grammar.md` has the grammar, two worked examples (insert+split sharing one changeId across a paragraph break; Accept All stripping every PI to plain committed XML), and a `TrackedMark` mapping table. **Four gaps named and left unresolved, most importantly the delete kind's raw PI was never captured** (it was accepted before a fetch caught it) — the document says explicitly this must be verified, not inferred, before ADR-012. Re-open or file a small follow-up before starting v0.13.0 if the gaps aren't closed by then.
+**Status:** Shipped (v0.9.8, 2026-10-20) — first pass. `future-state/heretto-review-pi-grammar.md` has the grammar, two worked examples (insert+split sharing one changeId across a paragraph break; Accept All stripping every PI to plain committed XML), and a `TrackedMark` mapping table. **Four gaps named and left unresolved, most importantly the delete kind's raw PI was never captured** (it was accepted before a fetch caught it) — the document says explicitly this must be verified, not inferred, before ADR-013 (numbered ADR-012 until ADR-010 took the inline reconciler on 2026-10-20). Re-open or file a small follow-up before starting v0.13.0 if the gaps aren't closed by then.
 **Priority:** P2
 **Impact:** High for v0.13.0 (review carrier); zero risk to the product — read-only investigation
 **Model weight:** Sonnet, half-session

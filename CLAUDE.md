@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.9.8 (2026-10-20)
+**Current version:** 0.9.9 (2026-10-21)
 
 ---
 
@@ -62,7 +62,8 @@ Use port **3001** when running the native app, **3000** for dev server.
 ## Architecture
 
 - **Parser:** `sync/parseXmlToLexical.ts` — DITA XML → Lexical node tree; stamps `originMap` with DITA element identity for every node
-- **Serializer:** `sync/serializeLexicalToXml.ts` — Lexical node tree → DITA XML; uses `originMap` to reconstruct inline DITA elements correctly
+- **Serializer:** `sync/serializeLexicalToXml.ts` — Lexical node tree → DITA XML; uses `originMap` to reconstruct inline DITA elements correctly. Every visual edit patches a clone of the **load-time** master (`SyncManager.masterXmlRef`), not the last serialized XML.
+- **Inline scanner + reconciler (ADR-010):** `sync/inline-units.ts` — the one scanner that turns a DOM element's inline children into atoms; the parser builds Lexical nodes from them and the serializer reads them, so the two cannot drift. `sync/inline-reconcile.ts` — `reconcileInline` keeps unchanged inline elements as anchors and splices only the changed run; `patchElementContent`, the table-cell direct-text branch, and `patchPWrapper` call it first and fall to the legacy text-diff path only on a bail (PI/comment inside the changed run, unsupported node). `setReconcileObserver` is the test seam.
 - **Sync bridge:** `components/SyncManager.tsx` — coordinates bidirectional sync between Lexical and Monaco; update sources: `'visual'`, `'xml'`, `'api'`; sync suspends while a tab is in suggesting mode (`suspendSync`), buffering XML-side changes until marks are resolved
 - **Tracked changes (FR-046, marks-as-data):** `components/TrackedTextNode.ts` — TextNode subclass carrying `{changeId, kind: insert|delete|split, author, date}`; `components/SuggestionPlugin.tsx` — suggesting-mode command interception + accept/reject-all lifecycle; `components/ChangeListPanel.tsx` — per-change review sidebar; `lib/tracked-changes/` — model/scan/mutations/edits. `tab.documentMode: 'viewing'|'suggesting'|'editing'` replaces the old editMode boolean. Marks are session-only (carrier = FR-051). See ADR-004.
 - **Heretto integration:** `hooks/useHerettoCms.ts` — all CMS operations (browse, open, save, replace, connection check)
@@ -107,6 +108,7 @@ Longer-form planning and session artifacts live outside the repo in
 - **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline, the milestone-session checklist, public-repo standing rules). Consult it when choosing the next feature session; update it at milestone boundaries.
 - **`Execution Plan — Roadmap to 1.0 (2026-10-20).md`** — the ladder as eight sessions: which model to use, invariants to pin before code, steps, exit criteria, risks, and gap fillers. **Read the current session's block at session start** and append to its status log at session end.
 - **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 codebase-review and remediation record (v0.8.5 → v0.9.0 arc, incl. the BUG-20 post-mortem). The separate Remediation Plan note was folded into it and deleted 2026-10-19.
+- **`Session Log — Session 2A Handoff, ADR-010 slice A (2026-10-20).md`** — mid-session handoff: exact uncommitted state, the R1–R6 test spec, the scanner/reconciler design decisions not yet in ADR-010, and the ordered remaining steps to v0.9.9. **Read this first when resuming Session 2A.**
 - **`Session Log — FR-057 Real-Scenario Context (2026-08-04).md`** — the three-attempt live authoring session that drove v0.9.2/v0.9.3; the FR-057 build plan was deleted 2026-10-19 (its reasoning is ADR-008).
 - **`dita-architect-market-analysis.md`** — March 2026 competitive positioning; the roadmap's strategic lens is derived from it.
 
@@ -240,7 +242,7 @@ DITA Architect uses **Semantic Versioning**: `MAJOR.MINOR.PATCH`
 - MINOR: new API endpoint surface, new editor capability (table editing, external load API, print/export, AI insert-section), significant new visual system (body element indicators, page-canvas layout)
 - PATCH: bug fixes, UX copy, accessibility, theme tweaks, polish, extending an existing capability
 
-**Roadmap:** the roadmap of record is the Obsidian note `Roadmap — DITA Architect (2026-07-18).md` (see "Obsidian Notes Folder" above). Summary as of 2026-10-19: `0.9.7` displaced items (P2-25 troubleshooting parser, FR-049 placeholders, FR-061 Navy theme) → `0.10.0` wrap-selection inline authoring → `0.11.0` map-aware authoring → `0.12.0` validation → `0.13.0` review carrier → `0.14.0` native menu bar → `1.0.0` daily driver. Consult the note before choosing a feature session; update it at milestone boundaries.
+**Roadmap:** the roadmap of record is the Obsidian note `Roadmap — DITA Architect (2026-07-18).md` (see "Obsidian Notes Folder" above). Summary as of 2026-10-20: `0.9.7` displaced items (P2-25 troubleshooting parser, FR-049 placeholders, FR-061 Navy theme) → `0.9.8` sampled corpus + grammar discovery → `0.9.9` ADR-010 slice A inline reconciler (fixes BUG-32/33) → `0.10.0` wrap-selection inline authoring (ADR-010 slice B) → `0.11.0` map-aware authoring → `0.12.0` validation → `0.13.0` review carrier → `0.14.0` native menu bar → `1.0.0` daily driver. Consult the note before choosing a feature session; update it at milestone boundaries.
 
 **Version history mapping** (old four-part numbering → SemVer) lives in `future-state/HISTORY.md` under "Version numbering map".
 

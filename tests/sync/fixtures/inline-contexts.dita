@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="inline-contexts-fixture">
+  <title>Inline elements in every block context</title>
+  <shortdesc>Open <uicontrol>Settings</uicontrol>, run <codeph>sync</codeph>, and read <xref href="intro.dita" format="dita" scope="local">the intro</xref>.</shortdesc>
+  <conbody>
+    <p>Click <uicontrol>Save</uicontrol>, run <codeph>npm test</codeph>, see <ph>the product</ph>, define <term>dwell time</term>, edit <filepath>config.json</filepath>, open <wintitle>Options</wintitle>, and follow <xref href="next.dita" format="dita" scope="local">the next topic</xref> with <ph conkeyref="vars/ProdName"/>.</p>
+    <ul>
+      <li>Click <uicontrol>Add</uicontrol> and run <codeph>add</codeph> for <ph>each item</ph>.</li>
+      <li>Each <term>zone</term> lives in <filepath>zones.csv</filepath> under <wintitle>Zones</wintitle> per <xref href="https://example.com/zones" format="html" scope="external">the zone guide</xref>.</li>
+    </ul>
+    <note type="tip">Press <uicontrol>Reset</uicontrol>, run <codeph>reset</codeph>, keep <ph>the defaults</ph>, check <term>baseline</term>, open <filepath>reset.log</filepath> in <wintitle>Log viewer</wintitle>, and see <xref href="reset.dita" format="dita">resetting</xref>.</note>
+    <table>
+      <tgroup cols="2">
+        <colspec colname="col1"/>
+        <colspec colname="col2"/>
+        <tbody>
+          <row>
+            <entry>Click <uicontrol>Export</uicontrol> or run <codeph>export</codeph> for <ph>the report</ph>.</entry>
+            <entry><p>The <term>trip count</term> is in <filepath>trips.csv</filepath> under <wintitle>Trips</wintitle>; see <xref href="trips.dita" format="dita">trips</xref>.</p></entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+    <dl>
+      <dlentry>
+        <dt>Origin</dt>
+        <dd><p>Choose <uicontrol>Origin</uicontrol>, pass <codeph>--origin</codeph>, name <ph>the zone</ph>, a <term>trip end</term> in <filepath>origins.csv</filepath> under <wintitle>Origins</wintitle>; see <xref href="origins.dita" format="dita">origins</xref>.</p></dd>
+      </dlentry>
+    </dl>
+    <section id="section-ctx">
+      <title>Section context</title>
+      <p>Select <uicontrol>Run</uicontrol>, call <codeph>run()</codeph>, for <ph>the query</ph>, a <term>segment</term> in <filepath>run.sql</filepath> under <wintitle>Query</wintitle>; see <xref href="run.dita" format="dita">running</xref>.</p>
+    </section>
+  </conbody>
+</concept>

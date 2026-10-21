@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE troubleshooting PUBLIC "-//OASIS//DTD DITA Troubleshooting//EN" "troubleshooting.dtd">
+<troubleshooting id="inline-contexts-trouble-fixture">
+  <title>Inline elements in troubleshooting containers</title>
+  <troublebody>
+    <condition>
+      <p>The <uicontrol>Status</uicontrol> column shows <codeph>offline</codeph> for <ph>the device</ph>, a <term>gap</term> logged in <filepath>status.log</filepath> under <wintitle>Devices</wintitle>; see <xref href="status.dita" format="dita">status</xref>.</p>
+    </condition>
+    <troubleSolution>
+      <cause>
+        <p>The <uicontrol>Power</uicontrol> flag reads <codeph>0</codeph> for <ph>the harness</ph>, a <term>brownout</term> in <filepath>power.log</filepath> under <wintitle>Diagnostics</wintitle>; see <xref href="power.dita" format="dita">power</xref>.</p>
+        <note>Check <uicontrol>Fuse</uicontrol>, read <codeph>F12</codeph>, on <ph>the panel</ph>, the <term>rating</term> in <filepath>fuses.pdf</filepath> under <wintitle>Manuals</wintitle>; see <xref href="fuses.dita" format="dita">fuses</xref>.</note>
+      </cause>
+      <remedy>
+        <title>Restore power</title>
+        <steps>
+          <step>
+            <cmd>Click <uicontrol>Restart</uicontrol>, run <codeph>restart</codeph> on <ph>the device</ph>, clear the <term>fault</term> in <filepath>faults.log</filepath> under <wintitle>Maintenance</wintitle>; see <xref href="restart.dita" format="dita">restarting</xref>.</cmd>
+          </step>
+        </steps>
+      </remedy>
+    </troubleSolution>
+  </troublebody>
+</troubleshooting>

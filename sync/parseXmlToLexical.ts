@@ -5,7 +5,6 @@ import {
 } from 'lexical';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { $createListNode, $createListItemNode } from '@lexical/list';
-import { $createLinkNode } from '@lexical/link';
 import {
   $createTableNode,
   $createTableRowNode,
@@ -13,6 +12,7 @@ import {
   TableCellHeaderStates,
 } from '@lexical/table';
 import type { NodeOriginMapType } from './nodeOriginMap';
+import { scanInlineChildren, scanInlineElement, atomsToLexical, NOTE_BLOCK_TAGS } from './inline-units';
 import { $createDitaOpaqueNode } from '../components/DitaOpaqueNode';
 import { $createDitaCodeBlockNode } from '../components/DitaCodeBlockNode';
 import { $createDitaImageNode } from '../components/DitaImageNode';
@@ -24,147 +24,22 @@ import { $createDitaContainerBoundaryNode } from '../components/DitaContainerBou
 // Shared parsing helpers — module-level so parseSectionFragment can reuse them
 // ---------------------------------------------------------------------------
 
-const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] => {
-  const nodes: any[] = [];
-  const childNodes = Array.from(node.childNodes);
-  childNodes.forEach((child, index) => {
-    if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
-      return; // Skip processing instructions (e.g. Heretto review markers)
-    }
-    if (child.nodeType === Node.TEXT_NODE) {
-      let text = child.textContent;
-      if (!text) return;
-      // Skip whitespace-only text nodes adjacent to processing instructions
-      if (/^\s+$/.test(text)) {
-        const prev = index > 0 ? childNodes[index - 1] : null;
-        const next = index < childNodes.length - 1 ? childNodes[index + 1] : null;
-        if (
-          (prev && prev.nodeType === Node.PROCESSING_INSTRUCTION_NODE) ||
-          (next && next.nodeType === Node.PROCESSING_INSTRUCTION_NODE)
-        ) {
-          return;
-        }
-      }
-      // Normalize formatting whitespace: collapse runs containing newlines
-      // to a single space so XML beautification doesn't affect Lexical rendering
-      text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
-
-      if (text) {
-        // FR-049: placeholder-ness is a property of emptiness, decided by
-        // ShortdescPlugin at render time. Text is always real content here —
-        // the old 19-pattern template-prose detector is gone.
-        nodes.push($createTextNode(text));
-      }
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      parseInlineElement(child as Element, originMap).forEach(n => nodes.push(n));
-    }
-  });
-  // Trim leading formatting whitespace from first text node
-  if (nodes.length > 0 && nodes[0].getType?.() === 'text') {
-    const t = nodes[0].getTextContent();
-    const trimmed = t.replace(/^\s+/, '');
-    if (!trimmed) nodes.shift();
-    else if (trimmed !== t) nodes[0] = $createTextNode(trimmed);
-  }
-  // Trim trailing formatting whitespace from last text node
-  if (nodes.length > 0 && nodes[nodes.length - 1].getType?.() === 'text') {
-    const t = nodes[nodes.length - 1].getTextContent();
-    const trimmed = t.replace(/\s+$/, '');
-    if (!trimmed) nodes.pop();
-    else if (trimmed !== t) nodes[nodes.length - 1] = $createTextNode(trimmed);
-  }
-  return nodes;
-};
+// ADR-010: both helpers are thin wrappers over the shared inline scanner in
+// inline-units.ts. The scanner owns every rule (whitespace collapse, PI-adjacent
+// whitespace, edge trim, the inline-element branch order, container flattening,
+// token-mode stamping) so the serializer's reconciler reads the same atoms this
+// parser builds nodes from — one source of truth, nothing to drift.
+const parseTextNodes = (node: Element, originMap?: NodeOriginMapType): any[] =>
+  atomsToLexical(scanInlineChildren(Array.from(node.childNodes), 'trim', null), originMap);
 
 // Convert a single inline DITA element into Lexical nodes. Used both by
-// parseTextNodes (iterating a parent's children) and by the block-split paths in
+// parseTextNodes (via the scanner) and by the block-split paths in
 // traverseXmlElement / case 'dl', which encounter inline elements one at a time.
 // Calling parseTextNodes(el) there was wrong — it descends into el's *children*,
 // so an empty inline like <ph conkeyref="…"/> (no children) yielded nothing and
 // <uicontrol>x</uicontrol> lost its tag. Parsing the element itself fixes that.
-const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] => {
-  const nodes: any[] = [];
-  const elTag = el.tagName.toLowerCase();
-
-  if (elTag === 'xref') {
-    const href = el.getAttribute('href') || '';
-    const linkNode = $createLinkNode(href);
-    parseTextNodes(el, originMap).forEach(n => linkNode.append(n));
-    const inlineAttrs: Record<string, string> = {};
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name !== 'href') inlineAttrs[attr.name] = attr.value;
-    }
-    if (Object.keys(inlineAttrs).length > 0) {
-      originMap?.set(linkNode.getKey(), { tag: 'xref', bodyIndex: -1, inlineAttrs });
-    }
-    nodes.push(linkNode);
-  } else if (
-    (elTag === 'ph' || elTag === 'term') &&
-    (el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref'))
-  ) {
-    // ph/term carrying a reference → DitaPhRefNode (chip). Refless ph/term fall
-    // through to the generic branch below so their tag is preserved via inlineTag.
-    const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
-    const ref = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref');
-    nodes.push($createDitaPhRefNode(refType, ref!, el.textContent || ''));
-  } else if (elTag === 'image') {
-    const href = el.getAttribute('href') || '';
-    const alt = el.querySelector('alt')?.textContent || el.getAttribute('alt') || '';
-    nodes.push($createDitaPhRefNode('image', href, alt));
-  } else if (elTag === 'codeph') {
-    // Kept as a format flag (not inlineTag) so code toggles stay inside the S2
-    // format-run comparison set (b/i/codeph).
-    const textNode = $createTextNode(el.textContent || '');
-    textNode.toggleFormat('code');
-    nodes.push(textNode);
-  } else if (elTag === 'b' || elTag === 'strong') {
-    const textNode = $createTextNode(el.textContent || '');
-    textNode.toggleFormat('bold');
-    nodes.push(textNode);
-  } else if (elTag === 'i' || elTag === 'em') {
-    const textNode = $createTextNode(el.textContent || '');
-    textNode.toggleFormat('italic');
-    nodes.push(textNode);
-  } else if (Array.from(el.childNodes).some(c => c.nodeType === Node.ELEMENT_NODE)) {
-    // Container inline element (e.g. <menucascade>, or a phrase wrapping other
-    // inline tags). It can't be one stamped text node without losing the
-    // children, so flatten its inline content — nested leaf tags are preserved
-    // by the recursion below; the wrapper itself round-trips on the no-edit
-    // patch path (full container reconstruction is FR-046 territory).
-    parseTextNodes(el, originMap).forEach(n => nodes.push(n));
-  } else {
-    // M1: generic leaf inline element. Stamp the tag + its attributes so it
-    // survives a content rewrite instead of flattening to plain text. This
-    // generalizes the former uicontrol/wintitle point-patches to every inline
-    // phrase element (filepath, term, cite, varname, cmdname, keyword, …).
-    // A couple of elements carry an established editor affordance as a format
-    // flag; the flag only drives appearance — inlineTag still governs output.
-    //
-    // Token mode is essential: without it Lexical merges this node with its
-    // adjacent plain-text siblings during normalization (isSimpleText requires
-    // mode 'normal'), which orphans the inlineTag stamp keyed on this node and
-    // flattens the element back to plain text. uicontrol/wintitle previously
-    // survived only because their bold/italic format differed from neighbors —
-    // token mode makes preservation robust for every tag, including adjacent
-    // same-tag runs (e.g. the <uicontrol>s inside a <menucascade>).
-    const textNode = $createTextNode(el.textContent || '');
-    textNode.setMode('token');
-    if (elTag === 'uicontrol') textNode.toggleFormat('bold');
-    else if (elTag === 'wintitle') textNode.toggleFormat('italic');
-    const inlineAttrs: Record<string, string> = {};
-    for (const attr of Array.from(el.attributes)) {
-      inlineAttrs[attr.name] = attr.value;
-    }
-    originMap?.set(
-      textNode.getKey(),
-      Object.keys(inlineAttrs).length > 0
-        ? { tag: elTag, bodyIndex: -1, inlineTag: elTag, inlineAttrs }
-        : { tag: elTag, bodyIndex: -1, inlineTag: elTag }
-    );
-    nodes.push(textNode);
-  }
-  return nodes;
-};
+const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =>
+  atomsToLexical(scanInlineElement(el, null), originMap);
 
 // Troubleshooting-topic containers (ADR-009). Each flattens to body-level
 // nodes stamped with a containerPath so the serializer can patch the
@@ -250,15 +125,14 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         // flatten each block child's inline content into the quote so xrefs become
         // LinkNodes. Direct parseTextNodes() on the note element would treat <p> as an
         // unknown inline and flatten it to textContent, destroying any xref inside it.
-        const noteBlockTags = new Set(['p', 'ul', 'ol', 'codeblock', 'table', 'simpletable', 'fig', 'image', 'section']);
         const noteHasBlockChildren = Array.from(xmlNode.children).some(
-          child => noteBlockTags.has(child.tagName.toLowerCase())
+          child => NOTE_BLOCK_TAGS.has(child.tagName.toLowerCase())
         );
         if (noteHasBlockChildren) {
           Array.from(xmlNode.childNodes).forEach(child => {
             if (child.nodeType === Node.ELEMENT_NODE) {
               const el = child as Element;
-              if (noteBlockTags.has(el.tagName.toLowerCase())) {
+              if (NOTE_BLOCK_TAGS.has(el.tagName.toLowerCase())) {
                 parseTextNodes(el, originMap).forEach(n => quote.append(n));
               }
             } else if (child.nodeType === Node.TEXT_NODE) {

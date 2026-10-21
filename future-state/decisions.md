@@ -404,3 +404,135 @@ original class's transform still runs for the same type; verified in `LexicalLis
 **(E)** For BUG-25, keep splitting and teach the serializer to re-wrap on the way out (rejected:
 without an id tying the run to its source `<p>` there is no way to know which following blocks were
 inside the wrapper versus after it).
+
+---
+
+## ADR-010 — Inline reconciliation: patch inline content around preserved anchors
+
+**Date:** 2026-10-20 · **Status:** Accepted 2026-10-20 (slice A implemented and shipped in **v0.9.9**,
+2026-10-21; slice B, the wrap UI, pending as v0.10.0)
+
+**Context** — The Session 2 plan assumed the serializer "already consumes `originMap.inlineTag`
+generically", so wrapping a selection would only need editor work. That is true only on the
+*full-rewrite* paths (`createElementFromLexical`, `replaceElementContent` → `serializeInlineContent`).
+The *patch* path — the one every existing element takes — decides whether an element changed from
+three signals: normalized text, xref count, and the S2 format-run comparison, which deliberately
+bails when any `inlineTag`-stamped sibling is present (`buildLexicalInlineRuns`). A wrap changes none
+of the three. Probes run 2026-10-20 (throwaway tests, deleted; outputs recorded in the session):
+
+- `<uicontrol>` wrap (split + token mode + stamp, exactly M1's parse shape) in a `<p>` and a `<cmd>`:
+  **dropped** — output byte-identical to input, in all 9 cases tried (8 in a `<p>`, 1 in a `<cmd>`).
+- `<xref>` wrap in a plain `<p>`: emitted, via the link-count mismatch → `replaceElementContent`.
+- `<xref>` wrap — and the shipping **Insert Link** command, `$toggleLink` — in a `<p>` that also holds
+  `<menucascade>` and `<ph keyref="prod" outputclass="x"/>`: emitted, but the full rewrite **deletes
+  the `<menucascade>` wrapper and strips `outputclass`** (BUG-32, shipped behaviour today).
+- `<xref>` wrap in a `<p>` containing an XML comment: **dropped** — `getNormalizedDomText` counts the
+  comment's text, so the texts never match, and `patchInlineNodes` (which skips comments) then finds
+  old = new and reports untouched (BUG-33).
+- Typed text plus a wrap in the same element: text kept, wrap **dropped**.
+
+The last case matters for the design: `SyncManager.masterXmlRef` is the *load-time* source, and every
+visual edit patches a fresh clone of it. The serializer never sees "a wrap" in isolation — it sees the
+cumulative difference between the load-time element and the current Lexical node, so "type a word,
+then wrap it" must work. Table cells (`patchTableEntry`'s direct-text branch) and `<p>`-wrapper inline
+segments (`patchPWrapper`, BUG-25) run their own text comparisons with the same blindness.
+
+**Decision**
+
+1. **One inline reconciler.** New module `sync/inline-reconcile.ts` exporting
+   `reconcileInline(domParent, domNodes, lexicalNode, doc, originMap) → 'untouched' | 'patched' | 'bail'`.
+   It replaces "decide whether changed, then rewrite everything" with "keep what still matches,
+   rewrite only the changed run".
+2. **Units.** Both sides become sequences of units with a *signature*:
+   - Lexical inline children: plain text (no stamp, no b/i/code); stamped text (`inlineTag` +
+     `inlineAttrs`); code-format text → `codeph`; bold/italic text → `b` / `i`; `LinkNode` → `xref`
+     (URL + `inlineAttrs` + its own child units); `DitaPhRefNode` chip (ref type + value + text).
+     Visual-only nodes are skipped, as everywhere else.
+   - DOM children: text nodes (normalized exactly as the parser does — newline-run collapse, edge
+     trim — with a normalized→raw offset map so splits land on raw bytes); inline elements; and
+     **fixed points** that have no Lexical presence: PIs (Heretto review markers), comments, and the
+     block-child boundaries of a `<note>` whose `<p>` children the parser concatenates.
+   - An element's *expected units* come from one function, `expectedUnits(el)`, a mirror of
+     `parseInlineElement`. This generalizes the mirror S2 already keeps (`buildDomInlineRuns`), which
+     is retired in its favour.
+3. **Anchors.** A longest-common-subsequence match between DOM elements (by expected units) and
+   Lexical units (signature + text). Matched DOM elements are **anchors and are never touched** —
+   that is what keeps `<menucascade>`, `<ph … outputclass>`, `<codeph outputclass>`, and every
+   attribute the parser does not model byte-exact.
+4. **Gaps.** Between anchors, if the Lexical units are plain text equal to the DOM gap's normalized
+   text and the gap holds no unmatched element, the gap is untouched. Otherwise take the common prefix
+   and suffix over units — text-node characters may be split at any offset; **element runs are
+   atomic** (an edit inside `<uicontrol>Save</uicontrol>` replaces that one element, it never splits
+   into two) — keep prefix and suffix raw bytes, and replace only the middle with
+   `serializeInlineContent` output for the middle Lexical units. Adjacent DOM text nodes are merged
+   afterwards, so wrap → unwrap returns the original bytes.
+5. **Bail, loudly.** If a fixed point falls strictly inside the middle region, or the mirror disagrees
+   with the Lexical text (drift), return `'bail'`: the existing path (`patchInlineNodes` /
+   `replaceElementContent`) runs unchanged and a one-shot console warning fires (the
+   `warnTrackedTextReachedSerializer` pattern). The legacy path survives **only** as the bail path; an
+   anti-entropy BACKLOG row tracks retiring it once the bail cases are covered.
+6. **Call sites.** `patchElementContent` runs the reconciler **before** its text-equality fast path
+   (that fast path is what hides a wrap) for direct-inline elements — `p`, `cmd`, `li`, `dt`,
+   `title`, `shortdesc`, the prereq family, a `<note>` (block boundaries as fixed points), `entry/p` —
+   plus `patchTableEntry`'s direct-text branch and `patchPWrapper`'s inline segments.
+7. **Editor representation (slice B).** A wrap produces exactly the tree the parser would produce for
+   that element, so a later re-parse is a no-op: `uicontrol` = token + bold + stamp; `wintitle` =
+   token + italic + stamp; `term`, `filepath`, refless `ph` = token + stamp; `codeph` = code format
+   only, no stamp (identical to what the parser produces; the toolbar has no code toggle today, only
+   Bold and Italic); `xref` = `LinkNode` + `inlineAttrs`
+   `{format, scope}`. Code lives in `lib/inline-wrap.ts` and an `InlineWrapPlugin` mounted inside
+   `SyncManager` (it needs `useSyncContext()`, as `InsertElementPlugin` does — the Toolbar renders
+   outside the provider); the Toolbar and shortcuts dispatch `WRAP_INLINE_COMMAND` /
+   `UNWRAP_INLINE_COMMAND`. **Wrap and unwrap always create new nodes and never delete or mutate an
+   existing key's `originMap` entry**: undo restores old node keys, and their stamps must still be
+   valid. Refused with a toast: collapsed selection, a selection crossing a block or overlapping an
+   existing stamped run, link, or chip, mixed formats, inside a codeblock, and suggesting mode (I6).
+8. **Sequencing.** Slice A (the reconciler, serializer-only) ships first as **v0.9.9**: it fixes
+   BUG-32 and BUG-33, which exist today independent of the wrap UI. Slice B (the wrap UI) ships as
+   **v0.10.0**.
+
+**Invariants** (each a test, written before code)
+
+- **R1** No false rewrites: the byte-stability corpus is unchanged — hand-written fixtures green, the
+  sampled corpus' `KNOWN_FAILURES` set identical — and `reconcileInline` returns `'untouched'` for every
+  inline-content element of every corpus fixture on an unedited parse (asserted directly, not only
+  through the end-to-end round trip).
+- **R2** `round-trip.test.ts` and the S2 suites stay green.
+- **R3** BUG-32: Insert Link (`$toggleLink`) beside `<menucascade>` and `<ph keyref outputclass>`
+  leaves both byte-identical.
+- **R4** BUG-33: a link added in a paragraph holding a comment is emitted; the comment is kept in place.
+- **R5** Typed text plus a wrap in the same element: both are emitted.
+- **R6** A text edit inside `<uicontrol>` keeps one element with its attributes.
+- Slice B: the plan's I1–I6, with I1 stated relative to the pre-wrap serialization ("the output equals
+  the pre-wrap output with the selected substring replaced by `<tag>…</tag>`"), plus **I7** undo/redo
+  of a wrap and an unwrap serializes to the matching state.
+
+**Consequences** — Any inline structure change — wrap, unwrap, link insert/remove, formatting toggle,
+and v0.11's Insert Variable (its I4) — serializes surgically, with unchanged neighbours byte-exact.
+Intended behaviour change: a bold/italic toggle in a paragraph that also holds a stamped element now
+serializes (today S2 bails and the toggle is lost). The mirror must track `parseInlineElement`; R1's
+direct assertion over the corpus is the drift guard. Known limit: an edit *inside* a container inline
+(the text of a `<uicontrol>` within `<menucascade>`) still flattens the container, as today — filed
+as BUG-34. Rules out: wrapping a selection that crosses an existing inline element (content-model
+territory, P2-29/P2-37).
+
+**Alternatives considered** — **(B)** Detect any signature change, then rewrite the whole element
+(rejected: the probe shows the full rewrite deleting `<menucascade>` and attributes; it would be
+viable only after making `serializeInlineContent` lossless, a larger change). **(C)** Record wrap
+operations and replay them at serialize (rejected: state outside the tree that must be replayed
+against the load-time master on every serialize and survive undo/redo). **(D)** Parse-time identity
+stamps (`originMap` remembers the source DOM child index) instead of a mirror (rejected for now:
+format-only nodes — codeph, b, i — merge with neighbours and lose their keys, and it widens the
+`originMap` contract; the mirror already exists for S2). **(E)** Splice only when the text is
+unchanged (the first-cut option, rejected: the load-time master makes mixed text-plus-wrap edits the
+common case).
+
+**Implementation note (slice A, 2026-10-21)** — Two refinements over the text above. (1) Decision 2's
+"mirror of `parseInlineElement`" became a **shared scanner**: `sync/inline-units.ts` produces atoms,
+`parseTextNodes`/`parseInlineElement` build Lexical nodes from them, and the reconciler reads them, so
+the expected units cannot drift from the parser by construction; R1's direct assertion still runs as
+the guard for Lexical-normalization assumptions (merge of adjacent simple text, removal of empty
+simple text) that the scanner reproduces by hand. (2) R1 asserts zero `patched` only for fixtures that
+are byte-stable today; the one BUG-29 fixture already hands the reconciler a genuinely different pair
+(`patchTableEntry` aligns a DOM `<p>` with the image-chip paragraph), which is the filed parser bug,
+not a reconciler fault. The condition is computed, so R1 tightens as BUG-28/29/30/31 are fixed.

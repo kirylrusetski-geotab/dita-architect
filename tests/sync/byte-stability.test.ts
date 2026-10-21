@@ -86,6 +86,18 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
     expectByteStable('troubleshooting-rich.dita');
   });
 
+  // v0.10.0 prerequisite (Execution Plan, Session 2): the seven wrap-slice
+  // elements (uicontrol, codeph, ph, term, filepath, wintitle, xref) in every
+  // context the wrap feature will touch, pinned unedited before the serializer
+  // changes.
+  it('inline-contexts.dita — seven wrap-slice elements in p, li, note, entry, entry/p, dd, section, shortdesc', () => {
+    expectByteStable('inline-contexts.dita');
+  });
+
+  it('inline-contexts-trouble.dita — seven wrap-slice elements in condition, cause, cause/note, remedy cmd', () => {
+    expectByteStable('inline-contexts-trouble.dita');
+  });
+
   it('corpus completeness — every fixture on disk has a test above', () => {
     // readdirSync on FIXTURES_DIR returns the "sampled" directory entry too,
     // but the .dita filter excludes it (it has no extension) — this checks
@@ -93,6 +105,8 @@ describe('byte-stability: unedited round-trips over the fixture corpus', () => {
     const onDisk = readdirSync(FIXTURES_DIR).filter(f => f.endsWith('.dita')).sort();
     const tested = [
       'dl-multi-paragraph-dd.dita',
+      'inline-contexts-trouble.dita',
+      'inline-contexts.dita',
       'inline-elements.dita',
       'journey-definition.dita',
       'ref-note.dita',

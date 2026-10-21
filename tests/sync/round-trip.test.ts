@@ -1,16 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createEditor, $getRoot, $createTextNode, $createParagraphNode } from 'lexical';
+import { $getRoot, $createTextNode, $createParagraphNode } from 'lexical';
 import { $createLinkNode } from '@lexical/link';
-import { HeadingNode, QuoteNode, $createQuoteNode } from '@lexical/rich-text';
+import { $createQuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
-import { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
-import { DitaOpaqueNode } from '../../components/DitaOpaqueNode';
-import { DitaCodeBlockNode, $createDitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
-import { DitaImageNode } from '../../components/DitaImageNode';
-import { DitaPhRefNode } from '../../components/DitaPhRefNode';
-import { DitaInfoPreviewNode } from '../../components/DitaInfoPreviewNode';
+import { TableRowNode, TableCellNode } from '@lexical/table';
+import { $createDitaCodeBlockNode } from '../../components/DitaCodeBlockNode';
 import { parseXmlToLexical, parseSectionFragment, parseBlockFragment, findLexicalKeyByXmlId } from '../../sync/parseXmlToLexical';
 import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeLexicalToXml';
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
@@ -1748,11 +1744,12 @@ describe('Session 4B (S6): table row add/delete reaches the XML', () => {
 //
 // BUG-04/S2: patchElementContent compared text + link count only, so a
 // bold/italic/code toggle (text unchanged) was treated as "untouched" and the
-// formatting never reached the XML. Fixed by a format-run signature comparison
-// restricted to the provably-safe inline subset (text, attribute-less b/i/codeph
-// with text-only content). Elements containing xref/ph/uicontrol/nested inline
-// tags bail to the old behavior — preserved byte-stable, formatting edits there
-// still dropped (residual, annotated on FR-046).
+// formatting never reached the XML. First fixed (v0.8.7) by a format-run
+// signature comparison restricted to a provably-safe inline subset, which
+// bailed — toggle dropped — whenever the paragraph also held an xref/ph/
+// uicontrol. ADR-010 (v0.9.9) replaced that with the inline reconciler: the
+// toggle lands and the sibling elements stay byte-identical. The last test in
+// this block records the behaviour change.
 
 describe('Session 4B (S2): formatting-only edits reach the XML', () => {
   function editParagraphByText(editor: any, matchText: string, buildChildren: () => any[]) {
@@ -1942,17 +1939,17 @@ describe('Session 4B (S2): formatting-only edits reach the XML', () => {
     expect(getBodyContent(output)).toContain('<entry><b>plain</b> cell</entry>');
   });
 
-  it('SAFETY: paragraph containing <ph conkeyref> bails — ref preserved, formatting edit dropped', () => {
-    // Residual limitation (annotated on FR-046): elements whose inline content
-    // includes non-recreatable pieces (ph/xref/uicontrol/...) are never
-    // force-replaced on a formatting-only edit, because the rewrite would lose
-    // the ref/attributes. Preservation wins over honoring the toggle.
+  it('paragraph containing <ph conkeyref>: the formatting toggle lands AND the ref is byte-identical (ADR-010; was a bail before v0.9.9)', () => {
+    // Until v0.9.9 this test asserted the opposite — that the toggle was
+    // dropped to protect the ref, because the only alternative was a full
+    // rewrite that lost the ref's attributes. The reconciler keeps the <ph> as
+    // an anchor and rewrites only the toggled run, so both now hold.
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
 <concept id="s2-ph-bail">
   <title>Ph Bail</title>
   <conbody>
-    <p>See <ph conkeyref="vars/Product"/> and more text.</p>
+    <p>See <ph conkeyref="vars/Product" outputclass="brand"/> and more text.</p>
   </conbody>
 </concept>`;
 
@@ -1978,10 +1975,7 @@ describe('Session 4B (S2): formatting-only edits reach the XML', () => {
     }, { discrete: true });
 
     const output = serializeLexicalToXml(editor.getEditorState(), xml, originMap, cache);
-    const body = getBodyContent(output);
-    // The ref must survive — never sacrificed to a formatting toggle
-    expect(body).toContain('conkeyref="vars/Product"');
-    expect(body).not.toMatch(/<b[ >]/);
+    expect(output).toBe(xml.replace('and more text.', 'and <b>more</b> text.'));
   });
 
   it('SAFETY: unedited nested <b><i> and inline DITA elements stay byte-identical', () => {
