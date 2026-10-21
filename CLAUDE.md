@@ -84,6 +84,7 @@ Use port **3001** when running the native app, **3000** for dev server.
 | `dita-architect.tsx` | Main component; `window.__ditaApi` registration ~line 354–395 |
 | `constants/version.ts` | Version string + all release notes array |
 | `constants/keyboard-shortcuts.ts` | Single-source shortcut registry (drives cheat sheet modal) |
+| `constants/dita-content-model.ts` | DITA 1.3 `parent → validChildren` table (P2-36); `isValidChild`/`getValidChildren` — source of truth for the future `+` menu filtering (P2-37) and pre-save validation (Session 5) |
 | `types/tab.ts` | `Tab` interface — all per-tab state |
 | `vite.config.ts` | All Vite `/api/*` middleware endpoints |
 | `future-state/BACKLOG.md` | Open work only: lanes, chains, parked items, scheduling model — read before starting any session |
