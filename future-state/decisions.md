@@ -536,3 +536,19 @@ simple text) that the scanner reproduces by hand. (2) R1 asserts zero `patched` 
 are byte-stable today; the one BUG-29 fixture already hands the reconciler a genuinely different pair
 (`patchTableEntry` aligns a DOM `<p>` with the image-chip paragraph), which is the filed parser bug,
 not a reconciler fault. The condition is computed, so R1 tightens as BUG-28/29/30/31 are fixed.
+
+**Implementation note (slice B, 2026-10-21)** — Decision 7 as built, with what the build added. (1)
+Refusals are a closed set with author-facing copy (`WRAP_REFUSAL_MESSAGES`): `collapsed`, `cross-block`,
+`overlap` (any stamped run, link, chip, existing `<codeph>`, or non-plain node in the selection), and
+`formatted` — v1 also refuses bold/italic text, because a wrap would silently drop that formatting.
+(2) `Insert Link` is the `<xref>` wrap: it dispatches `WRAP_INLINE_COMMAND`, so format/scope land in
+`originMap` and the same refusals apply; inside an existing link it retargets via `$toggleLink`
+(previous behaviour) and leaves that link's format/scope alone, since changing them would edit an
+existing key's entry. When only `scope` is given, `format` is inferred from the href so a scoped xref
+always carries one. (3) The shortcut handler sits at `COMMAND_PRIORITY_HIGH` on `KEY_DOWN_COMMAND`:
+Lexical's `isUnderline` ignores Shift, and `KEY_DOWN_COMMAND` is dispatched before its built-in key
+checks, so claiming ⌘⇧U there is the only way to keep it from also underlining. (4) FR-063 shipped in
+the same release as the user-visible guard for a reconciler bail; its check runs even when the XML did
+not change, which is the shape a dropped wrap has. Known v1 limit beyond the ADR: `<term>`,
+`<filepath>`, and refless `<ph>` render unstyled, so their wraps are invisible in the visual editor
+(FR-068).

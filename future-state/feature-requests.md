@@ -63,8 +63,8 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | ⏸️  | [FR-044](#fr-044-altitude-by-geotab-theme)                                                      | Altitude by Geotab theme                                                          | 2026-06-02 | Parked — Rolled back 2026-07-20 |
 | 🟢  | FR-045                                                                                          | Monaco-diff review surface for API insertions                                     | 2026-06-04 | Shipped v0.8.8            |
 | 🟢  | FR-046                                                                                          | Marks-as-data tracked changes in Lexical (suggesting mode)                        | 2026-06-04 | Shipped v0.9.0            |
-| 🔴  | [FR-047](#fr-047-byte-stability-test-corpus--shared-test-editor-factory)                        | Byte-stability test corpus + shared test editor factory                           | 2026-07-17 | Open (P1 — blocks BUG-04) |
-| 🔴  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Open                      |
+| 🟢  | [FR-047](#fr-047-byte-stability-test-corpus--shared-test-editor-factory)                        | Byte-stability test corpus + shared test editor factory                           | 2026-07-17 | Shipped v0.9.0 (`090d1d0`, 2026-07-17) |
+| 🟢  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Shipped v0.9.0 (`4b1ccc7`, 2026-07-17) |
 | 🟢  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Shipped v0.9.7            |
 | 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
 | 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Open                      |
@@ -79,9 +79,10 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
 | 🟢  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Shipped v0.9.7 |
 | 🔴  | [FR-062](#fr-062-heretto-instance-agnosticism)                                                 | Heretto instance agnosticism — no hardcoded host, root folder, or tenant data    | 2026-10-19 | Open (slices 1–2 shipped v0.9.4/v0.9.6; slice 3 discovery open) |
-| 🔴  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Open |
-| 🔴  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Open — before any serializer work |
-| 🔴  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Open |
+| 🟢  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Shipped v0.10.0 |
+| 🟢  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Shipped v0.9.8 |
+| 🟢  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Shipped v0.9.8 (first pass; 4 gaps open) |
+| 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 
 ---
 

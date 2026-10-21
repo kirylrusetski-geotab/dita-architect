@@ -110,7 +110,7 @@ Longer-form planning and session artifacts live outside the repo in
 - **`Roadmap — DITA Architect (2026-07-18).md`** — the **roadmap of record** (milestone ladder to 1.0, cut/re-scoped items, build discipline, the milestone-session checklist, public-repo standing rules). Consult it when choosing the next feature session; update it at milestone boundaries.
 - **`Execution Plan — Roadmap to 1.0 (2026-10-20).md`** — the ladder as eight sessions: which model to use, invariants to pin before code, steps, exit criteria, risks, and gap fillers. **Read the current session's block at session start** and append to its status log at session end.
 - **`Session Log — 4A Complete, 4B Model Weights (2026-07-17).md`** — the 2026-07-17 codebase-review and remediation record (v0.8.5 → v0.9.0 arc, incl. the BUG-20 post-mortem). The separate Remediation Plan note was folded into it and deleted 2026-10-19.
-- **`Session Log — Session 2A Handoff, ADR-010 slice A (2026-10-20).md`** — mid-session handoff: exact uncommitted state, the R1–R6 test spec, the scanner/reconciler design decisions not yet in ADR-010, and the ordered remaining steps to v0.9.9. **Read this first when resuming Session 2A.**
+- **`Session Log — Session 2A Handoff, ADR-010 slice A (2026-10-20).md`** — the mid-session handoff written when Session 2A paused; superseded (2A shipped as v0.9.9 on 2026-10-21, and its design notes are now ADR-010's implementation note). Kept as a record of the method; nothing in it is still pending.
 - **`Session Log — FR-057 Real-Scenario Context (2026-08-04).md`** — the three-attempt live authoring session that drove v0.9.2/v0.9.3; the FR-057 build plan was deleted 2026-10-19 (its reasoning is ADR-008).
 - **`dita-architect-market-analysis.md`** — March 2026 competitive positioning; the roadmap's strategic lens is derived from it.
 
@@ -201,7 +201,9 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus), `tests/xml-insert.test.ts` (FR-045 API insertion transform).
+Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus, incl. the FR-064 `sampled/` real topics), `tests/sync/inline-reconcile.test.ts` (ADR-010 R1–R6; R1 asserts zero false rewrites over the whole corpus), `tests/sync/inline-wrap.test.ts` (ADR-010 I1–I7: every wrap element × 13 contexts), `tests/inline-wrap-plugin.test.tsx` (wrap commands, shortcuts, and the Suggesting-mode block through the real component tree), `tests/sync/structure-check.test.tsx` (FR-063: zero false warnings over the corpus), `tests/xml-insert.test.ts` (FR-045 API insertion transform).
+
+Test-harness facts that cost time once: a non-headless Lexical editor with no mounted root rebuilds its selection from the (absent) DOM at the start of every update, so multi-update tests must re-select; register history *before* parsing, as the app's `HistoryPlugin` is; and mount a `ContentEditable` in component tests or Lexical will not commit updates.
 
 ---
 

@@ -16,7 +16,11 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **Replace topics in Heretto.** Draft a new version of a topic, preview a side-by-side diff against the live version, and replace it when you're ready.
 
-**Track your changes.** Click the pencil icon to enter Edit Mode. Your insertions are highlighted and deletions shown with strikethrough. Accept to merge your changes, or reject to restore the original.
+**Mark up inline elements.** Select text and wrap it in a UI control, code phrase, phrase, term, file path, window title, or cross-reference from the tag-icon menu in the toolbar, or press Ctrl/⌘+Shift+U (`<uicontrol>`) or Ctrl/⌘+Shift+C (`<codeph>`). `Remove inline element` takes one off again. Only the element you add changes in the XML; everything else in the paragraph is written back byte-for-byte.
+
+**Track your changes.** Switch the document mode control between Viewing (read-only), Suggesting (your edits become tracked insertions and deletions you can accept or reject one by one, or all at once), and Editing (direct edits).
+
+**Know when a sync loses something.** If the XML ever ends up with fewer links, notes, lists, tables, or inline elements than the visual editor shows, a warning tells you to check the source pane.
 
 **Work with multiple topics.** Open several topics in tabs. Each tab has its own undo history and sync state.
 
@@ -87,6 +91,8 @@ Without a Heretto connection the editor still works — create topics from templ
 |---|---|
 | Ctrl+B | Bold |
 | Ctrl+I | Italic |
+| Ctrl/⌘+Shift+U | Wrap the selection in `<uicontrol>` |
+| Ctrl/⌘+Shift+C | Wrap the selection in `<codeph>` |
 | Ctrl+Enter | Sync XML to visual editor |
 | Shift+Alt+F | Format (beautify) XML |
 | Ctrl+S | Save to Heretto (when connected) |
@@ -102,7 +108,7 @@ The visual editor renders these elements as formatted content:
 - **Lists:** `<ol>`, `<ul>`, `<li>`, `<steps>`, `<step>`, `<cmd>`
 - **Tables:** `<table>` (CALS), `<simpletable>`
 - **Media:** `<fig>`, `<image>`, `<codeblock>`
-- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`
+- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). `<term>`, `<filepath>`, and `<ph>` have no visual style yet (FR-068).
 
 Elements the editor doesn't recognize are shown as labeled read-only blocks — they won't be lost or changed when you save.
 

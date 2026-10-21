@@ -29,7 +29,9 @@ content, or drifting between the two run modes.
   over the fixture corpus; for any element or structure the change touches, a byte-stability fixture
   exists **before** the serializer is touched. The corpus must include **sampled real Heretto topics**
   (FR-064), not only synthetic ones: BUG-25 and BUG-26 survived for months because no fixture had a
-  pattern that most real topics contain. **Pipeline owner:** Elena (review) + Taylor (tests).
+  pattern that most real topics contain. An inline change also keeps `tests/sync/inline-reconcile.test.ts`
+  R1 (zero false rewrites over the corpus) and `tests/sync/structure-check.test.tsx` (zero false
+  FR-063 warnings) green. **Pipeline owner:** Elena (review) + Taylor (tests).
 
 ## Gate 2 — No data corruption / Heretto-safe output
 
