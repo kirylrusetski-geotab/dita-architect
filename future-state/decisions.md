@@ -552,3 +552,133 @@ the same release as the user-visible guard for a reconciler bail; its check runs
 not change, which is the shape a dropped wrap has. Known v1 limit beyond the ADR: `<term>`,
 `<filepath>`, and refless `<ph>` render unstyled, so their wraps are invisible in the visual editor
 (FR-068).
+
+---
+
+## ADR-011 — Sections are identity-carrying containers, matched by ordinal
+
+**Date:** 2026-10-21 · **Status:** Accepted 2026-10-21 (Kiryl); **implemented in v0.10.1** (BUG-28 + BUG-35)
+
+**Context** — `<section>` is the most common wrapper in real topics and the serializer has no identity
+for it. The parser flattens a section's children to body-level nodes; a titled section's `<title>`
+becomes an h2, and the serializer re-groups "an h2 plus every node until the next h2" into a section
+group, matched to DOM sections **in order**. An untitled section leaves no trace at all. Probed
+2026-10-21 (throwaway tests, deleted):
+
+- **Untitled section** (`<section><table>…</table></section>`): the DOM section matches nothing, is
+  deleted, and its table is recreated at body level — and the recreated table drops the list in its
+  cell (BUG-35: `ul` 1 → 0). Three sampled real topics; `altitude-api-reuse.dita` loses 3 `<ul>`,
+  11 `<li>`, and 12 `<p>` (13,088 → 6,777 chars) on an *unedited* round trip, which FR-063 now reports.
+- **Titled sections, author deletes the first one** (title + body of `s1`): `s1`'s element is kept
+  and `s2`'s content is patched into it; `s2` and its `id` are gone. Order, not identity.
+- **Empty conref sections** (`reference/go10-regulatory-statements.dita`: seven
+  `<section conref="…Regulatory_Statements.dita#…"/>`): no editor nodes, so the body is skipped and
+  they survive only by accident. Adding one paragraph deletes all seven.
+
+ADR-009 solved the same shape for troubleshooting containers (`condition`, `cause`, `remedy`,
+`troubleSolution`, `steps-informal`; extended to `prereq`/`context`/`result`/`postreq` by BUG-27):
+each produced node carries `originMap.containerPath` (`tag#ordinal` segments) and the serializer
+groups by path and patches the preserved element in place. But it matches a group to the next DOM
+child **with the same tag**, not the same ordinal, and it never deletes an unconsumed container — so
+it shares the deletion problem in milder form (deleting a whole cause in the editor is not written
+back, a documented ADR-009 limit).
+
+**Decision**
+
+1. **`<section>` joins the container set.** The parser flattens it like a troubleshooting container:
+   every produced node gets a `containerPath` segment `section#N` (N = ordinal among the parent's
+   `<section>` children), titled or not; the title stays an h2. `patchContainer` already patches an
+   optional leading h2 into `<title>`, and `createContainerFromLexical` already writes one.
+2. **Match containers by ordinal, not by tag.** Before the walk, map each direct container child of
+   the parent to its `tag#ordinal` segment (computed on the untouched clone, so later removals cannot
+   shift ordinals). A container group patches exactly the element its segment names. This applies to
+   every container, so it also fixes the troubleshooting look-ahead's same-tag matching.
+3. **Delete by provenance.** After the walk, an unconsumed container is **removed** when the parse
+   produced editor nodes for it — some `originMap` entry carries its path or a descendant path (the map
+   keeps entries for deleted nodes) — because then the author deleted all of its content. It is
+   **preserved** when the parse produced nothing for it: empty `<cause/>`, a conref'd
+   `<section conref/>`, a section holding only markup the parser ignores. This lifts ADR-009's
+   "deleting a whole container does not propagate" limit for every container.
+4. **New sections stay new.** An h2 the author types (no `containerPath`) still starts the legacy
+   h2 section group, which now **stops at the first node that has a `containerPath`**, so a new
+   heading can never swallow an existing section, and is always *created* rather than patched into an
+   existing `<section>` element.
+5. **Untitled sections get a boundary marker.** The `DitaContainerBoundaryNode` gains a `section`
+   kind, emitted only for untitled sections: it is the author's only cue that a wrapper exists, and it
+   keeps Lexical from merging a list at the end of one untitled section into a list at the start of
+   the next (BUG-26's cross-container case, as for troubleshooting). Titled sections already show
+   their h2.
+6. **BUG-35 rides along.** Table cell serialization (`buildRowEl`, `createTableFromLexical`,
+   `patchTableEntry`'s rewrite and `<p>`-parallel branches) emits non-paragraph cell children through
+   `createElementFromLexical` instead of dropping them, so a cell list survives a rebuild and a list
+   the author adds to a cell reaches the XML.
+7. **Author-created blocks inherit their container.** *(Added at acceptance, found while writing the
+   tests: without it, decision 1 would regress titled sections, because a paragraph the author adds
+   inside one — Enter at the end of its last paragraph, or the block `+` menu — has no
+   `containerPath` and would land outside the section, where the old h2 grouping happened to keep it
+   inside. ADR-009 containers already had this gap.)* The parser stamps every top-level node it
+   produces with its real `bodyIndex` (≥ 0; until now the field was declared but never set, and nothing
+   reads it). In the walk, a top-level node with neither a `containerPath` nor a `bodyIndex ≥ 0` was
+   created by the author, and it joins the container of the nearest preceding node that has one —
+   unless it is an h2, which starts a new section (decision 4) that the following author-created nodes
+   join. Grouping-only: no `originMap` entry is written, so undo needs nothing.
+
+**Invariants** (each a test, written before code)
+
+- **S1** Every corpus fixture that is byte-stable today stays byte-stable, and the inline-reconcile
+  R1 and FR-063 corpus suites stay green.
+- **S2** The three BUG-28 fixtures leave `KNOWN_FAILURES` or are re-attributed to a remaining bug
+  with evidence; FR-063 reports nothing for them.
+- **S3** An edit inside an untitled section lands in that section; its wrapper, `id`, and `class`
+  are byte-identical.
+- **S4** Deleting every node of one section removes exactly that section; other sections keep their
+  ids and content (the `s1`/`s2` probe).
+- **S5** Adding content anywhere in the go10 topic keeps all seven conref sections byte-identical;
+  an empty `<cause/>` is still preserved.
+- **S6** A new h2 typed before, between, or after existing sections creates a new `<section>` and
+  leaves the existing ones byte-identical.
+- **S7** Two adjacent untitled sections, the first ending and the second starting with a `<ul>`,
+  round-trip as two lists in two sections.
+- **S8** BUG-35: a cell list survives a forced table rebuild; a list added to a cell is serialized.
+- **S9** Troubleshooting suites stay green; deleting a whole non-empty `<cause>` now removes it
+  (ADR-009's limit lifted — the one intended behaviour change for existing containers).
+- **S10** A paragraph the author adds after the last paragraph of a titled section, an untitled
+  section, or a `<cause>` is written inside that container; a block added after a body-level
+  paragraph stays at body level.
+
+**Consequences** — Section edits become identity-safe in every topic type, and `<section>` stops
+being special-cased in the walk: one mechanism (container + ordinal + provenance) covers sections,
+troubleshooting containers, and the task-section wrappers. The legacy h2 section group survives only
+for author-created headings. Deleting a whole container in the visual editor now propagates
+everywhere. Risks: provenance depends on `originMap` keeping entries for deleted nodes (true today:
+nothing prunes it; a future pruning change must keep container provenance); `<example>`,
+`<sectiondiv>`, and `<bodydiv>` still have no identity (opaque or unparsed today — out of scope, to
+be checked against the corpus).
+
+**Alternatives considered** — **(B)** Give only untitled sections an identity and keep h2 grouping
+for titled ones (rejected: the `s1`/`s2` probe shows titled sections have the same order-not-identity
+flaw). **(C)** Keep "never delete a container" and add sections to it (rejected: deleting a section
+in the editor would silently stop working — a regression from today for titled sections). **(D)**
+Decide deletion from the DOM ("non-empty in source") instead of `originMap` provenance (rejected: a
+section holding only markup the parser ignores is non-empty but produced no nodes, so it would be
+deleted the first time anything else is edited). **(E)** Custom Lexical ElementNode for sections
+(rejected for the reasons ADR-009 alternative B gives: every plugin assumes a flat body).
+
+**Implementation note (2026-10-21, v0.10.1)** — Refinements the build and its tests forced, each caught
+before release. (1) **Provenance ignores boundary markers**: the parser emits one for every
+condition/cause/remedy, so an empty `<cause/>` looked like deleted content and was removed.
+(2) **The walk steps past a container that produced no content** (empty, conref'd) instead of placing
+groups before it; otherwise a paragraph after a nodeless container would be recreated in front of it
+and the real one deleted. (3) **A task section is a container only in its block-child form**, decided by
+the parser's own `BLOCK_CHILD_TAGS` (now exported) — a direct-text `<result>` treated as a container
+was skipped and then duplicated. (4) **`patchDlElement` threads the base path into each `<dd>` walk**:
+`<dd>` nodes carry the enclosing container's path, and at base `''` the walk re-wrapped them in a new
+container — a latent ADR-009 bug for any `<dl>` in a cause or remedy. (5) **BUG-35's cell walk sees only
+the blocks the cell parser models** (`p`, `ul`, `ol`, `table`, `section`); a `<note>` in a cell has no
+node (BUG-29) and would otherwise be deleted as unconsumed, and the pre-existing paragraph-parallel path
+is kept whenever neither side has a list. (6) Decision 5's boundary marker is emitted only for untitled
+sections **with element children**, so empty and conref'd sections stay invisible as before. (7) The
+order-based `patchSection` / `patchSectionFromHeading` were removed: every source section is a container
+group, and a legacy h2 group is always new. Native smoke: untitled section kept `id`/`outputclass`,
+Enter inside a titled section stayed inside, a cell list grew in place, a conref section survived, and
+a titled section deleted heading-and-all was removed while its neighbours stayed byte-identical.

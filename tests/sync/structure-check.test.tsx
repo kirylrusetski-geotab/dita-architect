@@ -133,10 +133,13 @@ describe('FR-063 acceptance 3 — zero false positives over the byte-stability c
     });
   }
 
-  it('the two BUG-28 fixtures are reported (true positives: their lists are lost on a round trip)', () => {
+  it('the two fixtures FR-063 first caught losing every list (BUG-28) now report nothing', () => {
+    // FR-063's first corpus run (v0.10.0) reported list 3 > 0 for both; ADR-011
+    // (v0.10.1) fixed the loss. Kept as a guard: if they ever warn again, the
+    // section identity work has regressed.
     for (const rel of ['sampled/topic/altitude-api-reuse.dita', 'sampled/reference/j1939-ev-mandatory-signals.dita']) {
       const { mismatches } = run(readFileSync(join(FIXTURES_DIR, rel), 'utf-8'));
-      expect(mismatches.map(m => [m.key, m.editorCount, m.xmlCount]), rel).toEqual([['list', 3, 0]]);
+      expect(mismatches, rel).toEqual([]);
     }
   });
 });

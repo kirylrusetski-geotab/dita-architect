@@ -158,7 +158,7 @@ once marks start round-tripping through Heretto.
 
 No DA mark kind maps to Heretto's `ct-split` as a *first-class* thing today —
 FR-046 deliberately modelled splits as a side effect of an insert run, not a
-mark kind of its own. ADR-013 (when v0.13.0 is shaped) needs to decide
+mark kind of its own. ADR-014 (when v0.13.0 is shaped) needs to decide
 whether the carrier teaches DA a real split-mark kind, or keeps translating
 Heretto's `ct-split` into DA's zero-width-marker convention on read and
 regenerates `ct-split` on write. The fragment-spanning `CHANGE_ID` behaviour
@@ -172,5 +172,5 @@ smaller change.
 ## For whoever shapes v0.13.0
 
 Read this document, then do the four items in "Gaps" above (at minimum the
-delete capture — it is one five-minute pass) before writing ADR-013. Do not
+delete capture — it is one five-minute pass) before writing ADR-014. Do not
 design the carrier from the inference in the gaps list; verify it.

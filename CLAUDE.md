@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.10.0 (2026-10-21)
+**Current version:** 0.10.1 (2026-10-21)
 
 ---
 
@@ -63,6 +63,7 @@ Use port **3001** when running the native app, **3000** for dev server.
 
 - **Parser:** `sync/parseXmlToLexical.ts` — DITA XML → Lexical node tree; stamps `originMap` with DITA element identity for every node
 - **Serializer:** `sync/serializeLexicalToXml.ts` — Lexical node tree → DITA XML; uses `originMap` to reconstruct inline DITA elements correctly. Every visual edit patches a clone of the **load-time** master (`SyncManager.masterXmlRef`), not the last serialized XML.
+- **Containers (ADR-009, ADR-011):** `<section>`, the troubleshooting containers, and block-child task sections flatten to body-level nodes stamped with `originMap.containerPath` (`section#2`, `troubleSolution#0/cause#0`). The walk matches each container group to the element with that ordinal, never removes a container mid-walk, steps past containers that produced no editor content (empty, conref'd), and removes a container in the final pass only by provenance (the parse produced content for it that is now gone). Author-created blocks (no `containerPath`, no parser `bodyIndex ≥ 0`) join the container of the block before them (`withInheritedContainers`); a typed h2 starts a new section.
 - **Inline scanner + reconciler (ADR-010):** `sync/inline-units.ts` — the one scanner that turns a DOM element's inline children into atoms; the parser builds Lexical nodes from them and the serializer reads them, so the two cannot drift. `sync/inline-reconcile.ts` — `reconcileInline` keeps unchanged inline elements as anchors and splices only the changed run; `patchElementContent`, the table-cell direct-text branch, and `patchPWrapper` call it first and fall to the legacy text-diff path only on a bail (PI/comment inside the changed run, unsupported node). `setReconcileObserver` is the test seam.
 - **Inline wrap (ADR-010 slice B):** `lib/inline-wrap.ts` — `$wrapSelectionInInlineTag` / `$unwrapInlineAtSelection` build the parser's exact node shape and never edit an existing key's `originMap` entry (undo safety). `components/InlineWrapPlugin.tsx` (mounted inside `SyncManager`) owns `WRAP_INLINE_COMMAND`, `UNWRAP_INLINE_COMMAND`, and the ⌘⇧U / ⌘⇧C shortcuts; the Toolbar's `Inline element` menu and `Insert Link` dispatch them; `SuggestionPlugin` blocks both.
 - **Post-sync structure check (FR-063):** `sync/structure-check.ts` — after every serialize (`SyncManager` both paths, Accept All) counts structure in the editor vs the XML and toasts when the XML has fewer. One-directional, throttled, advisory; runs even when the XML is unchanged.

@@ -49,7 +49,22 @@ const parseInlineElement = (el: Element, originMap?: NodeOriginMapType): any[] =
 // wrap a block child (most commonly a single <p>) rather than holding direct
 // inline text — the direct-text case (task-info.dita) is unaffected, handled
 // separately below where hasBlockChildren is false.
-export const TROUBLE_CONTAINER_TAGS = new Set(['troubleSolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq']);
+// ADR-011 (BUG-28): <section> is a container too — titled or not, it is
+// flattened with a containerPath so the serializer patches the element it came
+// from by ordinal identity instead of guessing from h2 order.
+export const TROUBLE_CONTAINER_TAGS = new Set(['troubleSolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq', 'section']);
+
+// Block children that make a <p>, <shortdesc>, or task section split into
+// several nodes (and make prereq/context/result/postreq a container, BUG-27).
+// Exported: the serializer must decide "is this <result> a container?" by the
+// same rule (ADR-011).
+export const BLOCK_CHILD_TAGS: ReadonlySet<string> = new Set(['codeblock', 'note', 'ul', 'ol', 'table', 'simpletable', 'fig', 'p', 'section', 'dl']);
+
+// Where a <section> may stand per DITA 1.3 (body-level, or nested in another
+// container as Heretto sometimes writes it). Anywhere else (a table cell, a
+// <p>, a <dd>) it keeps the pre-ADR-011 flatten with no identity, because the
+// walks that patch those places do not group by containerPath.
+const SECTION_CONTAINER_PARENTS = new Set(['conbody', 'refbody', 'body', 'taskbody', 'troublebody']);
 const SECTION_LIKE_TITLE_PARENTS = new Set(['section', 'condition', 'cause', 'remedy']);
 
 /** "tag#ordinal" for `el` among its parent's same-tag children. */
@@ -67,6 +82,26 @@ const containerPathFor = (el: Element): string => {
     cur = cur.parentElement;
   }
   return segments.join('/');
+};
+
+// Pre-ADR-011 section flatten, kept for sections the DTD does not allow at
+// body level (inside a table cell, a <p>, a <dd>): children become nodes with
+// no containerPath, exactly as before.
+const parseSectionLegacy = (xmlNode: Element, originMap: NodeOriginMapType, stampId: (node: any) => void): any[] => {
+  const sectionNodes: any[] = [];
+  Array.from(xmlNode.children).forEach(child => {
+    const result = traverseXmlElement(child, originMap);
+    if (result) {
+      if (Array.isArray(result)) {
+        sectionNodes.push(...result);
+      } else {
+        sectionNodes.push(result);
+      }
+    }
+  });
+  // For a <section id="..."> the id rides on the first node (typically the h2 title).
+  if (sectionNodes.length > 0) stampId(sectionNodes[0]);
+  return sectionNodes;
 };
 
 // BUG-25: counter for pWrapperId, reset at the start of every parse so ids are
@@ -154,7 +189,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       // flattened to text by parseTextNodes. 'image' is intentionally NOT here: an
       // <image> inside a <p> is inline per DITA and is handled inline (DitaPhRefNode)
       // so it round-trips in place instead of being split into a separate block node.
-      const blockTags = new Set(['codeblock', 'note', 'ul', 'ol', 'table', 'simpletable', 'fig', 'p', 'section', 'dl']);
+      const blockTags = BLOCK_CHILD_TAGS;
       const hasBlockChildren = Array.from(xmlNode.children).some(
         child => blockTags.has(child.tagName.toLowerCase())
       );
@@ -491,6 +526,14 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       return tableNode;
     }
 
+    case 'section':
+      if (
+        !SECTION_CONTAINER_PARENTS.has(xmlNode.parentElement?.tagName.toLowerCase() ?? '') &&
+        !TROUBLE_CONTAINER_TAGS.has(xmlNode.parentElement?.tagName ?? '')
+      ) {
+        return parseSectionLegacy(xmlNode, originMap, stampId);
+      }
+    // falls through — a body-level <section> is a container (ADR-011)
     case 'troublesolution': // tagName is lowercased for the switch; containerPathFor uses the DOM's original case
     case 'condition':
     case 'cause':
@@ -507,6 +550,16 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       // this container with a same-type list at the end of the previous one.
       if (tagName === 'condition' || tagName === 'cause' || tagName === 'remedy') {
         nodes.push($createDitaContainerBoundaryNode(tagName));
+      } else if (
+        tagName === 'section' &&
+        !Array.from(xmlNode.children).some(c => c.tagName === 'title') &&
+        xmlNode.children.length > 0
+      ) {
+        // ADR-011: an untitled section with content has no other visual cue,
+        // and the marker keeps Lexical from merging a list at the end of one
+        // untitled section into a list at the start of the next. Empty and
+        // conref'd sections (no element children) stay invisible as before.
+        nodes.push($createDitaContainerBoundaryNode('section'));
       }
       Array.from(xmlNode.children).forEach(child => {
         const result = traverseXmlElement(child, originMap);
@@ -523,23 +576,6 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       });
       if (nodes.length > 0) stampId(nodes[0]);
       return nodes;
-    }
-
-    case 'section': {
-      const sectionNodes: any[] = [];
-      Array.from(xmlNode.children).forEach(child => {
-        const result = traverseXmlElement(child, originMap);
-        if (result) {
-          if (Array.isArray(result)) {
-            sectionNodes.push(...result);
-          } else {
-            sectionNodes.push(result);
-          }
-        }
-      });
-      // For a <section id="..."> the id rides on the first node (typically the h2 title).
-      if (sectionNodes.length > 0) stampId(sectionNodes[0]);
-      return sectionNodes;
     }
 
     case 'codeblock': {
@@ -725,8 +761,20 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
     // troublebody: DITA 1.3 troubleshooting topics (P2-25 / ADR-009).
     const body = doc.querySelector('taskbody, conbody, refbody, troublebody, body');
     if (body) {
-      Array.from(body.children).forEach(child => {
-        appendResult(traverseXmlElement(child, originMap));
+      Array.from(body.children).forEach((child, bodyIndex) => {
+        const result = traverseXmlElement(child, originMap);
+        // ADR-011 decision 7: every top-level node the parser produces carries
+        // its real bodyIndex (>= 0). A node without one — and without a
+        // containerPath — was created by the author, and the serializer lets it
+        // join the container of the node before it.
+        const produced = Array.isArray(result) ? result : result ? [result] : [];
+        produced.forEach(n => {
+          if (!n || typeof n.getKey !== 'function') return;
+          const existing = originMap.get(n.getKey());
+          if (existing?.containerPath) return;
+          originMap.set(n.getKey(), { ...(existing ?? { tag: n.getType() }), bodyIndex });
+        });
+        appendResult(result);
       });
     }
   };

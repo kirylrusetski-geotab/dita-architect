@@ -155,14 +155,9 @@ const KNOWN_FAILURES: Record<string, string> = {
   // fixed by ADR-009's boundary node; this is the same-container case).
   'concept/external-support-options.dita': 'BUG-26',
 
-  // BUG-28 — an untitled <section> (no <title> child) loses its wrapper
-  // entirely: section-grouping only recognizes a section via its h2 title,
-  // so an untitled section's children flatten to plain body-level nodes with
-  // no memory of ever being wrapped, and the <section> DOM element is then
-  // deleted as unmatched on serialize.
-  'concept/external-aux-rear-cam.dita': 'BUG-28',
-  'reference/j1939-ev-mandatory-signals.dita': 'BUG-28',
-  'topic/altitude-api-reuse.dita': 'BUG-28',
+  // (BUG-28's three fixtures — external-aux-rear-cam, j1939-ev-mandatory-
+  // signals, altitude-api-reuse — left this list in v0.10.1: ADR-011 gave
+  // sections identity, and all three now round-trip byte-for-byte.)
 
   // BUG-29 — table-cell content model gaps: a block element (<note>) inside
   // an <entry>, or mixed content (an <image> followed by a <p>) inside an

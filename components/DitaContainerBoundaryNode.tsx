@@ -20,12 +20,15 @@ import type { LexicalEditor, EditorConfig, NodeKey, SerializedLexicalNode } from
  * It serializes to nothing: the serializer filters it out of every container
  * walk, and `getTextContent()` is '' so text comparisons never see it.
  */
-export type TroubleContainerKind = 'condition' | 'cause' | 'remedy';
+// 'section' (ADR-011): untitled body-level sections, whose wrapper has no
+// other visual cue. Titled sections show their h2 instead.
+export type TroubleContainerKind = 'condition' | 'cause' | 'remedy' | 'section';
 
 const LABELS: Record<TroubleContainerKind, string> = {
   condition: 'Condition',
   cause: 'Cause',
   remedy: 'Remedy',
+  section: 'Section',
 };
 
 interface SerializedDitaContainerBoundaryNode extends SerializedLexicalNode {

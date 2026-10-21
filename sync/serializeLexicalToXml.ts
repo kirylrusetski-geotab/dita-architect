@@ -3,6 +3,7 @@ import { TableCellHeaderStates } from '@lexical/table';
 import type { NodeOriginMapType } from './nodeOriginMap';
 import { reconcileInline, type ReconcileDeps, type ReconcileMode } from './inline-reconcile';
 import { NOTE_BLOCK_TAGS, FMT_BOLD as RUN_BOLD, FMT_ITALIC as RUN_ITALIC, FMT_CODE as RUN_CODE } from './inline-units';
+import { BLOCK_CHILD_TAGS } from './parseXmlToLexical';
 
 interface XmlMeta {
   rootTag: string;
@@ -27,13 +28,25 @@ const RECOGNIZED_BODY_TAGS = new Set([
 ]);
 
 // ADR-009: containers the walk patches by recursion (parser stamps containerPath).
-// Never deleted when unconsumed — an empty <cause/> or <condition/> is legitimate
-// authoring state and must survive a no-edit round-trip byte-for-byte.
+// ADR-011: matched by ordinal ("section#2"), never removed mid-walk, and removed
+// by the final pass only when the parse produced editor nodes for them that the
+// author has since deleted (provenance). An empty <cause/> or a
+// <section conref="…"/> produced nothing, so it always survives.
 // BUG-27: prereq/context/result/postreq join the container set whenever the
 // parser routed them through the container path (block-child case) — see
 // parseXmlToLexical.ts. The direct-text case never produces a containerPath,
 // so it keeps matching via areTypesCompatible's taskBodyTags branch below.
-const TROUBLE_CONTAINER_TAGS_LOWER = new Set(['troublesolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq']);
+const TROUBLE_CONTAINER_TAGS_LOWER = new Set(['troublesolution', 'condition', 'cause', 'remedy', 'steps-informal', 'prereq', 'context', 'result', 'postreq', 'section']);
+
+// A task section is a container only in its block-child form (BUG-27) — the
+// same rule the parser uses; in direct-text form it is a plain paragraph.
+const TASK_SECTION_TAGS = new Set(['prereq', 'context', 'result', 'postreq']);
+const isContainerEl = (el: Element): boolean => {
+  const tag = el.tagName.toLowerCase();
+  if (!TROUBLE_CONTAINER_TAGS_LOWER.has(tag)) return false;
+  if (TASK_SECTION_TAGS.has(tag)) return Array.from(el.children).some(c => BLOCK_CHILD_TAGS.has(c.tagName.toLowerCase()));
+  return true;
+};
 
 // FR-046 tripwire: tracked marks are resolved before serialization by design
 // (sync suspended during suggesting mode). Warn once — not per node — if one
@@ -668,6 +681,32 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
 /**
  * Create a CALS table element from a Lexical TableNode.
  */
+// BUG-35: cell children the parser's parseCellContent turns into block nodes.
+const CELL_WALK_TAGS = new Set(['p', 'ul', 'ol', 'table', 'section']);
+
+/**
+ * BUG-35: write a table cell's Lexical content into an <entry>/<stentry>.
+ * One paragraph → its inline content directly; otherwise each paragraph as a
+ * <p> and every other block (lists, notes, …) through createElementFromLexical.
+ * Every rebuild path uses this, so no path can drop a cell's lists again.
+ */
+const writeCellContent = (entry: Element, cellChildren: any[], doc: Document, originMap?: NodeOriginMapType): void => {
+  if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
+    serializeInlineContent(cellChildren[0], doc, originMap).forEach(n => entry.appendChild(n));
+    return;
+  }
+  cellChildren.forEach((child: any) => {
+    if (child.getType() === 'paragraph') {
+      const p = doc.createElement('p');
+      serializeInlineContent(child, doc, originMap).forEach(n => p.appendChild(n));
+      entry.appendChild(p);
+    } else {
+      const el = createElementFromLexical(child, doc, '', originMap ?? new Map());
+      if (el) entry.appendChild(el);
+    }
+  });
+};
+
 const createTableFromLexical = (tableNode: any, doc: Document, originMap?: NodeOriginMapType): Element => {
   const table = doc.createElement('table');
   const rows = tableNode.getChildren ? tableNode.getChildren() : [];
@@ -725,18 +764,7 @@ const createTableFromLexical = (tableNode: any, doc: Document, originMap?: NodeO
         entry.setAttribute('nameend', endCol);
       }
 
-      const cellChildren = cell.getChildren ? cell.getChildren() : [];
-      if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-        serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => entry.appendChild(n));
-      } else {
-        cellChildren.forEach((child: any) => {
-          if (child.getType() === 'paragraph') {
-            const p = doc.createElement('p');
-            serializeInlineContent(child, doc, originMap).forEach((n: Node) => p.appendChild(n));
-            entry.appendChild(p);
-          }
-        });
-      }
+      writeCellContent(entry, cell.getChildren ? cell.getChildren() : [], doc, originMap);
       rowEl.appendChild(entry);
 
       // Advance column index by colspan amount
@@ -822,6 +850,7 @@ const patchDlElement = (
   doc: Document,
   rootTag: string,
   originMap: NodeOriginMapType,
+  basePath: string = '',
 ) => {
   const domEntries = Array.from(domDl.children).filter(
     c => c.tagName.toLowerCase() === 'dlentry'
@@ -857,7 +886,9 @@ const patchDlElement = (
       // children are left untouched (same contract as the body walk).
       // groupDl:false — every dd node carries dlEntryIndex; re-grouping them
       // here would wrongly hunt for a nested <dl> (ADR-006).
-      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap, { groupDl: false });
+      // ADR-011: the <dd>'s nodes carry the enclosing container's path, so the
+      // walk inherits that base path — at base '' it would re-wrap them.
+      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap, { groupDl: false, basePath });
     }
   }
 };
@@ -882,18 +913,7 @@ const buildRowEl = (lexRow: any, doc: Document, originMap?: NodeOriginMapType): 
       entry.setAttribute('namest', `col${colIndex}`);
       entry.setAttribute('nameend', `col${colIndex + colspan - 1}`);
     }
-    const cellChildren = cell.getChildren ? cell.getChildren() : [];
-    if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-      serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => entry.appendChild(n));
-    } else {
-      cellChildren.forEach((child: any) => {
-        if (child.getType() === 'paragraph') {
-          const p = doc.createElement('p');
-          serializeInlineContent(child, doc, originMap).forEach((n: Node) => p.appendChild(n));
-          entry.appendChild(p);
-        }
-      });
-    }
+    writeCellContent(entry, cell.getChildren ? cell.getChildren() : [], doc, originMap);
     rowEl.appendChild(entry);
     const colspan = cell.getColSpan && cell.getColSpan() > 1 ? cell.getColSpan() : 1;
     colIndex += colspan;
@@ -1027,14 +1047,23 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, ori
     c => c.tagName.toLowerCase() === 'p'
   );
 
-  if (domParagraphs.length > 0 && cellChildren.length > 0) {
-    // Patch paragraphs in parallel
+  const onlyParagraphs = cellChildren.every((c: any) => c.getType() === 'paragraph');
+  // BUG-35: the blocks the cell parser turns into editor nodes. Anything else
+  // in a cell (a <note>, an <image> — BUG-29) has no node, so the walk below
+  // must never see it: it would be "unconsumed" and deleted.
+  const walkable = Array.from(domEntry.children).filter(c => CELL_WALK_TAGS.has(c.tagName.toLowerCase()));
+  const domHasLists = walkable.some(c => c.tagName.toLowerCase() !== 'p');
+  if (domParagraphs.length > 0 && cellChildren.length > 0 && onlyParagraphs && !domHasLists) {
+    // Patch paragraphs in parallel (unchanged pre-BUG-35 path)
     const count = Math.min(domParagraphs.length, cellChildren.length);
     for (let i = 0; i < count; i++) {
-      if (cellChildren[i].getType() === 'paragraph') {
-        patchElementContent(domParagraphs[i], cellChildren[i], doc, originMap);
-      }
+      patchElementContent(domParagraphs[i], cellChildren[i], doc, originMap);
     }
+  } else if (domParagraphs.length > 0 && cellChildren.length > 0) {
+    // BUG-35: a cell holding lists (in the source or the editor) is walked
+    // like any block container, so a list is patched, added, or removed
+    // instead of silently skipped.
+    patchBodyChildren(walkable, domEntry, cellChildren, doc, '', originMap ?? new Map());
   } else {
     // ADR-010: a cell with direct inline content and one Lexical paragraph is
     // reconciled with the cell parser's segment rules; bail → legacy below.
@@ -1054,19 +1083,10 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, ori
       cellChildren.length === 1 &&
       cellChildren[0].getType() === 'paragraph' &&
       hasFormattingChange(domEntry, cellChildren[0], originMap);
-    if (domText !== lexText || formattingChanged) {
+    const structureChanged = !onlyParagraphs;
+    if (domText !== lexText || formattingChanged || structureChanged) {
       while (domEntry.firstChild) domEntry.removeChild(domEntry.firstChild);
-      if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-        serializeInlineContent(cellChildren[0], doc, originMap).forEach(n => domEntry.appendChild(n));
-      } else {
-        cellChildren.forEach((child: any) => {
-          if (child.getType() === 'paragraph') {
-            const p = doc.createElement('p');
-            serializeInlineContent(child, doc, originMap).forEach(n => p.appendChild(n));
-            domEntry.appendChild(p);
-          }
-        });
-      }
+      writeCellContent(domEntry, cellChildren, doc, originMap);
     }
   }
 };
@@ -1096,12 +1116,7 @@ const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document, origi
     const lexCells = lexicalRows[i].getChildren ? lexicalRows[i].getChildren() : [];
     lexCells.forEach((cell: any) => {
       const stentry = doc.createElement('stentry');
-      const cellChildren = cell.getChildren ? cell.getChildren() : [];
-      if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-        serializeInlineContent(cellChildren[0], doc, originMap).forEach((n: Node) => stentry.appendChild(n));
-      } else {
-        stentry.appendChild(doc.createTextNode(cell.getTextContent()));
-      }
+      writeCellContent(stentry, cell.getChildren ? cell.getChildren() : [], doc, originMap);
       strow.appendChild(stentry);
     });
     domEl.appendChild(strow);
@@ -1114,34 +1129,44 @@ const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document, origi
 };
 
 /**
- * Patch a <section> in the DOM against the Lexical nodes that belong to it.
- * sectionLexicalNodes = the heading (h2) + all body-level Lexical nodes until the next h2.
+ * ADR-011: did the parse produce any editor *content* node inside the
+ * container at `path`? Boundary markers do not count: the parser emits one for
+ * every condition/cause/remedy, so an empty <cause/> would otherwise look like
+ * deleted content.
  */
-const patchSection = (
-  sectionEl: Element,
-  sectionLexicalNodes: any[],
-  doc: Document,
-  rootTag: string,
-  originMap: NodeOriginMapType,
-) => {
-  // Separate section title from section body nodes in Lexical
-  let lexicalBodyNodes: any[] = sectionLexicalNodes;
-  const firstNode = sectionLexicalNodes[0];
-  if (firstNode && firstNode.getType() === 'heading' && firstNode.getTag() === 'h2') {
-    // Patch section title
-    const sectionTitle = sectionEl.querySelector(':scope > title');
-    if (sectionTitle) {
-      patchElementContent(sectionTitle, firstNode, doc, originMap);
-    }
-    lexicalBodyNodes = sectionLexicalNodes.slice(1);
+const producedNodesFor = (path: string, originMap: NodeOriginMapType): boolean => {
+  for (const origin of originMap.values()) {
+    if (origin.tag === 'dita-container-boundary') continue;
+    const cp = origin.containerPath;
+    if (cp && (cp === path || cp.startsWith(path + '/'))) return true;
   }
+  return false;
+};
 
-  // Now walk recognized children of the section (excluding title)
-  const sectionChildren = Array.from(sectionEl.children).filter(
-    c => c.tagName.toLowerCase() !== 'title'
-  );
-
-  patchBodyChildren(sectionChildren, sectionEl, lexicalBodyNodes, doc, rootTag, originMap);
+/**
+ * ADR-011 decision 7: a body-level node the author created (no containerPath,
+ * no parser bodyIndex >= 0) belongs to the container of the nearest preceding
+ * node that has one — unless it is an h2, which starts a new section that the
+ * following author-created nodes join. Grouping-only: returns an overlay of
+ * originMap (the real map is never written), or the map itself if nothing
+ * inherits.
+ */
+const withInheritedContainers = (bodyNodes: any[], originMap: NodeOriginMapType): NodeOriginMapType => {
+  let overlay: NodeOriginMapType | null = null;
+  let lastPath: string | undefined;
+  let inNewSection = false;
+  for (const node of bodyNodes) {
+    const origin = originMap.get(node.getKey());
+    if (origin?.containerPath) { lastPath = origin.containerPath; inNewSection = false; continue; }
+    const parsed = origin !== undefined && origin.bodyIndex >= 0;
+    if (parsed) { lastPath = undefined; inNewSection = false; continue; }
+    if (node.getType() === 'heading' && node.getTag() === 'h2') { lastPath = undefined; inNewSection = true; continue; }
+    if (lastPath && !inNewSection) {
+      overlay ??= new Map(originMap);
+      overlay.set(node.getKey(), { ...(origin ?? { tag: node.getType(), bodyIndex: -1 }), containerPath: lastPath });
+    }
+  }
+  return overlay ?? originMap;
 };
 
 /**
@@ -1183,11 +1208,47 @@ const patchBodyChildren = (
   const consumed = new Set<Element>();
   let gIdx = 0;
 
+  // ADR-011: container identity is its "tag#ordinal" among the parent's
+  // same-tag children — the same segment the parser stamped. Computed before
+  // any removal or insertion so ordinals cannot shift under the walk.
+  const segmentOf = new Map<Element, string>();
+  const bySegment = new Map<string, Element>();
+  {
+    const seen = new Map<string, number>();
+    for (const el of Array.from(parentEl.children)) {
+      const n = seen.get(el.tagName) ?? 0;
+      seen.set(el.tagName, n + 1);
+      if (!isContainerEl(el)) continue;
+      const segment = `${el.tagName}#${n}`;
+      segmentOf.set(el, segment);
+      bySegment.set(segment, el);
+    }
+  }
+  /** Insert `el` before `domChild`; a container `domChild` is never removed here (ADR-011). */
+  const insertInstead = (el: Element, domChild: Element): 'kept' | 'replaced' => {
+    parentEl.insertBefore(el, domChild);
+    if (isContainerEl(domChild)) return 'kept';
+    parentEl.removeChild(domChild);
+    return 'replaced';
+  };
+
   for (let domIdx = 0; domIdx < recognizedDomChildren.length && gIdx < groups.length; domIdx++) {
     const domChild = recognizedDomChildren[domIdx];
     if (domChild.parentNode !== parentEl) continue; // already removed by look-ahead
     const domTag = domChild.tagName.toLowerCase();
     const group = groups[gIdx];
+
+    // ADR-011: a container the parse produced no content for (empty, conref'd)
+    // has no counterpart in the editor, so it is not an anchor for any group:
+    // step past it, preserved, instead of placing groups before it.
+    if (isContainerEl(domChild) && !consumed.has(domChild)) {
+      const segment = segmentOf.get(domChild);
+      const path = segment ? (basePath ? `${basePath}/${segment}` : segment) : null;
+      if (path && !producedNodesFor(path, originMap)) {
+        consumed.add(domChild);
+        continue;
+      }
+    }
 
     if (group.type === 'dl') {
       // A definition list. The source may author it bare (<dl>) or, as in
@@ -1200,23 +1261,20 @@ const patchBodyChildren = (
             ? domChild.querySelector(':scope > dl')
             : null;
       if (innerDl) {
-        patchDlElement(innerDl, group.nodes, doc, rootTag, originMap);
+        patchDlElement(innerDl, group.nodes, doc, rootTag, originMap, basePath);
         consumed.add(domChild);
       } else {
         const newEl = createDlFromLexical(group.nodes, doc, rootTag, originMap);
-        parentEl.insertBefore(newEl, domChild);
-        parentEl.removeChild(domChild);
+        if (insertInstead(newEl, domChild) === 'kept') domIdx--;
       }
       gIdx++;
     } else if (group.type === 'section') {
-      if (domTag === 'section') {
-        patchSection(domChild, group.nodes, doc, rootTag, originMap);
-        consumed.add(domChild);
-      } else {
-        const sectionEl = createSectionFromLexical(group.nodes, doc, rootTag, originMap);
-        parentEl.insertBefore(sectionEl, domChild);
-        parentEl.removeChild(domChild);
-      }
+      // ADR-011: every <section> in the source is a container group, so a
+      // legacy h2 group is always a NEW section the author typed: create it,
+      // never patch it into an existing <section> element.
+      const sectionEl = createSectionFromLexical(group.nodes, doc, rootTag, originMap);
+      parentEl.insertBefore(sectionEl, domChild);
+      domIdx--; // the current DOM child is still unmatched
       gIdx++;
     } else if (group.type === 'pwrap') {
       // BUG-25: a <p> wrapping blocks — patch the wrapper in place.
@@ -1225,42 +1283,26 @@ const patchBodyChildren = (
         consumed.add(domChild);
       } else {
         const el = createPWrapperFromLexical(group.nodes, doc, rootTag, originMap);
-        parentEl.insertBefore(el, domChild);
-        parentEl.removeChild(domChild);
+        if (insertInstead(el, domChild) === 'kept') domIdx--;
       }
       gIdx++;
     } else if (group.type === 'container') {
-      // ADR-009: a troubleshooting container. Patch the matching DOM element in
-      // place by recursing; if the DOM child is a different container (the
-      // author added one), create it and let the walk realign.
-      const wantTag = group.tag!.toLowerCase();
-      if (domTag === wantTag) {
-        patchContainer(domChild, group, doc, rootTag, originMap);
-        consumed.add(domChild);
+      // ADR-011: patch exactly the element whose "tag#ordinal" segment the
+      // group's path names. Elements the walk passes over are left for the
+      // final pass (removed only by provenance). If the source has no such
+      // element (the master predates the container), create it.
+      const segment = group.path!.split('/').pop()!;
+      const target = bySegment.get(segment);
+      if (target && target.parentNode === parentEl && !consumed.has(target)) {
+        patchContainer(target, group, doc, rootTag, originMap);
+        consumed.add(target);
+        const t = recognizedDomChildren.indexOf(target);
+        if (t >= domIdx) domIdx = t;
+        else domIdx--; // target was behind the pointer; re-examine domChild
       } else {
-        // Look ahead: the matching container may sit behind an empty sibling
-        // that produced no Lexical nodes (an empty <cause/> before a <remedy>).
-        // Preserved containers in between are left alone; anything else in
-        // between is deleted content and falls to the removal pass.
-        let targetIdx = -1;
-        for (let j = domIdx + 1; j < recognizedDomChildren.length; j++) {
-          const c = recognizedDomChildren[j];
-          if (c.parentNode !== parentEl || consumed.has(c)) continue;
-          if (c.tagName.toLowerCase() === wantTag) { targetIdx = j; break; }
-        }
-        if (targetIdx !== -1) {
-          for (let j = domIdx; j < targetIdx; j++) {
-            if (TROUBLE_CONTAINER_TAGS_LOWER.has(recognizedDomChildren[j].tagName.toLowerCase())) consumed.add(recognizedDomChildren[j]);
-          }
-          patchContainer(recognizedDomChildren[targetIdx], group, doc, rootTag, originMap);
-          consumed.add(recognizedDomChildren[targetIdx]);
-          domIdx = targetIdx;
-        } else {
-          const el = createContainerFromLexical(group, doc, rootTag, originMap);
-          parentEl.insertBefore(el, domChild);
-          if (!TROUBLE_CONTAINER_TAGS_LOWER.has(domTag)) parentEl.removeChild(domChild);
-          else domIdx--; // the preserved container is still ahead; re-examine it for the next group
-        }
+        const el = createContainerFromLexical(group, doc, rootTag, originMap);
+        parentEl.insertBefore(el, domChild);
+        domIdx--;
       }
       gIdx++;
     } else {
@@ -1277,7 +1319,7 @@ const patchBodyChildren = (
       const lexXmlId = lexOrigin?.xmlId;
       const domId = domChild.getAttribute('id');
       if (
-        lexXmlId && domId && domId !== lexXmlId &&
+        lexXmlId && domId && domId !== lexXmlId && !isContainerEl(domChild) &&
         recognizedDomChildren.some(
           (c, j) => j > domIdx && c.parentNode === parentEl && c.getAttribute('id') === lexXmlId
         )
@@ -1301,7 +1343,15 @@ const patchBodyChildren = (
           nextDomTag !== 'section' &&
           areTypesCompatible(nextDomTag, lexType, lexOrigin, rootTag);
 
-        if (nextMatches) {
+        if (isContainerEl(domChild)) {
+          // ADR-011: a container is never deleted to make room for a single;
+          // place the single before it and keep the container for its own
+          // group (or the final provenance pass).
+          const newEl = createElementFromLexical(lexNode, doc, rootTag, originMap);
+          if (newEl) parentEl.insertBefore(newEl, domChild);
+          domIdx--;
+          gIdx++;
+        } else if (nextMatches) {
           parentEl.removeChild(domChild);
           // do not advance gIdx — the group retries against nextDomChild
         } else {
@@ -1326,9 +1376,15 @@ const patchBodyChildren = (
   // paragraphs with 1 note must not leave the 2 old paragraphs behind).
   for (const child of recognizedDomChildren) {
     if (!consumed.has(child) && child.parentNode === parentEl) {
-      // ADR-009: empty troubleshooting containers produce no Lexical nodes and
-      // are legitimate authoring state — preserve, never delete.
-      if (TROUBLE_CONTAINER_TAGS_LOWER.has(child.tagName.toLowerCase())) continue;
+      // ADR-011 provenance: an unconsumed container is removed only if the
+      // parse produced editor nodes for it (originMap keeps entries for nodes
+      // the author has since deleted). Otherwise it produced nothing — an empty
+      // <cause/>, a <section conref="…"/> — and is preserved byte-for-byte.
+      if (isContainerEl(child)) {
+        const segment = segmentOf.get(child);
+        const path = segment ? (basePath ? `${basePath}/${segment}` : segment) : null;
+        if (!path || !producedNodesFor(path, originMap)) continue;
+      }
       parentEl.removeChild(child);
     }
   }
@@ -1406,25 +1462,9 @@ const patchRecognizedElement = (domEl: Element, lexicalNode: any, doc: Document,
     if (lang) {
       domEl.setAttribute('outputclass', lang);
     }
-  } else if (tag === 'section') {
-    // Collect the section's Lexical nodes: the h2 heading + following nodes until next h2
-    // The lexicalNode here is the h2. We need to collect following siblings.
-    // But since we're called from patchBodyChildren which handles one node at a time,
-    // we handle section differently — see the main serializer logic.
-    patchSectionFromHeading(domEl, lexicalNode, doc, rootTag, originMap);
   }
-};
-
-/**
- * When we encounter a <section> in the DOM matched to an h2 heading in Lexical,
- * we need to collect the h2 + following Lexical nodes that belong to this section.
- * This is handled specially in the main walk — this function just patches the title.
- */
-const patchSectionFromHeading = (sectionEl: Element, headingNode: any, doc: Document, _rootTag: string, originMap?: NodeOriginMapType) => {
-  const sectionTitle = sectionEl.querySelector(':scope > title');
-  if (sectionTitle) {
-    patchElementContent(sectionTitle, headingNode, doc, originMap);
-  }
+  // (ADR-011: a <section> is a container, patched by patchContainer; the walk
+  // never hands one to this function, so there is no section branch.)
 };
 
 /**
@@ -1506,7 +1546,8 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
     // 3. Patch body element — delegated entirely to THE body walk (ADR-006).
     const bodyEl = rootEl.querySelector(bodyTag);
     if (bodyEl && bodyNodes.length > 0) {
-      patchBodyChildren(Array.from(bodyEl.children), bodyEl, bodyNodes, clonedDoc, rootTag, originMap);
+      const walkMap = withInheritedContainers(bodyNodes, originMap); // ADR-011 decision 7
+      patchBodyChildren(Array.from(bodyEl.children), bodyEl, bodyNodes, clonedDoc, rootTag, walkMap);
     } else if (!bodyEl && bodyNodes.length > 0) {
       // No body element exists — create one
       const newBody = clonedDoc.createElement(bodyTag);
@@ -1633,6 +1674,8 @@ const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapTy
       while (i < bodyNodes.length) {
         const next = bodyNodes[i];
         if (next.getType() === 'heading' && next.getTag() === 'h2') break;
+        // ADR-011: a new heading never swallows an existing container.
+        if (originMap?.get(next.getKey())?.containerPath) break;
         sectionNodes.push(next);
         i++;
       }

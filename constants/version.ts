@@ -21,6 +21,38 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.1',
+    date: '2026-10-21',
+    title: 'Sections keep their identity: editing, adding to, or deleting a section now changes that section and nothing else.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'A `<section>` without a title no longer disappears when you save. Before, the editor kept its content but dropped the section itself (with its `id`, `class`, and other attributes), and any table inside it was rebuilt from scratch, which also dropped every list in its cells. In two real topics this lost every list on the page. Untitled sections now show a small `Section` label so you can see where they start.',
+          'Deleting a titled section now deletes that section. Before, sections were matched by position, so deleting the first one could keep its element, move the next section\'s content into it, and drop the next section\'s `id`.',
+          'Sections that are empty or pull their content from elsewhere with `conref` are never removed. Before, they survived only as long as the topic had no other editable content: typing one paragraph into such a topic deleted all of them, along with every reference to the reused text.',
+          'A paragraph you add at the end of a section, cause, or remedy (by pressing Enter, or with the `+` menu) is saved inside it. Before, it could end up after the section instead.',
+          'A heading you type now always creates a new section, and never absorbs the sections after it.',
+          'Lists in table cells are saved. Before, a list in a cell was dropped whenever the table had to be rebuilt, and a list you added to a cell was never written to the XML.',
+        ],
+      },
+      {
+        heading: 'Changes',
+        items: [
+          'Deleting a whole cause, remedy, or condition in a troubleshooting topic now removes it from the XML. Before, it stayed in the XML until you deleted it there by hand. An empty one that came from the source (for example, a `<cause/>` you have not filled in yet) is still kept.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-011: `<section>` is now a container like the troubleshooting containers (ADR-009). Each one is matched to its source element by position among same-tag siblings (`section#2`), not by order of headings; the walk never removes a container to make room for something else; and the final pass removes a container only if the parse produced editor content for it that is now gone (provenance, read from `originMap`), so empty and conref\'d containers always survive. The parser now stamps every top-level node with its real `bodyIndex`, which is how the serializer tells blocks you created from blocks it parsed: yours join the container of the block before them. Fixes BUG-28 and BUG-35.',
+          'Found while building it, and fixed before release: a `<dl>` inside any container re-wrapped each `<dd>`\'s content in a new container on save (latent since ADR-009 for troubleshooting topics); and the old order-based section patcher is gone.',
+          'All three sampled real topics that BUG-28 broke now round-trip byte-for-byte and left the known-failures list. Suite: 65 files, 1449 tests passing, 3 skipped, including `tests/sync/sections.test.ts` (invariants S2 to S10).',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.0',
     date: '2026-10-21',
     title: 'Mark up inline elements in the visual editor: select text and wrap it in a UI control, code phrase, term, file path, and more.',

@@ -827,6 +827,8 @@ body {
 .dita-editor-container-boundary--condition { border-left-color: var(--editor-context-bar); color: var(--editor-context-bar); }
 .dita-editor-container-boundary--cause     { border-left-color: var(--editor-prereq-bar);  color: var(--editor-prereq-bar); }
 .dita-editor-container-boundary--remedy    { border-left-color: var(--editor-result-bar);  color: var(--editor-result-bar); }
+/* ADR-011: untitled <section> — a neutral cue, so it never reads as a task/troubleshooting role. */
+.dita-editor-container-boundary--section   { border-left-color: var(--editor-toolbar-divider); color: var(--editor-toolbar-text); }
 
 .dita-editor-section-title {
   border-left: 3px solid var(--editor-section-bar);
