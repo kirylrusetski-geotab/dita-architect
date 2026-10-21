@@ -409,8 +409,8 @@ inside the wrapper versus after it).
 
 ## ADR-010 — Inline reconciliation: patch inline content around preserved anchors
 
-**Date:** 2026-10-20 · **Status:** Accepted 2026-10-20 (slice A implemented and shipped in **v0.9.9**,
-2026-10-21; slice B, the wrap UI, pending as v0.10.0)
+**Date:** 2026-10-20 · **Status:** Accepted 2026-10-20; **fully implemented** — slice A in **v0.9.9**,
+slice B (the wrap UI) in **v0.10.0**, both 2026-10-21
 
 **Context** — The Session 2 plan assumed the serializer "already consumes `originMap.inlineTag`
 generically", so wrapping a selection would only need editor work. That is true only on the

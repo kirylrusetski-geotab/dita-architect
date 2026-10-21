@@ -911,7 +911,7 @@ Whichever is chosen, the existing contracts stay fixed: `window.__ditaApi` (`lib
 
 **Requested:** 2026-10-19
 **Source:** Salvaged from the deleted `bugreports/BUG-xref-not-serialized-from-visual-editor.md` (P1-13, shipped May 2026). The root-cause fix landed; the UX safety net proposed alongside it never did.
-**Status:** Open
+**Status:** Shipped (v0.10.0, 2026-10-21) — `sync/structure-check.ts`; its first corpus run found BUG-28's list loss
 **Priority:** P3
 **Impact:** Medium — turns the most dangerous serializer failure mode (silent structural drop) into a visible one
 **Model weight:** Sonnet
@@ -1000,3 +1000,31 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 1. The grammar document exists with at least one raw XML sample per suggestion kind, scrubbed of personal data.
 2. A table maps `TrackedMark {changeId, kind, author, date}` to the PI attributes, with gaps named.
 3. The scratch topic is deleted from Heretto afterwards (or lives in a sandbox folder the manifest names).
+
+---
+
+## FR-068: Visual indicator for inline elements that have no style
+
+**Requested:** 2026-10-21
+**Source:** Kiryl, during the v0.10.0 wrap-selection smoke in the native app. After wrapping `report file` in `<filepath>`, the visual editor showed it as plain text.
+**Status:** Open
+**Priority:** P2
+**Impact:** Medium. A wrap the author cannot see reads as a wrap that did not happen, and an existing `<term>` or `<filepath>` from Heretto is just as invisible today.
+**Model weight:** Sonnet
+
+**Problem:** Four of the seven wrap-slice elements have a visual treatment in the editor: `<uicontrol>` (bold), `<wintitle>` (italic), `<codeph>` (code), `<xref>` (link). The other three, `<term>`, `<filepath>`, and a refless `<ph>`, and every other `inlineTag`-stamped element the parser preserves (`<cite>`, `<keyword>`, `<varname>`, `<cmdname>`, and so on), render as plain text. The only way to see them is the XML pane. v0.10.0 lets the author create them, so the gap became visible.
+
+**Signal:** The v0.10.0 smoke (2026-10-21): the `<filepath>` wrap serialized correctly (`<filepath>report file</filepath>`, verified via the API) but looked unchanged on screen. The author had to check the XML pane to see whether the menu item worked.
+
+**Smallest slice:** Give every `inlineTag`-stamped text node a DOM class carrying its tag (for example, `dita-inline dita-inline--filepath`) and a quiet default style: a dotted underline in the theme's muted accent, plus a tooltip naming the element (`<filepath>`). Keep the existing bold/italic for `uicontrol`/`wintitle`. The class must come from the token TextNode's DOM, not from the serialized XML, so it works mid-edit. Candidate mechanism: a node transform or mutation listener that reads `originMap` (inside `SyncManager`, like `InlineWrapPlugin`) and stamps the class on the node's DOM element. A custom TextNode subclass is the alternative, but it would touch the parser and the reconciler's type checks, so it needs an ADR.
+
+**Serves:** Writer experience and WYSIWYG/DITA parity (the top acceptance criterion): the visual editor stops hiding structure the XML has.
+
+**Not in scope:** per-element colours, a legend, or styling container inlines (`<menucascade>`) as a group.
+
+### Acceptance criteria
+
+1. A wrapped `<term>`, `<filepath>`, or `<ph>`, and the same elements opened from the corpus fixtures, show the indicator and a tooltip naming the tag.
+2. The indicator follows wrap, unwrap, undo, and redo without a reload.
+3. No change to any serialized byte: the byte-stability corpus and the inline-reconcile suite are untouched.
+4. All six themes keep a visible but quiet contrast for the indicator.

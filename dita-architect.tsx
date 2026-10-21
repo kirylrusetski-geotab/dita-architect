@@ -10,11 +10,8 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { createCommand } from 'lexical';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { TableNode, TableRowNode, TableCellNode, $createTableNode, $createTableRowNode, $createTableCellNode, TableCellHeaderStates } from '@lexical/table';
-import { ListNode, ListItemNode } from '@lexical/list';
-import { LinkNode, AutoLinkNode } from '@lexical/link';
-import { ParagraphNode, TextNode, $getSelection, $isRangeSelection, $createParagraphNode, COMMAND_PRIORITY_EDITOR } from 'lexical';
+import { $createTableNode, $createTableRowNode, $createTableCellNode, TableCellHeaderStates } from '@lexical/table';
+import { $getSelection, $isRangeSelection, $createParagraphNode, COMMAND_PRIORITY_EDITOR } from 'lexical';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { MonacoDitaEditor } from './components/MonacoDitaEditor';
 import { Toolbar } from './components/Toolbar';
@@ -28,14 +25,9 @@ import { ChangeListPanel } from './components/ChangeListPanel';
 import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { InsertElementPlugin } from './components/InsertElementPlugin';
+import { InlineWrapPlugin } from './components/InlineWrapPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
-import { DitaOpaqueNode } from './components/DitaOpaqueNode';
-import { DitaCodeBlockNode } from './components/DitaCodeBlockNode';
-import { DitaImageNode } from './components/DitaImageNode';
-import { DitaPhRefNode } from './components/DitaPhRefNode';
-import { DitaInfoPreviewNode } from './components/DitaInfoPreviewNode';
-import { ValidationDecoratorNode } from './components/ValidationDecoratorNode';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
 import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -55,7 +47,7 @@ import { DiffViewer } from './components/DiffViewer';
 import { ExitEditModeModal } from './components/ExitEditModeModal';
 import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
 import type { XmlError } from './components/MonacoDitaEditor';
-import { formatRelativeTime, formatXml, validateDitaXml } from './lib/xml-utils';
+import { formatRelativeTime, formatXml } from './lib/xml-utils';
 import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
 import { useEditorUi } from './hooks/useEditorUi';
@@ -1178,6 +1170,7 @@ export default function ProfessionalDitaEditor() {
                   >
                     <ShortdescPlugin topicType={currentTopicType} />
                     <InsertElementPlugin suggesting={tab.documentMode === 'suggesting'} />
+                    <InlineWrapPlugin />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}
                       syncTrigger={tab.syncTrigger}

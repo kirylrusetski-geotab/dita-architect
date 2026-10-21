@@ -38,6 +38,7 @@ import {
 } from 'lexical';
 import { toast } from 'sonner';
 import { serializeLexicalToXml, useSyncContext, warnOnStructureMismatch } from '../sync';
+import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND } from './InlineWrapPlugin';
 import { $isTrackedTextNode, TrackedTextNode } from './TrackedTextNode';
 import {
   $insertTrackedText,
@@ -281,6 +282,24 @@ export const SuggestionPlugin = ({
         FORMAT_TEXT_COMMAND,
         () => {
           toastThrottled('format', "Formatting changes aren't tracked yet — switch to Editing mode");
+          return true;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      // ADR-010 I6: wrapping/unwrapping an inline element is a structure change
+      // with no tracked-mark kind yet (FR-051), so it is blocked like formatting.
+      editor.registerCommand(
+        WRAP_INLINE_COMMAND,
+        () => {
+          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
+          return true;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      editor.registerCommand(
+        UNWRAP_INLINE_COMMAND,
+        () => {
+          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,

@@ -17,13 +17,24 @@ import {
   OPEN_INSERT_TABLE_MODAL_COMMAND,
   OPEN_INSERT_LINK_MODAL_COMMAND,
 } from '../dita-architect';
-import { TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $setBlocksType } from '@lexical/selection';
-import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, PenLine, Eye, Check, X } from 'lucide-react';
+import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, PenLine, Eye, Check, X, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip } from './Tooltip';
 import type { DocumentMode } from '../types/tab';
 import { ConfirmModal } from './ConfirmModal';
+import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND, WRAP_SHORTCUTS } from './InlineWrapPlugin';
+import { WRAP_TAGS, WRAP_TAG_LABELS, type WrapTag } from '../lib/inline-wrap';
+
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+/** Shortcut hint for an inline element, from the plugin's single map. */
+const shortcutHint = (tag: WrapTag): string | null => {
+  const key = Object.keys(WRAP_SHORTCUTS).find(k => WRAP_SHORTCUTS[k] === tag);
+  return key ? (IS_MAC ? `⌘⇧${key.toUpperCase()}` : `Ctrl+Shift+${key.toUpperCase()}`) : null;
+};
+
+const XREF_FORMATS: Array<[string, string]> = [['', 'Auto (from the URL)'], ['dita', 'dita'], ['ditamap', 'ditamap'], ['html', 'html'], ['pdf', 'pdf']];
+const XREF_SCOPES: Array<[string, string]> = [['', 'Not set'], ['local', 'local'], ['peer', 'peer'], ['external', 'external']];
 
 export const THEME_OPTIONS = [
   { value: 'dark', label: 'Dark' },
@@ -67,6 +78,10 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkError, setLinkError] = useState('');
+  const [linkFormat, setLinkFormat] = useState('');
+  const [linkScope, setLinkScope] = useState('');
+  const [isInlineMenuOpen, setIsInlineMenuOpen] = useState(false);
+  const inlineMenuRef = useRef<HTMLDivElement>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -79,6 +94,9 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsThemeOpen(false);
+      }
+      if (inlineMenuRef.current && !inlineMenuRef.current.contains(e.target as Node)) {
+        setIsInlineMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -97,9 +115,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
     const removeLinkListener = editor.registerCommand(
       OPEN_INSERT_LINK_MODAL_COMMAND,
       () => {
-        setLinkUrl('');
-        setLinkError('');
-        setIsLinkModalOpen(true);
+        openLinkModal();
         return true;
       },
       COMMAND_PRIORITY_EDITOR,
@@ -109,6 +125,34 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
       removeLinkListener();
     };
   }, [editor]);
+
+  // Insert Link is the <xref> wrap (ADR-010 slice B): it goes through
+  // WRAP_INLINE_COMMAND so format/scope land in originMap and the wrap follows
+  // the same refusal rules as every other inline element. Inside an existing
+  // link it retargets that link instead (the previous TOGGLE_LINK behaviour).
+  function openLinkModal() {
+    setLinkUrl('');
+    setLinkError('');
+    setLinkFormat('');
+    setLinkScope('');
+    setIsLinkModalOpen(true);
+    setTimeout(() => linkInputRef.current?.focus(), 0);
+  }
+
+  const submitLink = () => {
+    const href = linkUrl.trim();
+    if (!href) return;
+    const lower = href.toLowerCase();
+    if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+      setLinkError('Invalid URL scheme');
+      return;
+    }
+    editor.dispatchCommand(WRAP_INLINE_COMMAND, {
+      tag: 'xref',
+      attrs: { href, format: linkFormat || undefined, scope: linkScope || undefined },
+    });
+    setIsLinkModalOpen(false);
+  };
 
   const formatHeading = (headingSize: 'h1' | 'h2') => {
     editor.update(() => {
@@ -267,15 +311,101 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
         </button>
       </Tooltip>
       <Tooltip content="Insert Link">
-        <button aria-label="Insert link" disabled={editingDisabled} onClick={() => {
-          setLinkUrl('');
-          setLinkError('');
-          setIsLinkModalOpen(true);
-          setTimeout(() => linkInputRef.current?.focus(), 0);
-        }} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
+        <button aria-label="Insert link" disabled={editingDisabled} onClick={openLinkModal} className={contentBtnClass} style={{ color: 'var(--editor-toolbar-text-strong)' }}>
           <Link className="w-3.5 h-3.5" />
         </button>
       </Tooltip>
+      {/* ADR-010 slice B: wrap the selection in a DITA inline element. One menu,
+          not seven buttons (Gate 7); xref reuses the Insert Link dialog. */}
+      <div className="relative" ref={inlineMenuRef}>
+        <Tooltip content="Inline element">
+          <button
+            aria-label="Inline element"
+            aria-haspopup="true"
+            aria-expanded={isInlineMenuOpen}
+            disabled={editingDisabled}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => setIsInlineMenuOpen(prev => !prev)}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!isInlineMenuOpen) setIsInlineMenuOpen(true);
+                setTimeout(() => {
+                  const first = inlineMenuRef.current?.querySelector('[role="menuitem"]') as HTMLElement | null;
+                  first?.focus();
+                }, 0);
+              }
+            }}
+            className={`${contentBtnClass} flex items-center gap-0.5`}
+            style={{ color: 'var(--editor-toolbar-text-strong)' }}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            <ChevronDown className={`w-3 h-3 transition-transform ${isInlineMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </Tooltip>
+        {isInlineMenuOpen && (
+          <div
+            // Opens leftward from the button: the button sits near the visual
+            // pane's right edge, and the pane clips overflow, so a left-anchored
+            // menu lost its tag/shortcut column (seen in the v0.10.0 smoke).
+            className="absolute top-full right-0 mt-1 rounded-lg shadow-xl border py-1 min-w-[230px] whitespace-nowrap"
+            role="menu"
+            aria-label="Inline element"
+            onKeyDown={e => {
+              const items = Array.from(inlineMenuRef.current?.querySelectorAll('[role="menuitem"]') ?? []) as HTMLElement[];
+              const idx = items.indexOf(e.target as HTMLElement);
+              if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); }
+              else if (e.key === 'Escape') { e.preventDefault(); setIsInlineMenuOpen(false); }
+            }}
+            style={{
+              backgroundColor: 'var(--editor-toolbar-bg)',
+              borderColor: 'var(--editor-toolbar-border)',
+              // Above the editor and Heretto bar (z-10/z-20), below the theme
+              // dropdown's reserved top layer and in the band other Toolbar
+              // overlays use (tests/toolbar-z-index-fix.test.ts).
+              zIndex: 200,
+            }}
+          >
+            {WRAP_TAGS.map(tag => {
+              const hint = shortcutHint(tag);
+              return (
+                <button
+                  key={tag}
+                  role="menuitem"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => {
+                    setIsInlineMenuOpen(false);
+                    if (tag === 'xref') openLinkModal();
+                    else editor.dispatchCommand(WRAP_INLINE_COMMAND, { tag });
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-between gap-3 hover-toolbar"
+                  style={{ color: 'var(--editor-toolbar-text-strong)' }}
+                >
+                  <span>{WRAP_TAG_LABELS[tag]}{tag === 'xref' ? '…' : ''}</span>
+                  <span className="flex items-center gap-2" style={{ color: 'var(--editor-toolbar-text)' }}>
+                    <code>{`<${tag}>`}</code>
+                    {hint && <span>{hint}</span>}
+                  </span>
+                </button>
+              );
+            })}
+            <div className="my-1 h-px" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
+            <button
+              role="menuitem"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => {
+                setIsInlineMenuOpen(false);
+                editor.dispatchCommand(UNWRAP_INLINE_COMMAND, undefined);
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs font-medium transition-colors hover-toolbar"
+              style={{ color: 'var(--editor-toolbar-text-strong)' }}
+            >
+              Remove inline element
+            </button>
+          </div>
+        )}
+      </div>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <div
         className="flex items-center rounded"
@@ -362,14 +492,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  const trimmed = linkUrl.trim().toLowerCase();
-                  if (!linkUrl.trim()) return;
-                  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:') || trimmed.startsWith('vbscript:')) {
-                    setLinkError('Invalid URL scheme');
-                    return;
-                  }
-                  editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl.trim());
-                  setIsLinkModalOpen(false);
+                  submitLink();
                 }
                 if (e.key === 'Escape') setIsLinkModalOpen(false);
               }}
@@ -390,6 +513,32 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
                 Press Enter to insert, Escape to cancel.
               </p>
             )}
+            <div className="flex gap-3 mb-4">
+              {([
+                ['Format', 'link-format', linkFormat, setLinkFormat, XREF_FORMATS],
+                ['Scope', 'link-scope', linkScope, setLinkScope, XREF_SCOPES],
+              ] as const).map(([label, id, value, setValue, options]) => (
+                <div key={id} className="flex-1">
+                  <label htmlFor={id} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
+                    {label}
+                  </label>
+                  <select
+                    id={id}
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    className="w-full px-2 py-2 rounded-lg text-sm"
+                    style={{
+                      backgroundColor: 'var(--app-surface-raised)',
+                      border: '1px solid var(--app-border-subtle)',
+                      color: 'var(--app-text-primary)',
+                      outline: 'none',
+                    }}
+                  >
+                    {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setIsLinkModalOpen(false)}
@@ -403,16 +552,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  const trimmed = linkUrl.trim().toLowerCase();
-                  if (!linkUrl.trim()) return;
-                  if (trimmed.startsWith('javascript:') || trimmed.startsWith('data:') || trimmed.startsWith('vbscript:')) {
-                    setLinkError('Invalid URL scheme');
-                    return;
-                  }
-                  editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl.trim());
-                  setIsLinkModalOpen(false);
-                }}
+                onClick={submitLink}
                 disabled={!linkUrl.trim()}
                 className="flex-1 py-2 rounded-lg text-sm font-medium bg-dita-600 hover:bg-dita-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >

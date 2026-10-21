@@ -21,6 +21,40 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.0',
+    date: '2026-10-21',
+    title: 'Mark up inline elements in the visual editor: select text and wrap it in a UI control, code phrase, term, file path, and more.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'Select text and wrap it in a DITA inline element from the new `Inline element` menu (the tag icon next to `Insert Link`): `UI control` (`<uicontrol>`), `Code phrase` (`<codeph>`), `Phrase` (`<ph>`), `Term` (`<term>`), `File path` (`<filepath>`), `Window title` (`<wintitle>`), and `Cross-reference` (`<xref>`). Before, the only way to add any of these was to type the tags in the XML pane.',
+          'Two shortcuts wrap without opening the menu: `⌘⇧U` (Ctrl+Shift+U) for `<uicontrol>` and `⌘⇧C` (Ctrl+Shift+C) for `<codeph>`. Both are listed in the keyboard shortcuts sheet.',
+          'To take an element off again, put the cursor inside it and choose `Remove inline element` from the same menu. The text stays and the element goes. Undo and redo work on both wrapping and removing.',
+          '`Insert Link` now has `Format` and `Scope` fields, written to the `<xref>` exactly as you choose them. Leave `Format` on `Auto (from the URL)` and it is set the way it always was: `dita` for a topic, `html` for a web address. Using `Insert Link` inside an existing link still changes where that link points.',
+          'Only the element you add is written to the XML. Everything else in the paragraph, including menu paths, variables, comments, and attributes the visual editor does not show, comes back byte-for-byte.',
+          'If a save ever drops something you can see in the visual editor (a link, a note, a list, an inline element), a warning now tells you so, for example `1 link in the visual editor has no matching <xref> in the XML. Check the source pane.` Before, the sync looked successful while the XML had quietly lost it. The warning is advisory: the sync still completes.',
+        ],
+      },
+      {
+        heading: 'Changes',
+        items: [
+          'Wrapping and removing inline elements is blocked in Suggesting mode, with a toast, the same way Bold and Italic are: tracked changes cannot record them yet.',
+          'Wrapping needs plain text inside one paragraph. If the selection is empty, crosses into another paragraph, touches an existing inline element, link, or variable, or is bold or italic, nothing changes and a toast says why.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-010 slice B. `lib/inline-wrap.ts` builds exactly the Lexical shape the parser builds for each element, so re-opening a topic yields the same tree; wrap and unwrap always create new nodes and never edit an existing node\'s `originMap` entry, so undo can restore it. `components/InlineWrapPlugin.tsx` (inside `SyncManager`) owns `WRAP_INLINE_COMMAND`, `UNWRAP_INLINE_COMMAND`, and the shortcuts; it claims `⌘⇧U` before Lexical, whose own underline check ignores Shift. `SuggestionPlugin` blocks both commands.',
+          'FR-063: `sync/structure-check.ts` counts links, notes, tables, lists, code blocks, images, code phrases, chips, and every stamped inline element in the editor and the serialized XML after each sync, and warns only when the XML has fewer. It costs about 0.04 ms per sync. It runs even when the XML did not change, because a drop that leaves the XML identical is the case it exists for. Its first corpus run found that two real topics with an untitled section lose every list on a round trip (BUG-28, severity raised).',
+          'FR-068 filed: `<term>`, `<filepath>`, and a plain `<ph>` have no visual style yet, so a wrap in one of them looks like plain text until you check the XML pane.',
+          'Suite: 64 files, 1424 tests passing, 3 skipped. `tests/sync/inline-wrap.test.ts` pins invariants I1 to I7 for all seven elements across 13 contexts, from body paragraphs to troubleshooting remedies; `tests/inline-wrap-plugin.test.tsx` covers the commands, shortcuts, and the Suggesting-mode block through the real component tree; `tests/sync/structure-check.test.tsx` pins FR-063.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.9.9',
     date: '2026-10-21',
     title: 'Insert Link no longer damages the rest of the paragraph: the editor now rewrites only the run you changed.',

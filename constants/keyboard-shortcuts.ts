@@ -14,6 +14,16 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     description: 'Sync changes between visual and XML editors',
   },
   {
+    category: 'Inline elements',
+    keys: [`${mod}+Shift+U`],
+    description: 'Wrap the selection in <uicontrol>',
+  },
+  {
+    category: 'Inline elements',
+    keys: [`${mod}+Shift+C`],
+    description: 'Wrap the selection in <codeph>',
+  },
+  {
     category: 'XML Editor',
     keys: ['Shift+Alt+F'],
     description: 'Format / beautify the XML source',

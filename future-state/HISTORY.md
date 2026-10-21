@@ -6,6 +6,19 @@ Shipped work by version (newest first) and the dated changelog. Split out of [BA
 
 ## Completed
 
+### Shipped in v0.10.0 (2026-10-21) — Session 2B of the execution plan: wrap-selection inline authoring
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| ADR-010 (slice B) | Wrap selected text in `<uicontrol>`, `<codeph>`, `<ph>`, `<term>`, `<filepath>`, `<wintitle>`, `<xref>`; unwrap; toolbar + shortcuts | Feature | `lib/inline-wrap.ts` (`$wrapSelectionInInlineTag` / `$unwrapInlineAtSelection`: parser-identical node shapes; new nodes only, never an edited `originMap` entry, so undo/redo restore; refusals `collapsed`/`cross-block`/`overlap`/`formatted`/`whitespace`/`no-href`/`bad-href`/`nothing-to-unwrap`, each with toast copy). `components/InlineWrapPlugin.tsx` inside `SyncManager`: `WRAP_INLINE_COMMAND`, `UNWRAP_INLINE_COMMAND`, `KEY_DOWN_COMMAND` at HIGH priority for ⌘⇧U/⌘⇧C (Lexical's `isUnderline` ignores Shift, verified `Lexical.dev.mjs:1048`; `KEY_DOWN_COMMAND` is dispatched first, `:onKeyDown`). Toolbar: one `Inline element` menu (Gate 7: not seven buttons), opening leftward (the first build clipped its right column, caught in the smoke); `Insert Link` routed through the xref wrap with `Format`/`Scope` selects, retargeting an existing link as before. `SuggestionPlugin` blocks both commands at CRITICAL (I6). Shortcuts added to `constants/keyboard-shortcuts.ts`. Supersedes P2-28/P2-29 for 1.0 (roadmap). |
+| FR-063 | Post-sync structural mismatch warning | Feature | `sync/structure-check.ts`, hooked into both `SyncManager` serialize paths and Accept All, run whether or not the XML changed (the first hook placement inside the "XML changed" branch would have missed P1-13's exact shape; caught by the integration test). One-directional (editor > XML only), throttled 10 s per message, advisory. Zero false warnings on every byte-stable corpus fixture and across the round-trip suite (91 serializations, 0 warnings); 0.04 ms per sync. **True positive on first run: BUG-28's two fixtures lose every `<ul>` on a round trip** (row updated, severity raised). |
+
+Tests: `tests/sync/inline-wrap.test.ts` (139: I1/I2 for 7 elements × 13 contexts incl. shortdesc, `<li>`, `<note>`, `<entry>` direct and `<p>`, `<dd>`, section, troubleshooting condition/cause/cause-note/remedy cmd, and a BUG-25 `<p>` wrapper segment; I3; I4; I5; I7 with history registered before the parse as in the app; refusals), `tests/inline-wrap-plugin.test.tsx` (10: commands, retarget, refusal toast, shortcuts incl. plain ⌘U left to Lexical, I6 incl. ⌘⇧U in Suggesting mode), `tests/sync/structure-check.test.tsx` (67). Suite 64 files / 1424 passed / 3 skipped. tsc clean; eslint clean on touched files (18 pre-existing unused imports in `dita-architect.tsx` removed; 2 pre-existing warnings there and 3 in `SyncManager.tsx` unchanged); `npm run build` clean.
+
+Smoke (2026-10-21, native app rebuilt twice with `macos/build.sh`): Kiryl ran the six steps in a topic with `<menucascade>`, `<ph keyref outputclass>`, and step/result paragraphs. `GET /api/tabs/:id/content` showed `<uicontrol>Settings</uicontrol>` (wrap, unwrap, ⌘Z), `<codeph>Export</codeph>` (⌘⇧C), `<filepath>report file</filepath>`, `<xref href="downloads.dita" format="dita" scope="local">`, menucascade and `outputclass` byte-identical, no XML errors. In Suggesting mode a `U` was inserted as a tracked change: the code path was pinned by a new test (⌘⇧U claimed, blocked, toast, no insertion), so the `U` was Shift+U without ⌘ registering; Reject All restored the text. Heretto DTD round trip: HERETTO-PENDING. Found in the smoke: FR-068 (no visual style for `<term>`/`<filepath>`/`<ph>`).
+
+---
+
 ### Shipped in v0.9.9 (2026-10-21) — Session 2A of the execution plan: ADR-010 slice A
 
 The serializer half of v0.10.0, shipped first as its own patch because the probes that shaped v0.10.0 found two Blocking-now bugs already live in v0.9.8.
@@ -496,6 +509,7 @@ Reverse-chronological. Newest day first; within a day, entries read in the order
 
 ### 2026-10-21
 
+- **v0.10.0 released (Session 2B).** Wrap-selection inline authoring (ADR-010 slice B) plus FR-063 (post-sync structure warning). FR-063's first corpus run found BUG-28 loses every `<ul>` in two real topics on a round trip; BUG-28's severity raised and flagged for a lane decision. Smoke found and fixed a clipped menu; FR-068 filed for unstyled `<term>`/`<filepath>`/`<ph>`. Suite 64 / 1424 / 3.
 - **v0.9.9 released (Session 2A, ADR-010 slice A).** Shared inline scanner (`sync/inline-units.ts`) replaces the parser's two inline helpers with wrappers over it; inline reconciler (`sync/inline-reconcile.ts`) wired into the three inline patch sites. **BUG-32 and BUG-33 fixed**; the v0.8.7 S2 residual (toggle dropped beside a stamped element) fixed as a consequence. Corpus: 686/691 reconciler decisions untouched on unedited parses, the other 5 inside the BUG-29 fixture, 0 bails. Suite 61 files / 1208 passed / 3 skipped. Anti-entropy row filed: retire the legacy `patchInlineNodes`/S2 path once the bail cases are covered. Next: Session 2B, the wrap UI (v0.10.0).
 
 ### 2026-10-20
