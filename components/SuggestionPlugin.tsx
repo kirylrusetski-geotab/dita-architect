@@ -37,7 +37,7 @@ import {
   type RangeSelection,
 } from 'lexical';
 import { toast } from 'sonner';
-import { serializeLexicalToXml, useSyncContext } from '../sync';
+import { serializeLexicalToXml, useSyncContext, warnOnStructureMismatch } from '../sync';
 import { $isTrackedTextNode, TrackedTextNode } from './TrackedTextNode';
 import {
   $insertTrackedText,
@@ -361,6 +361,7 @@ export const SuggestionPlugin = ({
     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
     onAcceptAll(tabId, xml);
     toast.success('All tracked changes accepted');
+    warnOnStructureMismatch(editor.getEditorState(), xml, nodeOriginMap); // FR-063, advisory
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptAllTrigger]);
 

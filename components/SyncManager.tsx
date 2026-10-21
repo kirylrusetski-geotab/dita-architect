@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
-import { parseXmlToLexical, serializeLexicalToXml, createNodeOriginMap, createXmlMetaCache, SyncContext } from '../sync';
+import { parseXmlToLexical, serializeLexicalToXml, createNodeOriginMap, createXmlMetaCache, SyncContext, warnOnStructureMismatch } from '../sync';
 
 interface SyncManagerProps {
   xmlContent: string;
@@ -106,6 +106,9 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
           pendingXmlRef.current = null;
           onLexicalChange(generatedXml);
         }
+        // FR-063, advisory. Outside the "changed" check on purpose: a drop that
+        // leaves the XML unchanged (P1-13) is exactly what this must catch.
+        warnOnStructureMismatch(editor.getEditorState(), generatedXml, nodeOriginMap);
       });
     } else {
       // Monaco (or other) is focused → apply XML to Lexical
@@ -182,6 +185,10 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
             pendingXmlRef.current = null; // discard any buffered code-side XML
             onLexicalChange(generatedXml);
           }
+          // FR-063, advisory. Runs whether or not the XML changed: a serializer
+          // drop that leaves the XML byte-identical (P1-13 — the author adds a
+          // link, the XML never gets the <xref>) is the case this exists for.
+          warnOnStructureMismatch(editorState, generatedXml, nodeOriginMap);
         }}
       />
       {showOutOfSyncBanner && (
