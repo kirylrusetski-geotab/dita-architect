@@ -89,23 +89,27 @@ Without a Heretto connection the editor still works — create topics from templ
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+B | Bold |
-| Ctrl+I | Italic |
+| Ctrl/⌘+B | Bold |
+| Ctrl/⌘+I | Italic |
 | Ctrl/⌘+Shift+U | Wrap the selection in `<uicontrol>` |
 | Ctrl/⌘+Shift+C | Wrap the selection in `<codeph>` |
-| Ctrl+Enter | Sync XML to visual editor |
+| Ctrl/⌘+Enter | Sync XML to visual editor |
 | Shift+Alt+F | Format (beautify) XML |
-| Ctrl+S | Save to Heretto (when connected) |
-| ? or Ctrl+/ | Open keyboard shortcut reference |
+| ? or Ctrl/⌘+/ | Open keyboard shortcut reference |
 | Escape | Close modal or dismiss menu |
 
+On macOS the modifier is ⌘; elsewhere it is Ctrl. Saving to Heretto has no shortcut yet: use the `Save to Heretto` button in the Heretto bar above a topic you opened from Heretto (a ⌘S save is planned with the native macOS File menu).
+
 ## Supported DITA Elements
+
+The editor opens and saves **task**, **concept**, **reference**, **troubleshooting**, and generic **topic** files. `New Topic` creates task, concept, and reference topics from templates (a troubleshooting template is planned).
 
 The visual editor renders these elements as formatted content:
 
 - **Headings:** `<title>`, `<shortdesc>`
 - **Body:** `<p>`, `<note>`, `<section>`, `<prereq>`, `<context>`, `<result>`, `<postreq>`
-- **Lists:** `<ol>`, `<ul>`, `<li>`, `<steps>`, `<step>`, `<cmd>`
+- **Lists:** `<ol>`, `<ul>`, `<li>`, `<steps>`, `<step>`, `<cmd>`, `<dl>` (definition lists)
+- **Troubleshooting:** `<condition>`, `<troubleSolution>`, `<cause>`, `<remedy>` (each labeled in the editor), with `<steps>`, `<steps-unordered>`, or `<steps-informal>` in a remedy
 - **Tables:** `<table>` (CALS), `<simpletable>`
 - **Media:** `<fig>`, `<image>`, `<codeblock>`
 - **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). `<term>`, `<filepath>`, and `<ph>` have no visual style yet (FR-068).
