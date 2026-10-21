@@ -305,4 +305,4 @@ When bumping the version in `constants/version.ts` and writing release notes:
 6. Run `macos/build.sh` (web bundle + Swift shell + Info.plist) — `npm run build:app` alone does not recompile Swift or refresh the bundled Info.plist
 7. If the serializer or parser changed: confirm every fixture in `tests/sync/fixtures/` (including `sampled/`, FR-064) is still byte-stable, and add a fixture for any new structure the release handles
 8. Relaunch the app and run the 10-minute smoke pass; record it in the HISTORY row
-9. Commit, tag `vX.Y.Z`, `git push origin main --follow-tags`, confirm the tag on GitHub
+9. Commit, create an **annotated** tag (`git tag -a vX.Y.Z -m "…"`), `git push origin main --follow-tags`, confirm the tag on GitHub with `git ls-remote --tags origin`. `--follow-tags` pushes annotated tags only; a lightweight tag is silently left behind (v0.9.9 had to be pushed by name)
