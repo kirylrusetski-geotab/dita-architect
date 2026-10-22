@@ -858,8 +858,14 @@ body {
    that are themselves adjacent siblings — never before the first step in a
    run, with no author-facing attribute or text involved. */
 .dita-editor-cascade-step + .dita-editor-cascade-step::before {
-  content: ' \203A ';
+  /* Explicit margins, not literal spaces in `content` — a space character
+     next to '›' is swallowed by the glyph's kerning (visibly uneven,
+     found in the v0.10.3 smoke), especially butted against the bold text
+     that follows. margin-left/right apply to an inline, non-replaced
+     pseudo-element like this one; top/bottom would not, but aren't needed. */
+  content: '\203A';
   color: var(--app-text-muted);
+  margin: 0 0.3em;
 }
 
 /* Read-only <info> preview nested under a step (P2-26 Phase 2). Indented with a

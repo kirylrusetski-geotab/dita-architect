@@ -21,6 +21,34 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.3',
+    date: '2026-10-22',
+    title: 'Bug sweep: a cleaner save every time you type near a UI control, a link, a menu path, or two lists in a row.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Text typed right next to a UI control or window title (for example " As" after `Save` in "File > Save") no longer picks up its bold or italic styling. Before, that text was saved as a stray `<b>` or `<i>` you never asked for.',
+          'Links that use a key reference (`keyref`, `conkeyref`, or `conref`) no longer show a false "empty or missing href" warning in the XML pane or a red underline in the visual editor. A key-referenced link has no `href` by design.',
+          'Appending to bold, italic, or code text no longer creates a second copy of the element next to it, and editing text inside one no longer rebuilds it from scratch and drops its attributes (for example `class` on a `<codeph>`).',
+          'A document that was saved without an XML declaration (`<?xml version="1.0"?>`) no longer gains one the next time you save, even without an edit.',
+          'A table whose declared column count was already wrong no longer has that count silently "corrected" every time you save. It is now updated only when you actually add or remove a column.',
+          'The steps of a menu path (for example "File" and "Save" in `<menucascade>`) now show a small separator between them in the visual editor, so "File > Save" no longer reads as "FileSave". The XML was always correct; this is a display-only fix.',
+          'Two lists of the same kind right next to each other (nothing in between) no longer merge into one list when you open the topic. This also covers an ordered list next to a `<steps>` list, and a bulleted list next to a `<steps-unordered>` list, since the editor treats those pairs as the same kind of list.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'A `<b>`/`<i>`/`<codeph>` that holds exactly one text child is now spliced into like ordinary text (the same splice-level and anchor machinery from BUG-34/36), instead of being replaced wholesale on every edit. One residual, found while verifying the fix against the full corpus: a `<b>`/`<i>`/`<codeph>` with mixed content (for example a nested `<i>` inside a `<b>`) still shows the old symptom, since the parser flattens that shape before this fix ever sees it — filed as BUG-44.',
+          'A `<menucascade>` step is now stamped in `originMap` with the fact that its owner is a `<menucascade>`; a new plugin applies a CSS class to each step\'s DOM element, and an adjacent-sibling CSS rule draws the separator — never as document text, so it cannot reach the XML.',
+          'Two adjacent same-type lists at body level now get an invisible boundary node between them at parse time (the same device the troubleshooting containers already use across a container boundary), stopping Lexical\'s own list-merge transform before it runs.',
+          'The opt-in edit fuzz (`npm run test:edit-fuzz`) went from 162 failures at the start of this sweep to 1 — the BUG-44 residual above. Suite: 74 files, 1759 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.2',
     date: '2026-10-22',
     title: 'Edits inside a menu path, a list item\'s paragraph, a link, a table cell, or a definition now change only what you edited.',
