@@ -150,7 +150,27 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
         }
         piece = { kind: 'text', node, owner: atom.owner, map: map.slice(atom.lead, atom.lead + text.length + 1), len: text.length };
       } else {
-        piece = { kind: 'elem', node: atom.node as Element, owner: atom.owner, len: atom.text.length };
+        // BUG-37: a <b>/<i>/<codeph> that holds exactly one text child is
+        // modelled as a TEXT piece whose node is that inner text node (an
+        // identity map: these elements' textContent is taken raw, with no
+        // whitespace collapse). Every existing mechanism built for ordinary
+        // text (splitText-based splicing, the ancestor-walk "group" that
+        // keeps an edit inside one element from forcing a full-element
+        // replace) then applies unchanged, because the element itself is
+        // just this piece's parent — exactly like any other inline wrapper
+        // (<menucascade>, a container <ph>). An element with any other shape
+        // (comment, multiple children) keeps the atomic ElemPiece fallback:
+        // its own text cannot be addressed by a single raw offset, so an
+        // edit touching any part of it must still replace the whole element.
+        const el = atom.node as Element;
+        const onlyChild = el.firstChild;
+        if (onlyChild && onlyChild === el.lastChild && onlyChild.nodeType === Node.TEXT_NODE) {
+          const raw = (onlyChild as Text).data;
+          const map = Array.from({ length: raw.length + 1 }, (_, k) => k);
+          piece = { kind: 'text', node: onlyChild as Text, owner: atom.owner, map, len: atom.text.length };
+        } else {
+          piece = { kind: 'elem', node: el, owner: atom.owner, len: atom.text.length };
+        }
       }
       const prev = lastText();
       if (prev && prev.fmt === atom.fmt) {
@@ -471,7 +491,41 @@ const planGap = (D: DItem[], L: LItem[], rootEl: Element): GapPlan | { bail: Bai
   return { i, ei, j, ej };
 };
 
-const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDeps): Node[] => {
+// BUG-37: the one format flag a leaf formatting element's own tag already
+// provides to everything spliced directly inside it — new content landing
+// there must not ALSO carry it, or it would be double-wrapped
+// (<codeph> text<codeph> more</codeph></codeph>). Any other element (p, li,
+// menucascade, a table cell, …) contributes none.
+const levelOwnFormat = (level: Node): number => {
+  if (level.nodeType !== Node.ELEMENT_NODE) return 0;
+  const tag = (level as Element).tagName.toLowerCase();
+  if (tag === 'b' || tag === 'strong') return FMT_BOLD;
+  if (tag === 'i' || tag === 'em') return FMT_ITALIC;
+  if (tag === 'codeph') return FMT_CODE;
+  return 0;
+};
+
+/**
+ * True when `level` is a formatting element (<b>/<i>/<codeph>) but the new
+ * content about to be spliced into [j, ej) does not uniformly carry that
+ * same format — the author is removing or changing the formatting itself
+ * (e.g. an unbold), not editing text that stays wrapped by it, so the whole
+ * element must be replaced instead of just its text content ("expand to the
+ * whole element when the format changes", BUG-37).
+ */
+const formatChangesInside = (level: Node, L: LItem[], j: number, ej: number): boolean => {
+  const want = levelOwnFormat(level);
+  if (want === 0) return false;
+  for (let k = j; k < ej; k++) {
+    const item = L[k];
+    if (item.k !== 'c' || (item.fmt & want) !== want) return true;
+  }
+  return false;
+};
+
+/** `stripFmt` removes a format bit new content must not re-apply because the
+ *  element it is being spliced into (`level`) already provides it (BUG-37). */
+const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDeps, stripFmt: number = 0): Node[] => {
   const out: Node[] = [];
   let run = '';
   let runFmt = 0;
@@ -479,8 +533,9 @@ const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDe
   for (let k = j; k < ej; k++) {
     const item = L[k];
     if (item.k === 'c') {
-      if (run && item.fmt !== runFmt) flush();
-      runFmt = item.fmt;
+      const fmt = item.fmt & ~stripFmt;
+      if (run && fmt !== runFmt) flush();
+      runFmt = fmt;
       run += item.ch;
     } else {
       flush();
@@ -500,7 +555,6 @@ const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDe
 const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: ReconcileDeps, allNodes: Node[], around: GapContext): boolean => {
   const { i, ei, j, ej } = plan;
   if (i === ei && j === ej) return true;
-  const newNodes = serializeLexMiddle(L, j, ej, deps);
 
   if (i === ei) {
     // Pure insertion. The level is decided by the nearest real (non-fixed)
@@ -523,17 +577,26 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     const nReal = nextItem ? nodeOf(nextItem) : null;
     if (!pReal && !nReal) {
       if (D.length > 0) return false; // only fixed points (a block boundary) around it
-      for (const n of newNodes) rootEl.insertBefore(n, null);
+      for (const n of serializeLexMiddle(L, j, ej, deps, levelOwnFormat(rootEl))) rootEl.insertBefore(n, null);
       return true;
     }
     // Left-affine after text: typing that continues a word stays in that
     // word's element (Lexical merges a container's trailing text with the
     // text after it, so this is the only signal there is). After an atomic
     // element (a <uicontrol>), go to the shallower level instead.
-    const level: Node =
+    let level: Node =
       pReal && nReal
         ? (prevItem!.k === 'c' ? pReal.parentNode! : commonAncestor([pReal.parentNode!, nReal.parentNode!], rootEl))
         : (pReal ?? nReal)!.parentNode!;
+    // BUG-37: splicing directly into a <b>/<i>/<codeph> (level IS that
+    // element) must not re-wrap content that element's own tag already
+    // provides, or an append would nest a second one inside the first — but
+    // only when the new content actually keeps that format; typing a
+    // differently-formatted run right at its boundary goes beside it instead
+    // (formatChangesInside promotes level to its parent, as if it had always
+    // been a plain atomic neighbour).
+    if (formatChangesInside(level, L, j, ej)) level = level.parentNode!;
+    const newNodes = serializeLexMiddle(L, j, ej, deps, levelOwnFormat(level));
     // Position after the immediately preceding item when it sits inside the
     // level (keeps the old placement relative to comments/PIs), else after the
     // nearest real one; with no predecessor, before the next.
@@ -571,7 +634,16 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
 
   const first = D[i];
   const last = D[ei - 1];
-  const level = spliceLevel(D, i, ei, rootEl);
+  let level = spliceLevel(D, i, ei, rootEl);
+  // BUG-37: as above — splicing a replacement run back into the same
+  // <b>/<i>/<codeph> the changed characters came from must emit plain text,
+  // not re-wrap it (which is also what used to force a full-element rewrite
+  // and drop that element's own attributes). But when the replacement drops
+  // or changes that very format (e.g. removing bold), the whole element must
+  // still be replaced — promote level to its parent, which makes the element
+  // itself one ordinary "top" node below, exactly as before this fix.
+  if (formatChangesInside(level, L, j, ej)) level = level.parentNode!;
+  const newNodes = serializeLexMiddle(L, j, ej, deps, levelOwnFormat(level));
   // Before mutating: every middle item must resolve to a sibling run under the level.
   const tops: Node[] = [];
   for (let k = i; k < ei; k++) {
