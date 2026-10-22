@@ -22,13 +22,19 @@ import type { LexicalEditor, EditorConfig, NodeKey, SerializedLexicalNode } from
  */
 // 'section' (ADR-011): untitled body-level sections, whose wrapper has no
 // other visual cue. Titled sections show their h2 instead.
-export type TroubleContainerKind = 'condition' | 'cause' | 'remedy' | 'section';
+// 'list-break' (BUG-26): a bare, invisible marker between two source lists of
+// the same type that are directly adjacent with nothing else between them —
+// not a container at all, just the only reliable way to stop
+// ListNode.transform()'s own merge (see the class doc above). Unlike the
+// other kinds it carries no containerPath and renders no label.
+export type TroubleContainerKind = 'condition' | 'cause' | 'remedy' | 'section' | 'list-break';
 
 const LABELS: Record<TroubleContainerKind, string> = {
   condition: 'Condition',
   cause: 'Cause',
   remedy: 'Remedy',
   section: 'Section',
+  'list-break': '',
 };
 
 interface SerializedDitaContainerBoundaryNode extends SerializedLexicalNode {
@@ -36,6 +42,7 @@ interface SerializedDitaContainerBoundaryNode extends SerializedLexicalNode {
 }
 
 function BoundaryComponent({ kind }: { kind: TroubleContainerKind }) {
+  if (kind === 'list-break') return null;
   return (
     <div
       className={`dita-editor-container-boundary dita-editor-container-boundary--${kind}`}

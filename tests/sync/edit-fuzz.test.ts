@@ -33,7 +33,6 @@ const FIXTURES = join(__dirname, 'fixtures');
 
 /** Fixtures whose edits are known to fail, and the bug that owns the failure. */
 const KNOWN_FIXTURES: Record<string, string> = {
-  'sampled/concept/external-support-options.dita': 'BUG-26 (adjacent lists merge on parse)',
   // BUG-37's fix is scoped to a <b>/<i>/<codeph> with exactly one text child
   // (its common real-world shape — the corpus has none of the shape below).
   // inline-elements.dita's <b>bold with <i>italic inside</i> it</b> has

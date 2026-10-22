@@ -389,9 +389,11 @@ maps to one DOM element", and the pattern is now general enough that a fourth wo
 
 Known v1 limits (honest exclusions): deleting an entire container in the visual editor is not
 propagated (preserved); `<responsibleParty>` and `<choices>` inside a remedy are preserved but not
-rendered (unrecognized elements, 1 occurrence each in the repository); two adjacent same-type lists
-*inside one container* still merge (BUG-26's general case, filed); only paragraphs get the container
-bar class — lists and tables inside a cause rely on the boundary label.
+rendered (unrecognized elements, 1 occurrence each in the repository); only paragraphs get the
+container bar class — lists and tables inside a cause rely on the boundary label. (Two adjacent
+same-type lists inside one container — BUG-26's general case — was fixed in v0.10.3, using the same
+boundary-node device as decision 3's cross-container case, scoped to the one place the corpus showed
+it: body level, not yet inside a container, since nothing in the corpus exercises that.)
 
 **Alternatives considered** — **(B)** Custom Lexical ElementNodes for each container (rejected: every
 plugin that walks `$getRoot().getChildren()` — ShortdescPlugin, SuggestionPlugin, the stats bar,

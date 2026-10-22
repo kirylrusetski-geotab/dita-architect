@@ -741,6 +741,11 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
     // troublebody: DITA 1.3 troubleshooting topics (P2-25 / ADR-009).
     const body = doc.querySelector('taskbody, conbody, refbody, troublebody, body');
     if (body) {
+      // BUG-26: the last node this loop appended, so two body-level lists of
+      // the same type with nothing between them (no container, so ADR-009's
+      // boundary never fires for them) can be caught before Lexical's own
+      // ListNode.transform() merges them into one on this very update.
+      let lastBodyNode: any = null;
       Array.from(body.children).forEach((child, bodyIndex) => {
         const result = traverseXmlElement(child, originMap);
         // ADR-011 decision 7: every top-level node the parser produces carries
@@ -754,7 +759,16 @@ export const parseXmlToLexical = (xmlString: string, editor: any, originMap: Nod
           if (existing?.containerPath) return;
           originMap.set(n.getKey(), { ...(existing ?? { tag: n.getType() }), bodyIndex });
         });
+        const firstNew = produced[0];
+        if (
+          firstNew && lastBodyNode &&
+          firstNew.getType() === 'list' && lastBodyNode.getType() === 'list' &&
+          firstNew.getListType() === lastBodyNode.getListType()
+        ) {
+          root.append($createDitaContainerBoundaryNode('list-break'));
+        }
         appendResult(result);
+        if (produced.length > 0) lastBodyNode = produced[produced.length - 1];
       });
     }
   };

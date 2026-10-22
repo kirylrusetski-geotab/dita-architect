@@ -151,9 +151,10 @@ function listSampledFixtures(dir: string, base: string = dir): string[] {
  * corpus — see the BACKLOG rows for fix direction and severity.
  */
 const KNOWN_FAILURES: Record<string, string> = {
-  // BUG-26 — adjacent same-type lists merge on parse (cross-container case
-  // fixed by ADR-009's boundary node; this is the same-container case).
-  'concept/external-support-options.dita': 'BUG-26',
+  // (BUG-26 — adjacent same-type lists merging on parse — was fixed in
+  // v0.10.3 for the same-container case too, with the same boundary-node
+  // device ADR-009 already used across a container boundary.
+  // external-support-options.dita left this list, byte-stable now.)
 
   // (BUG-28's three fixtures — external-aux-rear-cam, j1939-ev-mandatory-
   // signals, altitude-api-reuse — left this list in v0.10.1: ADR-011 gave

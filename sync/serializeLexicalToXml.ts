@@ -1772,6 +1772,15 @@ const groupBodyNodesForSections = (bodyNodes: any[], originMap?: NodeOriginMapTy
     const node = bodyNodes[i];
     const origin = originMap?.get(node.getKey());
 
+    // BUG-26: a bare list-break boundary (no containerPath — it was never
+    // inside any container, just dropped between two adjacent same-type
+    // lists to block Lexical's own merge transform) has no XML counterpart
+    // at all and never becomes a group of its own.
+    if (node.getType?.() === 'dita-container-boundary' && !origin?.containerPath) {
+      i++;
+      continue;
+    }
+
     // Troubleshooting container group (ADR-009): a run of nodes whose
     // containerPath descends into the same next container below basePath.
     // Takes precedence over section/dl grouping so an h2 title inside a
