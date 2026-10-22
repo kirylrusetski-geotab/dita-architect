@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import Editor, { OnMount, OnChange, Monaco } from '@monaco-editor/react';
 
 import type { ThemeName } from './Toolbar';
+import { isBrokenXrefTag } from '../lib/xref-validation';
 
 // ── Syntax Theme Types & Options ────────────────────────────────────────────
 
@@ -743,12 +744,10 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
 
     // --- xref href validation (P2-6 MVP) ---
     const xrefRe = /<xref\b[^>]*?\/?>/g;
-    const hrefRe = /href\s*=\s*["']([^"']*)["']/;
     let xrefMatch;
     while ((xrefMatch = xrefRe.exec(content)) !== null) {
       const tag = xrefMatch[0];
-      const hrefAttr = tag.match(hrefRe);
-      if (!hrefAttr || !hrefAttr[1].trim()) {
+      if (isBrokenXrefTag(tag)) {
         const before = content.substring(0, xrefMatch.index);
         const lineNumber = before.split('\n').length;
         const lastNewline = before.lastIndexOf('\n');

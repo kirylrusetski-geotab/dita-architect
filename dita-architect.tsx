@@ -26,6 +26,7 @@ import { EmptyToH1Plugin } from './components/EmptyToH1Plugin';
 import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { InsertElementPlugin } from './components/InsertElementPlugin';
 import { InlineWrapPlugin } from './components/InlineWrapPlugin';
+import { TokenFormatResetPlugin } from './components/TokenFormatResetPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
@@ -1159,7 +1160,6 @@ export default function ProfessionalDitaEditor() {
                   <TableInsertPlugin />
                   <ClearEditorPlugin />
                   <EmptyToH1Plugin />
-                  <XrefValidationPlugin />
                   <SyncManager
                     xmlContent={tab.xmlContent}
                     onLexicalChange={(xml: string) => updateTab(tab.id, { xmlContent: xml, lastUpdatedBy: 'editor' })}
@@ -1171,6 +1171,8 @@ export default function ProfessionalDitaEditor() {
                     <ShortdescPlugin topicType={currentTopicType} />
                     <InsertElementPlugin suggesting={tab.documentMode === 'suggesting'} />
                     <InlineWrapPlugin />
+                    <TokenFormatResetPlugin />
+                    <XrefValidationPlugin />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}
                       syncTrigger={tab.syncTrigger}
