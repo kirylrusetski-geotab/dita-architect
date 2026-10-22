@@ -159,15 +159,18 @@ const KNOWN_FAILURES: Record<string, string> = {
   // signals, altitude-api-reuse — left this list in v0.10.1: ADR-011 gave
   // sections identity, and all three now round-trip byte-for-byte.)
 
-  // BUG-29 — table-cell content model gaps: a block element (<note>) inside
-  // an <entry>, or mixed content (an <image> followed by a <p>) inside an
-  // <entry>, is not recognized by the cell-content parser and loses text,
-  // ids, and structure.
-  'topic/altitude-notes-warehouse.dita': 'BUG-29',
-  'concept/installing-the-go-anywhere.dita': 'BUG-29 (also BUG-30)',
+  // (BUG-29 — notes, definition lists, and image + <p> in table cells — was
+  // fixed in v0.10.2: both its fixtures' cells now round-trip byte-for-byte.
+  // What each still differs by is filed below.)
+
+  // BUG-41 — patchTableElement rewrites <tgroup cols> from the first row's
+  // cell count on every serialize; this source says cols="1" over two
+  // columns, so an unedited round trip writes cols="2".
+  'topic/altitude-notes-warehouse.dita': 'BUG-41',
 
   // BUG-30 — the XML declaration is unconditionally added on serialize even
   // when the source document has none.
+  'concept/installing-the-go-anywhere.dita': 'BUG-30',
   'reference/go10-regulatory-statements.dita': 'BUG-30',
   'topic/installation-codes.dita': 'BUG-30 (also BUG-31)',
 

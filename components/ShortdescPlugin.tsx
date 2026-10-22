@@ -6,6 +6,7 @@ import {
   $getSelection,
   $isRangeSelection,
   $isElementNode,
+  type LexicalNode,
   KEY_ENTER_COMMAND,
   COMMAND_PRIORITY_HIGH,
   $createParagraphNode,
@@ -76,6 +77,27 @@ const NOTE_TYPE_CLASSES: Record<string, string> = {
   NOTE: 'dita-editor-note-note',
 };
 const ALL_NOTE_TYPE_CLASSES = Object.values(NOTE_TYPE_CLASSES);
+
+/**
+ * The blocks that get DITA classes: the root's children plus, since table
+ * cells hold real blocks (BUG-29), the children of every table cell, nested
+ * tables included.
+ */
+const $classedBlocks = (): LexicalNode[] => {
+  const out: LexicalNode[] = [];
+  const visit = (node: LexicalNode) => {
+    out.push(node);
+    if (node.getType() !== 'table' || !$isElementNode(node)) return;
+    for (const row of node.getChildren()) {
+      if (!$isElementNode(row)) continue;
+      for (const cell of row.getChildren()) {
+        if ($isElementNode(cell)) cell.getChildren().forEach(visit);
+      }
+    }
+  };
+  $getRoot().getChildren().forEach(visit);
+  return out;
+};
 
 /**
  * Handles the DITA authoring flow: H1 (title) → shortdesc → paragraph.
@@ -156,10 +178,7 @@ export const ShortdescPlugin = ({ topicType }: ShortdescPluginProps = {}) => {
       ParagraphNode,
       () => {
         editor.getEditorState().read(() => {
-          const root = $getRoot();
-          const children = root.getChildren();
-
-          children.forEach((node) => {
+          $classedBlocks().forEach((node) => {
             if (!$isElementNode(node) || node.getType() !== 'paragraph') return;
 
             const key = node.getKey();
@@ -177,9 +196,11 @@ export const ShortdescPlugin = ({ topicType }: ShortdescPluginProps = {}) => {
             const troubleClass = troubleSectionClass(origin?.containerPath);
             if (troubleClass) domElement.classList.add(troubleClass);
 
-            // Add the appropriate class if origin tag matches
-            if (origin?.tag && BODY_TAG_CLASSES[origin.tag]) {
-              domElement.classList.add(BODY_TAG_CLASSES[origin.tag]);
+            // Add the appropriate class if origin tag matches. A <p> inside a
+            // <dd> is tagged 'p' (BUG-40) but is still part of the definition.
+            const tagClass = origin?.tag === 'p' && origin.dlEntryIndex !== undefined ? 'dd' : origin?.tag;
+            if (origin && tagClass && BODY_TAG_CLASSES[tagClass]) {
+              domElement.classList.add(BODY_TAG_CLASSES[tagClass]);
               // FR-049: an EMPTY shortdesc shows the prompt as CSS decoration.
               if (origin.tag === 'shortdesc') {
                 decoratePlaceholder(
@@ -202,8 +223,7 @@ export const ShortdescPlugin = ({ topicType }: ShortdescPluginProps = {}) => {
       QuoteNode,
       () => {
         editor.getEditorState().read(() => {
-          const root = $getRoot();
-          root.getChildren().forEach((node) => {
+          $classedBlocks().forEach((node) => {
             if (!$isElementNode(node) || node.getType() !== 'quote') return;
 
             const key = node.getKey();

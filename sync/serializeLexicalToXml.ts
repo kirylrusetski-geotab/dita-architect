@@ -3,7 +3,7 @@ import { TableCellHeaderStates } from '@lexical/table';
 import type { NodeOriginMapType } from './nodeOriginMap';
 import { reconcileInline, type ReconcileDeps, type ReconcileMode } from './inline-reconcile';
 import { NOTE_BLOCK_TAGS, FMT_BOLD as RUN_BOLD, FMT_ITALIC as RUN_ITALIC, FMT_CODE as RUN_CODE } from './inline-units';
-import { BLOCK_CHILD_TAGS } from './parseXmlToLexical';
+import { BLOCK_CHILD_TAGS, CELL_BLOCK_TAGS, DD_BLOCK_TAGS } from './parseXmlToLexical';
 
 interface XmlMeta {
   rootTag: string;
@@ -680,35 +680,203 @@ const createElementFromLexical = (lexicalNode: any, doc: Document, rootTag: stri
   return null;
 };
 
-/**
- * Create a CALS table element from a Lexical TableNode.
- */
-// BUG-35: cell children the parser's parseCellContent turns into block nodes.
-const CELL_WALK_TAGS = new Set(['p', 'ul', 'ol', 'table', 'section']);
+// ─── Mixed-content wrappers: table cells (BUG-29) and <dd> (BUG-40) ───────────
+//
+// <entry>, <stentry>, and <dd> are block wrappers in the BUG-25 sense: loose
+// inline content and blocks, mixed (ADR-009 amendment). Their DOM children
+// split into inline segments and runs of blocks, by the parser's own block
+// set; their Lexical nodes into inline-run paragraphs (the parser's stamp for
+// the wrapper's loose content) and runs of everything else. When the two
+// patterns match, block runs go through THE body walk and inline segments
+// through the inline reconciler; when they do not, the content is rebuilt.
+
+interface MixedWrapper {
+  /** The parser's block set for this wrapper (CELL_BLOCK_TAGS, DD_BLOCK_TAGS). */
+  blockTags: ReadonlySet<string>;
+  /** The origin tag the parser stamps on the wrapper's loose inline content. */
+  inlineTag: string;
+  /** THE body walk, with the wrapper's options. */
+  walk: (domChildren: Element[], parentEl: Element, nodes: any[]) => void;
+}
+
+const cellWrapper = (doc: Document, originMap: NodeOriginMapType): MixedWrapper => ({
+  blockTags: CELL_BLOCK_TAGS,
+  inlineTag: 'cell-inline',
+  walk: (domChildren, parentEl, nodes) => patchBodyChildren(domChildren, parentEl, nodes, doc, '', originMap),
+});
+
+// groupDl:false — every dd node carries dlEntryIndex; re-grouping them would
+// wrongly hunt for a nested <dl> (ADR-006). ADR-011: the <dd>'s nodes carry the
+// enclosing container's path, so the walk inherits that base path — at base ''
+// it would re-wrap them.
+const ddWrapper = (doc: Document, rootTag: string, originMap: NodeOriginMapType, basePath: string): MixedWrapper => ({
+  blockTags: DD_BLOCK_TAGS,
+  inlineTag: 'dd',
+  walk: (domChildren, parentEl, nodes) => patchBodyChildren(domChildren, parentEl, nodes, doc, rootTag, originMap, { groupDl: false, basePath }),
+});
+
+type MixedSegment<T> = { kind: 'inline' | 'blocks'; nodes: T[] };
+
+const isInlineRun = (node: any, originMap: NodeOriginMapType, w: MixedWrapper): boolean =>
+  node.getType() === 'paragraph' && originMap.get(node.getKey())?.tag === w.inlineTag;
+
+/** Nodes the walk skips, as at body level: the source element is preserved. */
+const isPreservedOnly = (node: any): boolean => node.getType() === 'ditaopaque' || node.getType() === 'ditaimage';
 
 /**
- * BUG-35: write a table cell's Lexical content into an <entry>/<stentry>.
- * One paragraph → its inline content directly; otherwise each paragraph as a
- * <p> and every other block (lists, notes, …) through createElementFromLexical.
- * Every rebuild path uses this, so no path can drop a cell's lists again.
+ * The DOM wrapper's segments, in order. A block run holds consecutive blocks
+ * and the whitespace, comments, and PIs between them; whitespace before or
+ * after a run belongs to no segment and stays put. A wrapper with no blocks is
+ * one inline segment of all its children (possibly none).
  */
-const writeCellContent = (entry: Element, cellChildren: any[], doc: Document, originMap?: NodeOriginMapType): void => {
-  if (cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-    serializeInlineContent(cellChildren[0], doc, originMap).forEach(n => entry.appendChild(n));
+const domMixedSegments = (el: Element, w: MixedWrapper): MixedSegment<Node>[] => {
+  const segments: MixedSegment<Node>[] = [];
+  const isBlock = (n: Node) => n.nodeType === Node.ELEMENT_NODE && w.blockTags.has((n as Element).tagName.toLowerCase());
+  const hasContent = (nodes: Node[]) =>
+    nodes.some(n => n.nodeType === Node.ELEMENT_NODE || (n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim().length > 0));
+  let pending: Node[] = [];
+  let run: Node[] | null = null;
+  for (const n of Array.from(el.childNodes)) {
+    if (!isBlock(n)) { pending.push(n); continue; }
+    if (run && !hasContent(pending)) {
+      run.push(...pending, n);
+    } else {
+      if (hasContent(pending)) segments.push({ kind: 'inline', nodes: pending });
+      run = [n];
+      segments.push({ kind: 'blocks', nodes: run });
+    }
+    pending = [];
+  }
+  if (hasContent(pending)) segments.push({ kind: 'inline', nodes: pending });
+  return segments.length > 0 ? segments : [{ kind: 'inline', nodes: Array.from(el.childNodes) }];
+};
+
+const lexMixedSegments = (nodes: any[], originMap: NodeOriginMapType, w: MixedWrapper): MixedSegment<any>[] => {
+  const segments: MixedSegment<any>[] = [];
+  let run: any[] | null = null;
+  for (const n of nodes) {
+    if (isInlineRun(n, originMap, w)) { segments.push({ kind: 'inline', nodes: [n] }); run = null; }
+    else if (run) run.push(n);
+    else { run = [n]; segments.push({ kind: 'blocks', nodes: run }); }
+  }
+  return segments;
+};
+
+/** Does `el` (a block about to be rebuilt) hold what `node` was parsed from? */
+const isSourceOf = (el: Element, node: any): boolean => {
+  const tag = el.tagName.toLowerCase();
+  const type = node.getType();
+  if (type === 'ditaopaque') return new XMLSerializer().serializeToString(el) === node.getXmlContent();
+  if (type === 'ditaimage') return tag === 'fig' && (el.querySelector('image')?.getAttribute('href') || '') === node.exportJSON().href;
+  if (type === 'ditaphref') return tag === 'note' && el.getAttribute(node.getRefType()) === node.getRefValue();
+  return false;
+};
+
+/**
+ * Write a wrapper's Lexical content into the empty wrapper element. Used by
+ * every rebuild path (new rows, tables, and <dl>s, and a wrapper whose shape
+ * changed), so it emits the shape the parser reads back: inline-run
+ * paragraphs as loose inline content, everything else through the body walk on
+ * an empty DOM (a <dl> is re-created as a <dl>, not as <p>s). A lone paragraph
+ * that is not a source <p> is the wrapper's inline content — the rule for
+ * cells created in the editor (BUG-35 kept it for one paragraph). Nodes with no
+ * serializable form (a figure, an opaque block, a <note conkeyref>) are written
+ * by moving their source element from `sources`, when the caller has one
+ * (ADR-006/S1).
+ */
+const writeMixedContent = (el: Element, nodes: any[], doc: Document, originMap: NodeOriginMapType, w: MixedWrapper, sources: Element[] = []): void => {
+  const only = nodes.length === 1 ? nodes[0] : null;
+  if (only && only.getType() === 'paragraph' && originMap.get(only.getKey())?.tag !== 'p') {
+    serializeInlineContent(only, doc, originMap).forEach(n => el.appendChild(n));
     return;
   }
-  cellChildren.forEach((child: any) => {
-    if (child.getType() === 'paragraph') {
-      const p = doc.createElement('p');
-      serializeInlineContent(child, doc, originMap).forEach(n => p.appendChild(n));
-      entry.appendChild(p);
+  let run: any[] = [];
+  const flush = () => {
+    if (run.length > 0) w.walk([], el, run);
+    run = [];
+  };
+  nodes.forEach((child: any) => {
+    if (isInlineRun(child, originMap, w)) {
+      flush();
+      serializeInlineContent(child, doc, originMap).forEach(n => el.appendChild(n));
+    } else if (isPreservedOnly(child) || child.getType() === 'ditaphref') {
+      flush();
+      const k = sources.findIndex(s => isSourceOf(s, child));
+      if (k !== -1) el.appendChild(sources.splice(k, 1)[0]);
     } else {
-      const el = createElementFromLexical(child, doc, '', originMap ?? new Map());
-      if (el) entry.appendChild(el);
+      run.push(child);
     }
+  });
+  flush();
+};
+
+/** BUG-35/BUG-29: a table cell's content, for every path that builds a new cell. */
+const writeCellContent = (entry: Element, cellChildren: any[], doc: Document, originMap?: NodeOriginMapType): void => {
+  const map = originMap ?? new Map();
+  writeMixedContent(entry, cellChildren, doc, map, cellWrapper(doc, map));
+};
+
+/**
+ * Patch a wrapper's content in place (the BUG-25 wrapper pattern). Each block
+ * run is walked in a detached holder, so a block the author added at the end
+ * of a run lands before whatever follows the run, not at the end of the
+ * wrapper. Each inline segment is reconciled with the block-split (segment)
+ * rules. If the patterns no longer match (the author merged loose text into a
+ * block, or split it), the content is rebuilt, keeping the wrapper element's
+ * own attributes.
+ */
+const patchMixedContent = (el: Element, nodes: any[], doc: Document, originMap: NodeOriginMapType, w: MixedWrapper): void => {
+  const domSegments = domMixedSegments(el, w);
+  const lexSegments = lexMixedSegments(nodes, originMap, w);
+
+  const aligned = domSegments.length === lexSegments.length && domSegments.every((s, k) => s.kind === lexSegments[k].kind);
+  if (!aligned) {
+    const sources = Array.from(el.children);
+    while (el.firstChild) el.removeChild(el.firstChild);
+    writeMixedContent(el, nodes, doc, originMap, w, sources);
+    return;
+  }
+
+  domSegments.forEach((seg, k) => {
+    if (seg.kind !== 'blocks') return;
+    const anchor = seg.nodes[seg.nodes.length - 1].nextSibling;
+    const holder = doc.createElement(el.tagName);
+    seg.nodes.forEach(n => holder.appendChild(n));
+    w.walk(Array.from(holder.children), holder, lexSegments[k].nodes.filter(n => !isPreservedOnly(n)));
+    while (holder.firstChild) el.insertBefore(holder.firstChild, anchor);
+  });
+
+  const stripWs = (s: string) => s.replace(/\s+/g, '');
+  domSegments.forEach((seg, k) => {
+    if (seg.kind !== 'inline') return;
+    const lex = lexSegments[k].nodes[0];
+    // ADR-010: reconcile with the parser's segment rules first.
+    if (reconcileInline(el, seg.nodes, lex, originMap, 'segment', reconcileDeps(doc, originMap)) !== 'bail') return;
+    if (domSegments.length === 1) {
+      // The wrapper is one inline run: the pre-BUG-29 cell fallback.
+      // S2: equal text can still hide a formatting toggle.
+      const domText = el.textContent || '';
+      const lexText = lex.getTextContent();
+      const formattingChanged = domText === lexText && hasFormattingChange(el, lex, originMap);
+      if (domText !== lexText || formattingChanged) {
+        while (el.firstChild) el.removeChild(el.firstChild);
+        writeMixedContent(el, nodes, doc, originMap, w);
+      }
+      return;
+    }
+    // Beside blocks: patchPWrapper's fallback — rewrite the segment only when
+    // its text changed (whitespace-insensitive, as the parser collapses it).
+    const domText = seg.nodes.map(n => n.textContent ?? '').join('');
+    if (stripWs(domText) === stripWs(lex.getTextContent())) return;
+    const anchor = seg.nodes[seg.nodes.length - 1].nextSibling;
+    seg.nodes.forEach(n => { if (n.parentNode === el) el.removeChild(n); });
+    serializeInlineContent(lex, doc, originMap).forEach(x => el.insertBefore(x, anchor));
   });
 };
 
+/**
+ * Create a CALS table element from a Lexical TableNode.
+ */
 const createTableFromLexical = (tableNode: any, doc: Document, originMap?: NodeOriginMapType): Element => {
   const table = doc.createElement('table');
   const rows = tableNode.getChildren ? tableNode.getChildren() : [];
@@ -884,13 +1052,11 @@ const patchDlElement = (
       patchElementContent(domDt, dtNode, doc, originMap);
     }
     if (domDd) {
-      // Patch the <dd>'s recognized block children in parallel; unrecognized
-      // children are left untouched (same contract as the body walk).
-      // groupDl:false — every dd node carries dlEntryIndex; re-grouping them
-      // here would wrongly hunt for a nested <dl> (ADR-006).
-      // ADR-011: the <dd>'s nodes carry the enclosing container's path, so the
-      // walk inherits that base path — at base '' it would re-wrap them.
-      patchBodyChildren(Array.from(domDd.children), domDd, ddNodes, doc, rootTag, originMap, { groupDl: false, basePath });
+      // BUG-40: a <dd> mixes loose inline content and blocks, like a table
+      // cell. Walking only its element children appended a copy of its loose
+      // text as a new <p> on every serialize. Unrecognized children are left
+      // untouched (same contract as the body walk).
+      patchMixedContent(domDd, ddNodes, doc, originMap, ddWrapper(doc, rootTag, originMap, basePath));
     }
   }
 };
@@ -1011,8 +1177,6 @@ const patchTableRow = (domRow: Element, lexicalRow: any, doc: Document, originMa
 };
 
 const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, originMap?: NodeOriginMapType) => {
-  const cellChildren = lexicalCell.getChildren ? lexicalCell.getChildren() : [];
-
   // Update colspan attributes if changed
   const lexColSpan = lexicalCell.getColSpan ? lexicalCell.getColSpan() : 1;
   const lexRowSpan = lexicalCell.getRowSpan ? lexicalCell.getRowSpan() : 1;
@@ -1044,53 +1208,9 @@ const patchTableEntry = (domEntry: Element, lexicalCell: any, doc: Document, ori
     domEntry.removeAttribute('nameend');
   }
 
-  // Check if entry has <p> children in DOM
-  const domParagraphs = Array.from(domEntry.children).filter(
-    c => c.tagName.toLowerCase() === 'p'
-  );
-
-  const onlyParagraphs = cellChildren.every((c: any) => c.getType() === 'paragraph');
-  // BUG-35: the blocks the cell parser turns into editor nodes. Anything else
-  // in a cell (a <note>, an <image> — BUG-29) has no node, so the walk below
-  // must never see it: it would be "unconsumed" and deleted.
-  const walkable = Array.from(domEntry.children).filter(c => CELL_WALK_TAGS.has(c.tagName.toLowerCase()));
-  const domHasLists = walkable.some(c => c.tagName.toLowerCase() !== 'p');
-  if (domParagraphs.length > 0 && cellChildren.length > 0 && onlyParagraphs && !domHasLists) {
-    // Patch paragraphs in parallel (unchanged pre-BUG-35 path)
-    const count = Math.min(domParagraphs.length, cellChildren.length);
-    for (let i = 0; i < count; i++) {
-      patchElementContent(domParagraphs[i], cellChildren[i], doc, originMap);
-    }
-  } else if (domParagraphs.length > 0 && cellChildren.length > 0) {
-    // BUG-35: a cell holding lists (in the source or the editor) is walked
-    // like any block container, so a list is patched, added, or removed
-    // instead of silently skipped.
-    patchBodyChildren(walkable, domEntry, cellChildren, doc, '', originMap ?? new Map());
-  } else {
-    // ADR-010: a cell with direct inline content and one Lexical paragraph is
-    // reconciled with the cell parser's segment rules; bail → legacy below.
-    const cellBlockTags = new Set(['p', 'ul', 'ol', 'li', 'table', 'section', 'div']);
-    const hasCellBlocks = Array.from(domEntry.children).some(c => cellBlockTags.has(c.tagName.toLowerCase()));
-    if (!hasCellBlocks && cellChildren.length === 1 && cellChildren[0].getType() === 'paragraph') {
-      const r = reconcileInline(domEntry, Array.from(domEntry.childNodes), cellChildren[0], originMap, 'segment', reconcileDeps(doc, originMap));
-      if (r !== 'bail') return;
-    }
-    // Entry with direct text content — compare and patch as a unit.
-    // S2: equal text can still hide a formatting toggle in the cell's single
-    // paragraph — same signature check as patchElementContent.
-    const domText = domEntry.textContent || '';
-    const lexText = lexicalCell.getTextContent();
-    const formattingChanged =
-      domText === lexText &&
-      cellChildren.length === 1 &&
-      cellChildren[0].getType() === 'paragraph' &&
-      hasFormattingChange(domEntry, cellChildren[0], originMap);
-    const structureChanged = !onlyParagraphs;
-    if (domText !== lexText || formattingChanged || structureChanged) {
-      while (domEntry.firstChild) domEntry.removeChild(domEntry.firstChild);
-      writeCellContent(domEntry, cellChildren, doc, originMap);
-    }
-  }
+  // BUG-29: the cell's content is a mixed-content wrapper.
+  const map = originMap ?? new Map();
+  patchMixedContent(domEntry, lexicalCell.getChildren ? lexicalCell.getChildren() : [], doc, map, cellWrapper(doc, map));
 };
 
 const patchSimpleTable = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
@@ -1869,10 +1989,7 @@ const createDlFromLexical = (nodes: any[], doc: Document, rootTag: string, origi
     dlentry.appendChild(dt);
 
     const dd = doc.createElement('dd');
-    ddNodes.forEach(node => {
-      const el = createElementFromLexical(node, doc, rootTag, originMap);
-      if (el) dd.appendChild(el);
-    });
+    writeMixedContent(dd, ddNodes, doc, originMap, ddWrapper(doc, rootTag, originMap, ''));
     dlentry.appendChild(dd);
 
     dl.appendChild(dlentry);

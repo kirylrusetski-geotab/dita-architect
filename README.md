@@ -10,7 +10,7 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **See the XML when you need it.** The right pane shows the raw DITA source with syntax highlighting, auto-completion, and one-click formatting. Edits in either pane sync to the other automatically, or press Ctrl+Enter to sync manually.
 
-**Work with tables without touching XML.** Right-click any table cell to insert or delete rows and columns. Works for both CALS tables and simpletables.
+**Work with tables without touching XML.** Right-click any table cell to insert or delete rows and columns. Works for both CALS tables and simpletables. Notes, definition lists, figures, lists, and code blocks inside a cell show and edit just as they do in the body.
 
 **Open topics from Heretto.** Browse your Heretto CMS folders, search for topics, open them in the editor, and save changes back. The editor detects when someone else edits the same topic while you're working.
 
@@ -110,9 +110,9 @@ The visual editor renders these elements as formatted content:
 - **Body:** `<p>`, `<note>`, `<section>`, `<prereq>`, `<context>`, `<result>`, `<postreq>`
 - **Lists:** `<ol>`, `<ul>`, `<li>`, `<steps>`, `<step>`, `<cmd>`, `<dl>` (definition lists)
 - **Troubleshooting:** `<condition>`, `<troubleSolution>`, `<cause>`, `<remedy>` (each labeled in the editor), with `<steps>`, `<steps-unordered>`, or `<steps-informal>` in a remedy
-- **Tables:** `<table>` (CALS), `<simpletable>`
+- **Tables:** `<table>` (CALS), `<simpletable>`; a cell can hold paragraphs, lists, notes, definition lists, figures, code blocks, and nested tables.
 - **Media:** `<fig>`, `<image>`, `<codeblock>`
-- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). `<term>`, `<filepath>`, and `<ph>` have no visual style yet (FR-068).
+- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). `<term>`, `<filepath>`, and `<ph>` have no visual style yet (FR-068), and a menu path (`<menucascade>`) shows its steps without a separator (BUG-43).
 
 Elements the editor doesn't recognize are shown as labeled read-only blocks — they won't be lost or changed when you save.
 

@@ -23,7 +23,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '0.10.2',
     date: '2026-10-22',
-    title: 'Edits inside a menu path, a list item\'s paragraph, or a link now change only what you edited.',
+    title: 'Edits inside a menu path, a list item\'s paragraph, a link, a table cell, or a definition now change only what you edited.',
     sections: [
       {
         heading: 'Bug Fixes',
@@ -32,15 +32,20 @@ export const RELEASE_NOTES: ReleaseNote[] = [
           'Text you type inside a list item\'s paragraph stays where you typed it. Before, when the paragraph also held a link or a UI control, the typed words could be saved outside the paragraph and after its final full stop, out of order.',
           'A paragraph inside a list item keeps its attributes when you edit a link or other element inside it. Before, the `<p>` (and attributes such as `props`) was dropped on save.',
           'Editing the text of a link that uses a key reference (`keyref`) no longer adds an empty `href=""` to it. A link\'s own attributes now stay exactly as they were when you edit its text.',
+          'A table cell that holds an image, a figure, or text followed by a paragraph keeps that paragraph. Before, every save, even without an edit, copied the content before the paragraph into it and dropped the paragraph\'s own text: an LED status table lost every label ("Flashing green" became a second copy of the icon).',
+          'Notes, definition lists, figures, and code blocks inside a table cell now show as real blocks, and edits to them are saved. Before, they were flattened into the cell\'s text; edits to a definition list or a note in a cell were silently dropped, and a note in a cell lost its `id` and paragraph when you edited it. Blocks you add to or delete from a cell are saved in place too.',
+          'A definition (`<dd>`) whose text is not wrapped in a paragraph is no longer duplicated. Before, every save, edited or not, added a copy of that text as a new paragraph inside the same definition.',
+          'Bold, italic, or code text you type right next to a UI control (for example " As" after `Save` in "File > Save") is saved where you typed it. Before, it was saved at the end of the paragraph, after the full stop.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
-          'The inline reconciler (ADR-010) now splices a changed run at the deepest element that contains it instead of at the outermost container inline, never removes an element that holds unchanged content, splits one change region into one per element when both sides line up, and reconciles inside a link whose target and attributes did not change. Fixes BUG-34 and BUG-36.',
-          'A new opt-in edit fuzz, `npm run test:edit-fuzz`, appends a word to every editable text node of every test topic (1405 edits over the real-topic corpus) and checks that no element appears or disappears and no text is lost, duplicated, or reordered. Against the previous version it found no new failures, and this release fixes 30 of the old ones. The rest belong to already-filed bugs, including BUG-29, which it showed drops edits in table cells that hold a `<dl>` or `<note>`.',
-          'Filed for the next bug sweep: BUG-37 (text added to the end of bold, italic, or code text becomes a second element), BUG-38 (links that use a key reference are flagged as having an empty `href`), and BUG-39 (text typed right after a UI control picks up its bold styling).',
-          'Suite: 67 files, 1590 tests passing, 4 skipped (including the opt-in fuzz). New: `tests/sync/inline-containers.test.ts` (invariants C1 to C8).',
+          'The inline reconciler (ADR-010) now splices a changed run at the deepest element that contains it instead of at the outermost container inline, never removes an element that holds unchanged content, splits one change region into one per element when both sides line up, and reconciles inside a link whose target and attributes did not change. Fixes BUG-34 and BUG-36. A new run with nothing beside it in the source (a differently formatted run between two unchanged elements) is now placed against those elements instead of at the end of its parent. Fixes BUG-42, found in this release\'s smoke test and present since v0.9.9.',
+          'Table cells and `<dd>` are now block wrappers in the ADR-009 sense (amendment, BUG-29): one cell parser for both table kinds, which parses a cell\'s notes, definition lists, figures, and code blocks exactly as the body does and marks the cell\'s own loose text apart from its paragraphs; and one patcher for cells and `<dd>`, which walks each run of blocks with the body walk and reconciles each run of loose text in place, instead of pairing paragraphs by position. Fixes BUG-29, and BUG-40, found while building it.',
+          'A new opt-in edit fuzz, `npm run test:edit-fuzz`, appends a word to every editable text node of every test topic (1405 edits over the real-topic corpus) and checks that no element appears or disappears and no text is lost, duplicated, or reordered. Against v0.10.1 it found no new failures; this release brings its failures from 162 to 73 and its reconciler bails from 6 to 0. The 73 that remain are two already-filed bugs: BUG-26 (43) and the cosmetic BUG-37 pattern (30).',
+          'Filed for the next bug sweep: BUG-37 (text added to the end of bold, italic, or code text becomes a second element), BUG-38 (links that use a key reference are flagged as having an empty `href`), BUG-39 (text typed right after a UI control picks up its bold styling), BUG-41 (a table\'s `cols` count is rewritten on save when the source\'s count is wrong), and BUG-43 (the steps of a menu path show with no separator between them).',
+          'Suite: 69 files, 1693 tests passing, 4 skipped (including the opt-in fuzz). New: `tests/sync/inline-containers.test.ts` (invariants C1 to C9) and `tests/sync/table-cells.test.ts` (invariants T1 to T6, plus BUG-40).',
         ],
       },
     ],

@@ -12,7 +12,7 @@
 // Every expectation is full-string equality against the source with exactly
 // the author's change applied.
 import { describe, it, expect } from 'vitest';
-import { $getRoot, $isElementNode, $isTextNode, type LexicalNode, type TextNode } from 'lexical';
+import { $getRoot, $createTextNode, $isElementNode, $isTextNode, type LexicalNode, type TextNode } from 'lexical';
 import { createTestEditor } from '../helpers/createTestEditor';
 import { parseXmlToLexical } from '../../sync/parseXmlToLexical';
 import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeLexicalToXml';
@@ -132,6 +132,45 @@ describe('C7 — an edit that straddles a container boundary loses no text', () 
     }, { discrete: true });
     const out = serializeLexicalToXml(editor.getEditorState(), xml, originMap, createXmlMetaCache());
     expect(out).toBe(xml.replace('Go to ', 'Open ').replace('>File<', '>Files<'));
+  });
+});
+
+/**
+ * Insert a new text node with `fmt` right after (or before) the one inline
+ * node whose text is exactly `anchor`, serialize. A differently formatted run
+ * is what Lexical cannot merge into a neighbour — the shape typing next to a
+ * <uicontrol> produces (BUG-39 gives the typed text the token's bold).
+ */
+function insertRun(xml: string, anchor: string, text: string, fmt: 'bold' | 'italic', where: 'after' | 'before' = 'after') {
+  const editor = createTestEditor();
+  const originMap = createNodeOriginMap();
+  parseXmlToLexical(xml, editor, originMap, true);
+  editor.update(() => {
+    const t = findText($getRoot(), anchor);
+    if (!t || t.getTextContent() !== anchor) throw new Error(`no text node is exactly "${anchor}"`);
+    const run = $createTextNode(text);
+    run.toggleFormat(fmt);
+    if (where === 'after') t.insertAfter(run); else t.insertBefore(run);
+  }, { discrete: true });
+  return serializeLexicalToXml(editor.getEditorState(), xml, originMap, createXmlMetaCache());
+}
+
+describe('C9 — BUG-42: a new run between two unchanged inline pieces lands between them', () => {
+  it('bold text typed after the last <uicontrol> of a <menucascade> (the v0.10.2 smoke)', () => {
+    const xml = DOC('<p>Go to <menucascade><uicontrol>File</uicontrol><uicontrol>Save</uicontrol></menucascade> now.</p>');
+    expect(insertRun(xml, 'Save', ' As', 'bold')).toBe(xml.replace('</menucascade> now.', '</menucascade><b> As</b> now.'));
+  });
+  it('bold text after a <uicontrol> in the middle of a paragraph', () => {
+    const xml = DOC('<p>Click <uicontrol>Save</uicontrol> to finish.</p>');
+    expect(insertRun(xml, 'Save', ' now', 'bold')).toBe(xml.replace('</uicontrol> to', '</uicontrol><b> now</b> to'));
+  });
+  it('italic text between two adjacent <uicontrol>s', () => {
+    const xml = DOC('<p><uicontrol>A</uicontrol><uicontrol>B</uicontrol> end.</p>');
+    expect(insertRun(xml, 'A', 'x', 'italic')).toBe(xml.replace('</uicontrol><uicontrol>', '</uicontrol><i>x</i><uicontrol>'));
+  });
+  it('italic text before a <uicontrol> that opens the paragraph', () => {
+    const xml = DOC('<p><uicontrol>A</uicontrol> end.</p>');
+    expect(insertRun(xml, 'A', 'Pre ', 'italic', 'before')).toBe(xml.replace('<p><uicontrol>', '<p><i>Pre </i><uicontrol>'));
   });
 });
 

@@ -381,6 +381,10 @@ interface GapPlan {
   i: number; ei: number; j: number; ej: number;
 }
 
+/** The anchors either side of a gap: the last item of the anchor before it and
+ *  the first item of the anchor after it (null at the element's edges). */
+interface GapContext { before: DItem | null; after: DItem | null }
+
 const planGap = (D: DItem[], L: LItem[], rootEl: Element): GapPlan | { bail: BailReason; detail: string } => {
   // Prefix: skip ownerless fixed items (they ride with the prefix), match pairs.
   const prefix: Array<[number, number]> = [];
@@ -493,7 +497,7 @@ const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDe
  * Splices happen at the deepest element containing the whole change
  * (spliceLevel), never at an outer container (BUG-34/BUG-36).
  */
-const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: ReconcileDeps, allNodes: Node[]): boolean => {
+const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: ReconcileDeps, allNodes: Node[], around: GapContext): boolean => {
   const { i, ei, j, ej } = plan;
   if (i === ei && j === ej) return true;
   const newNodes = serializeLexMiddle(L, j, ej, deps);
@@ -503,11 +507,20 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     // neighbours: between two at different depths it is the shallower one, so
     // text typed after a <menucascade> stays outside it; with a neighbour on
     // one side only it is that neighbour's parent, so text typed at the end of
-    // an <li><p> stays inside the <p>.
+    // an <li><p> stays inside the <p>. BUG-42: when the gap holds no real item
+    // at all, its neighbours are the anchors either side of it — a run Lexical
+    // cannot merge (bold text typed after a <uicontrol>) has nothing else
+    // beside it, and without the anchors it went to the element's end. Not
+    // across a <note>'s block boundary (a fixed item with no node): there the
+    // place is ambiguous (the end of one <p> or the start of the next), so the
+    // gap bails below, as before.
     let pk = i - 1; while (pk >= 0 && D[pk].k === 'f') pk--;
     let nk = i; while (nk < D.length && D[nk].k === 'f') nk++;
-    const pReal = pk >= 0 ? nodeOf(D[pk]) : null;
-    const nReal = nk < D.length ? nodeOf(D[nk]) : null;
+    const useAnchors = pk < 0 && nk >= D.length && !D.some(d => d.k === 'f' && !d.node);
+    const prevItem = pk >= 0 ? D[pk] : useAnchors ? around.before : null;
+    const nextItem = nk < D.length ? D[nk] : useAnchors ? around.after : null;
+    const pReal = prevItem ? nodeOf(prevItem) : null;
+    const nReal = nextItem ? nodeOf(nextItem) : null;
     if (!pReal && !nReal) {
       if (D.length > 0) return false; // only fixed points (a block boundary) around it
       for (const n of newNodes) rootEl.insertBefore(n, null);
@@ -519,15 +532,16 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     // element (a <uicontrol>), go to the shallower level instead.
     const level: Node =
       pReal && nReal
-        ? (D[pk].k === 'c' ? pReal.parentNode! : commonAncestor([pReal.parentNode!, nReal.parentNode!], rootEl))
+        ? (prevItem!.k === 'c' ? pReal.parentNode! : commonAncestor([pReal.parentNode!, nReal.parentNode!], rootEl))
         : (pReal ?? nReal)!.parentNode!;
     // Position after the immediately preceding item when it sits inside the
     // level (keeps the old placement relative to comments/PIs), else after the
     // nearest real one; with no predecessor, before the next.
-    const prevIdx = i > 0 && nodeOf(D[i - 1]) && level.contains(nodeOf(D[i - 1])!) && nodeOf(D[i - 1]) !== level ? i - 1 : (pReal ? pk : -1);
+    const before = i > 0 ? D[i - 1] : null;
+    const prevSel = before && nodeOf(before) && level.contains(nodeOf(before)!) && nodeOf(before) !== level ? before : (pReal ? prevItem : null);
     let ref: Node | null;
-    if (prevIdx >= 0) {
-      const prev = D[prevIdx];
+    if (prevSel) {
+      const prev = prevSel;
       const pn = nodeOf(prev)!;
       const top = childOfLevel(pn, level);
       if (!top) return false;
@@ -539,7 +553,7 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
         ref = top.nextSibling;
       }
     } else {
-      const next = D[nk];
+      const next = nextItem!;
       const nn = nodeOf(next)!;
       const top = childOfLevel(nn, level);
       if (!top) return false;
@@ -665,18 +679,25 @@ export const reconcileInline = (
   }
 
   // Gaps between consecutive anchors (D units [dFrom, dTo) ↔ L units [lFrom, lTo)).
-  const gaps: Array<{ D: DItem[]; L: LItem[] }> = [];
+  const gaps: Array<{ D: DItem[]; L: LItem[]; around: GapContext }> = [];
   let dFrom = 0, lFrom = 0;
+  const anchorItem = (k: number, last: boolean): DItem | null => {
+    if (k < 0 || k >= D.length) return null;
+    const items = dItemsOf(D[k]);
+    return items.length ? items[last ? items.length - 1 : 0] : null;
+  };
+  let around: GapContext = { before: null, after: null };
   const pushOne = (dUnits: DUnit[], lUnits: LUnit[]) => {
     const dItems = dUnits.flatMap(dItemsOf);
     const lItems = lUnits.flatMap(lItemsOf);
-    if (dItems.length || lItems.length) gaps.push({ D: dItems, L: lItems });
+    if (dItems.length || lItems.length) gaps.push({ D: dItems, L: lItems, around });
   };
   // Edits accumulate against the load-time master, so one gap often holds
   // two independent changes (a text edit next to an edited <uicontrol>).
   // When both sides have the same number of units, pairwise of the same kind,
   // split into one gap per pair so each change gets its own splice level.
   const pushGap = (dTo: number, lTo: number) => {
+    around = { before: anchorItem(dFrom - 1, true), after: anchorItem(dTo, false) };
     const dSlice = D.slice(dFrom, dTo);
     const lSlice = L.slice(lFrom, lTo);
     const dReal = dSlice.filter(u => u.kind !== 'fixed');
@@ -701,7 +722,7 @@ export const reconcileInline = (
   pushGap(D.length, L.length);
 
   // Plan every gap before touching the DOM, so a bail leaves the clone pristine.
-  const plans: Array<{ gap: { D: DItem[]; L: LItem[] }; plan: GapPlan }> = [];
+  const plans: Array<{ gap: { D: DItem[]; L: LItem[]; around: GapContext }; plan: GapPlan }> = [];
   for (const gap of gaps) {
     const plan = planGap(gap.D, gap.L, rootEl);
     if ('bail' in plan) return report({ status: 'bail', reason: plan.bail, tag, detail: plan.detail });
@@ -716,7 +737,7 @@ export const reconcileInline = (
   const allNodes: Node[] = [];
   for (const u of D) for (const item of dItemsOf(u)) { const n = nodeOf(item); if (n) allNodes.push(n); }
   for (const { gap, plan } of plans) {
-    if (!applyGap(rootEl, gap.D, gap.L, plan, deps, allNodes)) {
+    if (!applyGap(rootEl, gap.D, gap.L, plan, deps, allNodes, gap.around)) {
       return report({ status: 'bail', reason: 'unsupported', tag, detail: 'changed run is not one sibling run, or would remove unchanged content' });
     }
   }

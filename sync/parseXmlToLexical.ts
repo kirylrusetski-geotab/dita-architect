@@ -108,6 +108,80 @@ const parseSectionLegacy = (xmlNode: Element, originMap: NodeOriginMapType, stam
 // deterministic per document.
 let pWrapperCounter = 0;
 
+// BUG-29 (ADR-009 amendment): what a table cell treats as a block. Each is
+// parsed by traverseXmlElement exactly as in the body (<note> → quote, <dl> →
+// dt/dd paragraphs, <fig> → image node); everything else is the cell's inline
+// content. Exported: the serializer splits a DOM cell by the same rule.
+// <li>/<div> keep their pre-BUG-29 handling (opaque); <image> stays inline, as
+// DITA allows it in an entry.
+export const CELL_BLOCK_TAGS: ReadonlySet<string> = new Set(['p', 'ul', 'ol', 'li', 'note', 'dl', 'fig', 'codeblock', 'table', 'simpletable', 'section', 'div']);
+
+// What a <dd> treats as a block; everything else is the <dd>'s inline content
+// (paragraphs tagged 'dd'). 'image' is intentionally NOT here — an inline
+// <image> round-trips in place as a chip (see the case 'p' note below).
+// Exported for the same reason as CELL_BLOCK_TAGS (BUG-40).
+export const DD_BLOCK_TAGS: ReadonlySet<string> = new Set(['p', 'ul', 'ol', 'codeblock', 'note', 'table', 'simpletable', 'fig', 'section']);
+
+/**
+ * BUG-29: the content of one <entry> or <stentry>, shared by both table kinds.
+ * Loose inline content becomes paragraphs stamped `cell-inline`; a <p> becomes
+ * a paragraph stamped `p`, so the serializer can tell the two apart. A block
+ * that produces no editor node (an empty <div>) still gets an opaque node, so
+ * the two sides of the cell keep the same shape.
+ */
+const parseCellContent = (cellEl: Element, originMap: NodeOriginMapType): any[] => {
+  const nodes: any[] = [];
+  let inlineNodes: any[] = [];
+
+  const flushInline = () => {
+    if (inlineNodes.length === 0) return;
+    const p = $createParagraphNode();
+    inlineNodes.forEach(n => p.append(n));
+    originMap.set(p.getKey(), { tag: 'cell-inline', bodyIndex: -1 });
+    nodes.push(p);
+    inlineNodes = [];
+  };
+
+  Array.from(cellEl.childNodes).forEach(child => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      let text = child.textContent;
+      if (!text) return;
+      text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
+      if (text.trim()) inlineNodes.push($createTextNode(text));
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const el = child as Element;
+      const elTag = el.tagName.toLowerCase();
+      if (!CELL_BLOCK_TAGS.has(elTag)) {
+        parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
+        return;
+      }
+      flushInline();
+      // A <section> is not allowed in a cell, and its flatten carries no
+      // identity there: keep it whole rather than risk duplicating it.
+      const result = elTag === 'section' ? null : traverseXmlElement(el, originMap);
+      const blocks = Array.isArray(result) ? result : result ? [result] : [];
+      if (blocks.length === 0) {
+        nodes.push($createDitaOpaqueNode(elTag, new XMLSerializer().serializeToString(el)));
+        return;
+      }
+      if (elTag === 'p') {
+        blocks.forEach(b => {
+          if (b.getType() === 'paragraph' && !originMap.has(b.getKey())) originMap.set(b.getKey(), { tag: 'p', bodyIndex: -1 });
+        });
+      }
+      nodes.push(...blocks);
+    }
+  });
+  flushInline();
+
+  if (nodes.length === 0) {
+    const p = $createParagraphNode();
+    originMap.set(p.getKey(), { tag: 'cell-inline', bodyIndex: -1 });
+    nodes.push(p);
+  }
+  return nodes;
+};
+
 const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, bodyIndex?: number): any | any[] | null => {
   const tagName = xmlNode.tagName.toLowerCase();
   const xmlId = xmlNode.getAttribute('id') || undefined;
@@ -347,53 +421,6 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       const tgroup = xmlNode.querySelector('tgroup');
       if (!tgroup) return null;
 
-      const parseCellContent = (entryEl: Element) => {
-        const nodes: any[] = [];
-        let inlineNodes: any[] = [];
-
-        const blockTags = new Set(['p', 'ul', 'ol', 'li', 'table', 'section', 'div']);
-
-        const flushInline = () => {
-          if (inlineNodes.length > 0) {
-            const p = $createParagraphNode();
-            inlineNodes.forEach(n => p.append(n));
-            nodes.push(p);
-            inlineNodes = [];
-          }
-        };
-
-        // Process all child nodes sequentially (both text and element nodes)
-        Array.from(entryEl.childNodes).forEach(child => {
-          if (child.nodeType === Node.TEXT_NODE) {
-            let text = child.textContent;
-            if (!text) return;
-            text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
-            if (text.trim()) inlineNodes.push($createTextNode(text));
-          } else if (child.nodeType === Node.ELEMENT_NODE) {
-            const el = child as Element;
-            const elTag = el.tagName.toLowerCase();
-
-            if (blockTags.has(elTag)) {
-              // Block element: flush inline content, then add block
-              flushInline();
-              const blockResult = traverseXmlElement(el, originMap);
-              if (blockResult) {
-                if (Array.isArray(blockResult)) nodes.push(...blockResult);
-                else nodes.push(blockResult);
-              }
-            } else {
-              // Inline element: parse as text nodes
-              parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
-            }
-          }
-        });
-
-        flushInline();
-
-        // If no content was processed, create an empty paragraph
-        return nodes.length > 0 ? nodes : [$createParagraphNode()];
-      };
-
       const parseRows = (container: Element, isHeader: boolean) => {
         Array.from(container.children).forEach(child => {
           if (child.tagName.toLowerCase() !== 'row') return;
@@ -431,7 +458,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
               }
             }
 
-            parseCellContent(entry).forEach(n => cellNode.append(n));
+            parseCellContent(entry, originMap).forEach(n => cellNode.append(n));
             rowNode.append(cellNode);
           });
           // Only append the row if it has entries
@@ -453,53 +480,6 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
     case 'simpletable': {
       const tableNode = $createTableNode();
 
-      const parseCellContent = (entryEl: Element) => {
-        const nodes: any[] = [];
-        let inlineNodes: any[] = [];
-
-        const blockTags = new Set(['p', 'ul', 'ol', 'li', 'table', 'section', 'div']);
-
-        const flushInline = () => {
-          if (inlineNodes.length > 0) {
-            const p = $createParagraphNode();
-            inlineNodes.forEach(n => p.append(n));
-            nodes.push(p);
-            inlineNodes = [];
-          }
-        };
-
-        // Process all child nodes sequentially (both text and element nodes)
-        Array.from(entryEl.childNodes).forEach(child => {
-          if (child.nodeType === Node.TEXT_NODE) {
-            let text = child.textContent;
-            if (!text) return;
-            text = text.replace(/[ \t]*\n[ \t\n]*/g, ' ');
-            if (text.trim()) inlineNodes.push($createTextNode(text));
-          } else if (child.nodeType === Node.ELEMENT_NODE) {
-            const el = child as Element;
-            const elTag = el.tagName.toLowerCase();
-
-            if (blockTags.has(elTag)) {
-              // Block element: flush inline content, then add block
-              flushInline();
-              const blockResult = traverseXmlElement(el, originMap);
-              if (blockResult) {
-                if (Array.isArray(blockResult)) nodes.push(...blockResult);
-                else nodes.push(blockResult);
-              }
-            } else {
-              // Inline element: parse as text nodes
-              parseInlineElement(el, originMap).forEach(n => inlineNodes.push(n));
-            }
-          }
-        });
-
-        flushInline();
-
-        // If no content was processed, create an empty paragraph
-        return nodes.length > 0 ? nodes : [$createParagraphNode()];
-      };
-
       Array.from(xmlNode.children).forEach(child => {
         const tag = child.tagName.toLowerCase();
         if (tag !== 'sthead' && tag !== 'strow') return;
@@ -513,7 +493,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
             ? TableCellHeaderStates.ROW
             : TableCellHeaderStates.NO_STATUS;
           const cellNode = $createTableCellNode(headerState);
-          parseCellContent(entry).forEach(n => cellNode.append(n));
+          parseCellContent(entry, originMap).forEach(n => cellNode.append(n));
           rowNode.append(cellNode);
         });
         // Only append the row if it has entries
@@ -625,9 +605,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
       // Every produced node is tagged with dlEntryIndex so the serializer can
       // re-group the run and patch the preserved <dl>/<dlentry>/<dt>/<dd> skeleton.
       const results: any[] = [];
-      // 'image' is intentionally NOT a dd block tag — inline <image> is handled by
-      // parseInlineElement so it round-trips in place (see the case 'p' note above).
-      const ddBlockTags = new Set(['p', 'ul', 'ol', 'codeblock', 'note', 'table', 'simpletable', 'fig', 'section']);
+      const ddBlockTags = DD_BLOCK_TAGS;
       const dlEntries = Array.from(xmlNode.children).filter(
         c => c.tagName.toLowerCase() === 'dlentry'
       );
@@ -675,9 +653,11 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
                 arr.forEach(n => {
                   // Preserve the nested element's own identity (tag, noteType, …)
                   // and merge in dl membership so the grouper can claim it.
+                  // BUG-40: a <p> is tagged 'p', so the serializer can tell it
+                  // from the <dd>'s own loose inline content (tagged 'dd').
                   const existing = originMap.get(n.getKey());
                   originMap.set(n.getKey(), {
-                    ...(existing ?? { tag: 'dd', bodyIndex: bodyIndex ?? -1 }),
+                    ...(existing ?? { tag: elTag === 'p' ? 'p' : 'dd', bodyIndex: bodyIndex ?? -1 }),
                     dlEntryIndex: entryIndex,
                   });
                   ddNodes.push(n);

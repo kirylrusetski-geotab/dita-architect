@@ -405,6 +405,72 @@ original class's transform still runs for the same type; verified in `LexicalLis
 without an id tying the run to its source `<p>` there is no way to know which following blocks were
 inside the wrapper versus after it).
 
+**Amendment (2026-10-22, v0.10.2 — BUG-29) · Status: Accepted 2026-10-22 (Kiryl)** — `<entry>` and `<stentry>` are block
+wrappers in the BUG-25 sense (decision 4). *Context:* two copies of `parseCellContent` (one per table
+kind) model only `p, ul, ol, li, table, section, div` as cell blocks, so a `<note>`, `<dl>`, `<fig>`,
+`<codeblock>`, or `<simpletable>` in a cell is flattened into the cell's inline paragraph; a cell `<p>`
+gets no origin at all. The serializer pairs DOM `<p>` children with Lexical paragraphs **by position**,
+and `CELL_WALK_TAGS` mirrors the parser's gap on purpose (BUG-35). The corpus has 13 such cells in 4 of
+52 fixtures (`<image>`+`<p>` ×4, `<note>` ×4, `<p>`+`<dl>` ×3, `<p>`+`<note>` ×1, loose text+`<p>` ×1).
+An unedited round trip writes the image into the `<p>` and drops its text; a cell note loses its `id`
+and `<p>` on edit; edits to a cell `<dl>` or `<note>` are silently dropped (24 of 24 and 4 of 4 in the
+edit fuzz). *Decision:* (1) **One cell parser** shared by both table kinds. Its blocks are
+`p, ul, ol, note, dl, fig, codeblock, table, simpletable`, each parsed by the body's own
+`traverseXmlElement` (so `<note>` → quote, `<dl>` → `dt`/`dd` paragraphs, `<fig>` → image node), plus the
+legacy `li`/`div`, which stay opaque as before. A `<section>` in a cell is invalid DITA (0 in the corpus)
+and its flatten has no identity in a cell, so it becomes an opaque node: preserved, not editable.
+An inline `<image>` stays inline (a chip), as DITA allows it in an entry. (2) **Every cell paragraph is
+stamped:** loose inline content → `{ tag: 'cell-inline' }`, a `<p>` → `{ tag: 'p' }`; an empty cell is one
+`cell-inline` paragraph. (3) **One cell patcher** for both table kinds, modelled on `patchPWrapper`: the
+DOM children split into inline segments and block runs (consecutive blocks, with the whitespace,
+comments, and PIs between them), the Lexical children into `cell-inline` paragraphs and block runs. When
+the two patterns match, each block run is walked by `patchBodyChildren` (note ↔ quote, dl grouping,
+`<p>` wrappers, lists, codeblocks, and nested tables come for free, and blocks can be added or removed
+inside a run) in a detached holder, so a new block lands before the following inline segment instead
+of at the end of the cell; each inline segment is reconciled with the `segment` rules (ADR-010); a cell
+that is a single inline run keeps today's fallback on a bail. When the patterns differ, the cell content
+is rebuilt from Lexical, keeping the `<entry>`'s own attributes. As in the body, `<fig>` and opaque
+blocks are preserved by the walk, not rewritten. (4) **Rebuild paths emit the same shape**
+(`writeCellContent`, used by `buildRowEl`, `createTableFromLexical`, new simpletable rows, and the
+rebuild above): `cell-inline` paragraphs as loose inline content, block runs through the walk on an empty
+DOM (so a `<dl>` is re-created as a `<dl>`, not as `<p>`s), and a lone unstamped paragraph inline (today's
+rule for new tables). (5) The `dt`/`dd` and note-type classes reach cell content too, so a cell `<dl>`
+reads as a definition list. `CELL_WALK_TAGS` and the positional paragraph pairing are retired.
+*Invariants* (`tests/sync/table-cells.test.ts`, written first): **T1** each shape above, unedited, is
+byte-stable; **T2** an edit inside a cell block (note text, `dd` text, the `<p>` after an image, a
+codeblock) changes only that text; **T3** an edit to loose inline text beside a block lands in place;
+**T4** ordinary cells (one inline run; `<p>`s only; `<p>`+`<ul>`) are byte-identical edited and unedited;
+**T5** `<stentry>` behaves as `<entry>`; **T6** a paragraph or list added to a cell is serialized, in
+order, including before trailing loose text; plus BUG-35's S8, the mixed-content suite, the
+byte-stability corpus, ADR-010 R1, FR-063, and the edit fuzz with its BUG-29 allowances removed.
+*Alternatives:* (B) add the missing tags to `CELL_WALK_TAGS` and keep the positional pairing (rejected:
+the pairing *is* the image + `<p>` bug — a chip paragraph is aligned with the `<p>`); (C) a new ADR-012
+(rejected: this is decision 4's pattern applied to one more wrapper, and a new number would renumber the
+Execution Plan's ADR-012–015).
+*Implementation note (2026-10-22, v0.10.2).* (1) **`<dd>` is the same wrapper (BUG-40, found while
+building this).** A `<p>` + `<dl>` cell exposed it: `patchDlElement` walked only a `<dd>`'s element
+children, so a `<dd>` holding loose text gained a copy of that text as a new `<p>` on every serialize,
+edited or not (`<dd>a1</dd>` → `<dd>a1<p>a1</p></dd>`), in any topic since ADR-006. No body-level fixture
+had a text-only `<dd>`; the corpus's only 12 are in the BUG-29 cells. The parser also tagged a `<dd>`'s
+loose text and a `<p>` in it alike (`dd`), the same ambiguity as cells. So the patcher is generic —
+`patchMixedContent` / `writeMixedContent` over a `MixedWrapper` (the parser's block set, the inline-run
+tag, and the walk with the wrapper's options) — used for `<entry>`/`<stentry>` (`CELL_BLOCK_TAGS`,
+`cell-inline`) and `<dd>` (`DD_BLOCK_TAGS`, `dd`, `groupDl: false` + base path); a `<p>` in a `<dd>` is now
+tagged `p`, and the `dd` class follows `dlEntryIndex`. `createDlFromLexical` writes `<dd>` content the
+same way. (2) **Block runs, not single blocks, are the unit of alignment**, so adding or removing a block
+inside a run is a walk, not a rebuild; the detached holder is what keeps an added block before trailing
+loose text. (3) **Rebuild keeps non-recreatable blocks:** a figure, an opaque block, or a
+`<note conkeyref>` is written by moving its source element back, matched by content (opaque XML, image
+`href`, ref attribute), never by position. (4) **A block that parses to nothing** (an empty `<div>`)
+becomes an opaque node, so both sides keep the same shape. *Verified:* `table-cells.test.ts` 99/99 (T1–T6
+in both table kinds, plus BUG-40); full suite 69 files, 1689 passed, 4 skipped; edit fuzz on the same
+1,405 edits 132 → 73 failures and 6 → 0 bails against the BUG-36 build (0 new, 59 fixed, 3 reduced to the
+BUG-37 pattern), with the four BUG-29 allowances removed; the 73 left are BUG-26 (43) and the BUG-37
+pattern (30). Byte-stability: the BUG-29 cells in all four fixtures round-trip; what remains is
+re-attributed — `installing-the-go-anywhere` to BUG-30 alone, `altitude-notes-warehouse` to **BUG-41**
+(`patchTableElement` rewrites `<tgroup cols>` from the first row on every serialize; that source says
+`cols="1"` over two columns).
+
 ---
 
 ## ADR-010 — Inline reconciliation: patch inline content around preserved anchors
@@ -572,6 +638,13 @@ their **identity** (href + attributes) and a link whose text changed is reconcil
 so its attributes stay byte-identical; a rebuilt link never writes an empty `href`. Verified by a new
 opt-in edit fuzz over the corpus (1,405 edits: 0 new failures vs v0.10.1, 30 fixed). Residuals filed:
 BUG-37 (`<b>`/`<i>`/`<codeph>` text is still an atomic element piece), BUG-29 (cell `<dl>`/`<note>`).
+(7) **BUG-42** (found in the same release's native smoke, present since slice A): a pure insertion in a
+gap that holds **no DOM item at all** — a run Lexical cannot merge into a neighbour, such as bold text
+typed right after a `<uicontrol>`, between two anchors — had no neighbour to position against and was
+appended at the end of the element (`…</menucascade> now.<b> As</b>`). Such a gap now takes the anchors
+either side of it as its neighbours, with the same level rules; a gap that holds any item, or a `<note>`
+block boundary, is unchanged (the fuzz's 73 failures and 0 bails are line-for-line identical). Pinned by
+C9 in `inline-containers.test.ts`.
 
 ---
 

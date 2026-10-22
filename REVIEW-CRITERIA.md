@@ -31,7 +31,13 @@ content, or drifting between the two run modes.
   (FR-064), not only synthetic ones: BUG-25 and BUG-26 survived for months because no fixture had a
   pattern that most real topics contain. An inline change also keeps `tests/sync/inline-reconcile.test.ts`
   R1 (zero false rewrites over the corpus) and `tests/sync/structure-check.test.tsx` (zero false
-  FR-063 warnings) green. **Pipeline owner:** Elena (review) + Taylor (tests).
+  FR-063 warnings) green. Any change to the parser, the serializer, or the inline reconciler also runs
+  the opt-in edit fuzz (`npm run test:edit-fuzz`: a word appended to every text node of every corpus
+  fixture, 1,405 edits) with zero failures outside the causes it lists as filed — unedited
+  byte-stability cannot see a dropped edit (BUG-29 dropped 24 of 24 in one topic). The fuzz only
+  extends existing text nodes, so an edit that creates a *new* node between unchanged elements (a
+  differently formatted run, a link) needs a pinned test or the native smoke: BUG-42 passed the fuzz
+  and was caught by the v0.10.2 smoke. **Pipeline owner:** Elena (review) + Taylor (tests).
 
 ## Gate 2 — No data corruption / Heretto-safe output
 

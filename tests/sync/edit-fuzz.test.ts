@@ -15,6 +15,8 @@
 //
 // Baseline when added: 1405 edits; before the BUG-36 fix 162 failed, after it
 // 132 — every one of them in a known fixture or the BUG-37 pattern, 0 new.
+// After BUG-29 (v0.10.2): 73 failed and 0 bailed (was 6) — 43 BUG-26, 30 the
+// BUG-37 pattern; the four BUG-29 fixtures left KNOWN_FIXTURES.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, sep } from 'path';
@@ -30,10 +32,6 @@ const FIXTURES = join(__dirname, 'fixtures');
 /** Fixtures whose edits are known to fail, and the bug that owns the failure. */
 const KNOWN_FIXTURES: Record<string, string> = {
   'sampled/concept/external-support-options.dita': 'BUG-26 (adjacent lists merge on parse)',
-  'sampled/concept/installing-the-go-anywhere.dita': 'BUG-29 (image + <p> in a table cell)',
-  'sampled/topic/altitude-notes-warehouse.dita': 'BUG-29 (<note> in a table cell)',
-  'sampled/reference/platform-terms-and-definitions.dita': 'BUG-29 (<dl> in a table cell: edits dropped)',
-  'sampled/topic/altitude-api-reuse.dita': 'BUG-29 (<note> in a table cell: edits dropped)',
 };
 
 const FORMAT_TAGS = new Set(['b', 'i', 'codeph', 'strong', 'em']);
