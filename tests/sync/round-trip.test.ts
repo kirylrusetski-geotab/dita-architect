@@ -319,8 +319,12 @@ describe('round-trip: tables', () => {
     expect(output).toContain('</table>');
   });
 
-  // P2-47: parser must trust entry count, not cols attribute
-  it('table with cols="1" but 2 entries per row round-trips as 2-column table', () => {
+  // P2-47: parser must trust entry count, not cols attribute. Updated for
+  // BUG-41 (v0.10.3): rewriting @cols on every unedited open — even to
+  // "correct" a wrong source value — was itself a Gate 1 violation (a byte
+  // change nobody asked for); the fix leaves a mismatched @cols exactly as
+  // the source had it unless the editor's own column count changes.
+  it('table with cols="1" but 2 entries per row: both cells survive parsing, and the mismatched cols is left alone unedited', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
 <concept id="cols-mismatch-test">
@@ -345,8 +349,9 @@ describe('round-trip: tables', () => {
     // Both cells must survive the round-trip — parser uses entry count, not cols attr
     expect(output).toContain('Alpha');
     expect(output).toContain('Beta');
-    // Serializer must regenerate colspec from actual column count (2), not the original cols="1"
-    expect(output).toMatch(/cols="2"/);
+    // BUG-41: an unedited open must not touch @cols, even though it disagrees
+    // with the real column count.
+    expect(output).toBe(xml);
   });
 
   it('simple table', () => {

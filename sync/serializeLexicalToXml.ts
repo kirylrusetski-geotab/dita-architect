@@ -9,7 +9,12 @@ interface XmlMeta {
   rootTag: string;
   bodyTag: string;
   doctype: string;   // extracted verbatim from raw XML via regex
-  xmlDecl: string;   // extracted verbatim (<?xml ...?>)
+  // BUG-30: extracted verbatim (<?xml ...?>), or null when the source had
+  // none — there is no "emit a default" fallback; a topic the source had no
+  // declaration for keeps having none. Fresh in-app templates always start
+  // with one (constants/dita.ts), so this is null only for a source that was
+  // genuinely missing it.
+  xmlDecl: string | null;
   doc: Document;     // the parsed original DOM (for cloning)
 }
 
@@ -92,9 +97,11 @@ const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
     }
   }
 
-  // Extract xmlDecl and doctype verbatim from raw XML
+  // Extract xmlDecl and doctype verbatim from raw XML. BUG-30: no fallback
+  // when the source had none — emitting a declaration it never had is a byte
+  // change on an unedited round-trip (Gate 1).
   const xmlDeclMatch = originalXml.match(/^<\?xml[^?]*\?>/);
-  const xmlDecl = xmlDeclMatch ? xmlDeclMatch[0] : '<?xml version="1.0" encoding="UTF-8"?>';
+  const xmlDecl = xmlDeclMatch ? xmlDeclMatch[0] : null;
 
   // Match DOCTYPE including optional internal subset [...]
   const doctypeMatch = originalXml.match(/<!DOCTYPE\s[^[>]*(?:\[[^\]]*\]\s*)?\s*>/);
@@ -1093,6 +1100,31 @@ const buildRowEl = (lexRow: any, doc: Document, originMap?: NodeOriginMapType): 
  * Patch a <table> element in the DOM with Lexical table data.
  * Walks rows and entries in parallel, updating only entry text content.
  */
+// BUG-41: the column count a CALS <row>'s own <entry> children actually
+// represent, honouring namest/nameend spans — the DOM-side counterpart to
+// the Lexical column count computed from cell.getColSpan() below, so an
+// unedited round-trip can tell "nothing changed" from "a column was added
+// or removed" instead of always rewriting @cols from the editor's count.
+const domRowColCount = (row: Element): number => {
+  let count = 0;
+  for (const entry of Array.from(row.children)) {
+    if (entry.tagName.toLowerCase() !== 'entry') continue;
+    const namest = entry.getAttribute('namest');
+    const nameend = entry.getAttribute('nameend');
+    let colspan = 1;
+    if (namest && nameend) {
+      const startMatch = namest.match(/col(\d+)/);
+      const endMatch = nameend.match(/col(\d+)/);
+      if (startMatch && endMatch) {
+        const span = parseInt(endMatch[1], 10) - parseInt(startMatch[1], 10) + 1;
+        if (span > 1) colspan = span;
+      }
+    }
+    count += colspan;
+  }
+  return count;
+};
+
 const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
   const tag = domEl.tagName.toLowerCase();
 
@@ -1107,7 +1139,10 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, orig
 
   const lexicalRows = lexicalNode.getChildren ? lexicalNode.getChildren() : [];
 
-  // Recalculate @cols attribute based on actual column count (considering colspan)
+  // Recalculate @cols only when the editor's column count actually differs
+  // from what the source's own first row represents (BUG-41) — not from
+  // every serialize, which rewrote @cols even to "fix" a source value that
+  // never matched its own rows, a byte change on an unedited topic.
   if (lexicalRows.length > 0) {
     const firstRow = lexicalRows[0];
     const firstRowCells = firstRow.getChildren ? firstRow.getChildren() : [];
@@ -1118,7 +1153,9 @@ const patchTableElement = (domEl: Element, lexicalNode: any, doc: Document, orig
         return count + colspan;
       }, 0);
     }
-    if (actualColCount > 0) {
+    const firstDomRow = tgroup.querySelector('row');
+    const domColCount = firstDomRow ? domRowColCount(firstDomRow) : null;
+    if (actualColCount > 0 && domColCount !== actualColCount) {
       tgroup.setAttribute('cols', String(actualColCount));
     }
   }
@@ -1693,7 +1730,8 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
   output = output.replace(/^<\?xml[^?]*\?>\s*/, '');
   output = output.replace(/^<!DOCTYPE\s[^[>]*(?:\[[^\]]*\]\s*)?\s*>\s*/, '');
 
-  return `${xmlDecl}\n${doctype}\n${output}`;
+  // BUG-30: no declaration line at all when the source had none.
+  return xmlDecl ? `${xmlDecl}\n${doctype}\n${output}` : `${doctype}\n${output}`;
 };
 
 /**

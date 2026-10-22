@@ -163,16 +163,18 @@ const KNOWN_FAILURES: Record<string, string> = {
   // fixed in v0.10.2: both its fixtures' cells now round-trip byte-for-byte.
   // What each still differs by is filed below.)
 
-  // BUG-41 — patchTableElement rewrites <tgroup cols> from the first row's
-  // cell count on every serialize; this source says cols="1" over two
-  // columns, so an unedited round trip writes cols="2".
-  'topic/altitude-notes-warehouse.dita': 'BUG-41',
+  // (BUG-41 — patchTableElement rewrote <tgroup cols> from the first row's
+  // cell count on every serialize, even when nothing changed; this source
+  // says cols="1" over two columns, so it always flipped to cols="2" on an
+  // unedited round trip. Fixed in v0.10.3: @cols is now rewritten only when
+  // the editor's count differs from what the source's first row represents,
+  // so this fixture's own mismatch is left exactly as it was.)
 
-  // BUG-30 — the XML declaration is unconditionally added on serialize even
-  // when the source document has none.
-  'concept/installing-the-go-anywhere.dita': 'BUG-30',
-  'reference/go10-regulatory-statements.dita': 'BUG-30',
-  'topic/installation-codes.dita': 'BUG-30 (also BUG-31)',
+  // (BUG-30 — the XML declaration was unconditionally added on serialize
+  // even when the source document had none — was fixed in v0.10.3:
+  // `installing-the-go-anywhere` and `go10-regulatory-statements` left this
+  // list, byte-stable now. `installation-codes` stays below under BUG-31,
+  // which it also has.)
 
   // BUG-31 — serializing the whole cloned document through one
   // XMLSerializer.serializeToString pass re-normalizes empty-element tag
@@ -189,6 +191,7 @@ const KNOWN_FAILURES: Record<string, string> = {
   'task/viewing-the-hos-logs-report.dita': 'BUG-31',
   'troubleshooting-topic/why-cant-i-add-users.dita': 'BUG-31',
   'reference/platform-terms-and-definitions.dita': 'BUG-31',
+  'topic/installation-codes.dita': 'BUG-31',
 };
 
 describe('byte-stability: sampled real-topic corpus (FR-064)', () => {
