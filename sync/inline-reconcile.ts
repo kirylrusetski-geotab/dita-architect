@@ -79,7 +79,11 @@ interface FixedPiece { kind: 'fixed'; node: Node | null; owner: Element | null }
 type Piece = TextPiece | ElemPiece | FixedPiece;
 
 interface DTextUnit { kind: 'text'; sig: string; fmt: number; text: string; pieces: Piece[] }
-interface DAtomicUnit { kind: 'atomic'; sig: string; node: Element; owner: Element | null }
+/** `idSig` is the unit's identity for anchoring: equal to `sig` except for a
+ *  link, where it leaves out the link's content (href + attributes only), so a
+ *  link whose text changed is still matched to its source <xref> and
+ *  reconciled inside it (BUG-36/C6) instead of being replaced wholesale. */
+interface DAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: Element; owner: Element | null }
 interface DFixedUnit { kind: 'fixed'; node: Node | null; owner: Element | null }
 type DUnit = DTextUnit | DAtomicUnit | DFixedUnit;
 
@@ -91,6 +95,7 @@ const stampedSig = (tag: string, attrs: Record<string, string>, fmt: number, tex
   `s|${tag}|${sortedAttrs(attrs)}|${fmt}|${text}`;
 const linkSig = (href: string, attrs: Record<string, string> | null, childSigs: string[]) =>
   `l|${href}|${sortedAttrs(attrs)}|${childSigs.join('\u0000')}`;
+const linkIdSig = (href: string, attrs: Record<string, string> | null) => `l|${href}|${sortedAttrs(attrs)}`;
 const chipSig = (refType: string, refValue: string, text: string) => `c|${refType}|${refValue}|${text}`;
 
 /** Collapse a raw text node the way the parser does, keeping a normalized→raw offset map. */
@@ -163,14 +168,16 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
     }
     flushPending();
     if (atom.kind === 'stamped') {
-      units.push({ kind: 'atomic', sig: stampedSig(atom.tag, atom.attrs, atom.fmt, atom.text), node: atom.node, owner: atom.owner });
+      const sig = stampedSig(atom.tag, atom.attrs, atom.fmt, atom.text);
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner });
     } else if (atom.kind === 'link') {
       const inner = domUnitsFromAtoms(atom.children);
       if (inner.drift) return { units, drift: inner.drift };
       const childSigs = inner.units.filter(u => u.kind !== 'fixed').map(u => (u as DTextUnit | DAtomicUnit).sig);
-      units.push({ kind: 'atomic', sig: linkSig(atom.href, atom.attrs, childSigs), node: atom.node, owner: atom.owner });
+      units.push({ kind: 'atomic', sig: linkSig(atom.href, atom.attrs, childSigs), idSig: linkIdSig(atom.href, atom.attrs), isLink: true, node: atom.node, owner: atom.owner });
     } else {
-      units.push({ kind: 'atomic', sig: chipSig(atom.refType, atom.refValue, atom.text), node: atom.node, owner: atom.owner });
+      const sig = chipSig(atom.refType, atom.refValue, atom.text);
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner });
     }
   }
   flushPending();
@@ -210,7 +217,7 @@ const scanForMode = (domNodes: Node[], mode: ReconcileMode): Atom[] => {
 // ─── Lexical-side units ──────────────────────────────────────────────────────
 
 interface LTextUnit { kind: 'text'; sig: string; fmt: number; text: string }
-interface LAtomicUnit { kind: 'atomic'; sig: string; node: any }
+interface LAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: any }
 type LUnit = LTextUnit | LAtomicUnit;
 
 const lexFmt = (n: any): number =>
@@ -228,7 +235,8 @@ const lexUnits = (lexicalNode: any, originMap?: NodeOriginMapType): LUnit[] | nu
       const fmt = lexFmt(child);
       const origin = originMap?.get(child.getKey());
       if (origin?.inlineTag) {
-        units.push({ kind: 'atomic', sig: stampedSig(origin.inlineTag, origin.inlineAttrs ?? {}, fmt, text), node: child });
+        const sig = stampedSig(origin.inlineTag, origin.inlineAttrs ?? {}, fmt, text);
+        units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child });
         continue;
       }
       if (text === '') continue;
@@ -243,10 +251,12 @@ const lexUnits = (lexicalNode: any, originMap?: NodeOriginMapType): LUnit[] | nu
       const inner = lexUnits(child, originMap);
       if (!inner) return null;
       const origin = originMap?.get(child.getKey());
-      units.push({ kind: 'atomic', sig: linkSig(child.getURL(), origin?.inlineAttrs ?? null, inner.map(u => u.sig)), node: child });
+      const attrs = origin?.inlineAttrs ?? null;
+      units.push({ kind: 'atomic', sig: linkSig(child.getURL(), attrs, inner.map(u => u.sig)), idSig: linkIdSig(child.getURL(), attrs), isLink: true, node: child });
     } else if (type === 'ditaphref') {
       if (child.getRefType() === 'info-chip') continue; // visual-only
-      units.push({ kind: 'atomic', sig: chipSig(child.getRefType(), child.getRefValue(), child.getTextContent()), node: child });
+      const sig = chipSig(child.getRefType(), child.getRefValue(), child.getTextContent());
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child });
     } else {
       return null;
     }
@@ -292,26 +302,55 @@ const itemsEqual = (d: DItem, l: LItem): boolean => {
   return false;
 };
 
-/** The DOM node that must be removed whole if this item is in the changed run. */
-const topNodeOf = (item: DItem): Node | null => {
-  if (item.k === 'c') return item.piece.owner ?? item.piece.node;
-  if (item.k === 'a') return item.unit.owner ?? item.unit.node;
-  return item.owner ?? item.node;
+/** The DOM node an item lives in: a text node, an inline element (atomic unit
+ *  or the <b>/<i>/<codeph> of an element piece), or a fixed node (null for a
+ *  <note> block boundary). */
+const nodeOf = (item: DItem): Node | null => {
+  if (item.k === 'c') return item.piece.node;
+  if (item.k === 'a') return item.unit.node;
+  return item.node;
 };
 
-/** Atomicity groups an item belongs to: its container owner, and (for text
- *  inside a <b>/<i>/<codeph>) the element piece. Each group must be wholly
- *  inside or wholly outside the changed run. */
-const groupsOf = (item: DItem): object[] => {
-  const groups: object[] = [];
-  if (item.k === 'c') {
-    if (item.piece.kind === 'elem') groups.push(item.piece);
-    if (item.piece.owner) groups.push(item.piece.owner);
-  } else if (item.k === 'a') {
-    if (item.unit.owner) groups.push(item.unit.owner);
-  } else if (item.owner) {
-    groups.push(item.owner);
+/** Deepest node containing every node in `nodes` (Node.contains is inclusive). */
+const commonAncestor = (nodes: Node[], rootEl: Element): Node => {
+  if (nodes.length === 0) return rootEl;
+  let anc: Node | null = nodes[0];
+  while (anc && anc !== rootEl && !nodes.every(n => anc!.contains(n))) anc = anc.parentNode;
+  return anc ?? rootEl;
+};
+
+/** The ancestor of `node` (or `node` itself) that is a direct child of `level`. */
+const childOfLevel = (node: Node, level: Node): Node | null => {
+  let cur: Node | null = node;
+  while (cur && cur.parentNode !== level) cur = cur.parentNode;
+  return cur;
+};
+
+/**
+ * BUG-34/BUG-36: the splice level for a changed run is the deepest node that
+ * contains the PARENT of every middle item — for an edit inside one
+ * <uicontrol> of a <menucascade> that is the <menucascade>, for an edit inside
+ * <li><p>…</p></li> it is the <p>. Splicing there keeps the container and its
+ * unchanged children; splicing at the outermost container (the old rule)
+ * deleted them.
+ */
+const spliceLevel = (D: DItem[], i: number, ei: number, rootEl: Element): Node => {
+  const parents: Node[] = [];
+  for (let k = i; k < ei; k++) {
+    const n = nodeOf(D[k]);
+    if (n?.parentNode) parents.push(n.parentNode);
   }
+  return commonAncestor(parents, rootEl);
+};
+
+/** Elements an item must not be split across: its <b>/<i>/<codeph> element
+ *  piece, and every inline element between its node and the root. */
+const groupsOf = (item: DItem, rootEl: Element): object[] => {
+  const groups: object[] = [];
+  if (item.k === 'c' && item.piece.kind === 'elem') groups.push(item.piece);
+  const n = nodeOf(item);
+  let cur: Node | null = n?.parentNode ?? null;
+  while (cur && cur !== rootEl) { groups.push(cur); cur = cur.parentNode; }
   return groups;
 };
 
@@ -342,7 +381,7 @@ interface GapPlan {
   i: number; ei: number; j: number; ej: number;
 }
 
-const planGap = (D: DItem[], L: LItem[]): GapPlan | { bail: BailReason; detail: string } => {
+const planGap = (D: DItem[], L: LItem[], rootEl: Element): GapPlan | { bail: BailReason; detail: string } => {
   // Prefix: skip ownerless fixed items (they ride with the prefix), match pairs.
   const prefix: Array<[number, number]> = [];
   let i = 0, j = 0;
@@ -365,28 +404,54 @@ const planGap = (D: DItem[], L: LItem[]): GapPlan | { bail: BailReason; detail: 
     suffix.push([ei - 1, ej - 1]); ei--; ej--;
   }
 
-  // Owner / element-piece clamp: expand the middle until no group straddles it.
+  // A pure insertion is ambiguous wherever the inserted text ends with the
+  // character just before it ("button| twice" + "again " vs "button |twice" +
+  // " again"). Slide it left across such characters: the text is identical,
+  // but the insertion then lands in the earlier text node, so typing that
+  // continues a word stays inside that word's container (BUG-36/C4). Only
+  // plain text is crossed — never an element, a <b>/<i> piece, or a fixed point.
+  if (i === ei && j < ej) {
+    while (
+      i > 0 && j > 0 &&
+      D[i - 1].k === 'c' && (D[i - 1] as { piece: TextPiece | ElemPiece }).piece.kind === 'text' &&
+      L[ej - 1].k === 'c' &&
+      (D[i - 1] as { ch: string }).ch === (L[ej - 1] as { ch: string }).ch &&
+      (D[i - 1] as { fmt: number }).fmt === (L[ej - 1] as { fmt: number }).fmt
+    ) {
+      i--; ei--; j--; ej--;
+      prefix.pop();
+    }
+  }
+
+  // Clamp: a group (element piece or inline container element) that the
+  // middle covers only partly must be taken whole — unless it contains the
+  // entire change, in which case the splice happens inside it (BUG-34/36).
   const groupIndex = new Map<object, number[]>();
   D.forEach((item, idx) => {
-    for (const g of groupsOf(item)) {
+    for (const g of groupsOf(item, rootEl)) {
       const arr = groupIndex.get(g);
       if (arr) arr.push(idx); else groupIndex.set(g, [idx]);
     }
   });
   for (let guard = 0; guard < D.length + 2; guard++) {
     let changed = false;
-    for (const idxs of groupIndex.values()) {
-      const inside = idxs.filter(x => x >= i && x < ei).length;
-      if (inside === 0 || inside === idxs.length) continue;
-      const first = idxs[0], last = idxs[idxs.length - 1];
-      while (prefix.length && prefix[prefix.length - 1][0] >= first) prefix.pop();
-      while (suffix.length && suffix[suffix.length - 1][0] < last + 1) suffix.pop();
-      i = prefix.length ? prefix[prefix.length - 1][0] + 1 : 0;
-      j = prefix.length ? prefix[prefix.length - 1][1] + 1 : 0;
-      ei = suffix.length ? suffix[suffix.length - 1][0] : D.length;
-      ej = suffix.length ? suffix[suffix.length - 1][1] : L.length;
-      i = skipFixed(i, ei);
-      changed = true;
+    if (i < ei) {
+      const level = spliceLevel(D, i, ei, rootEl);
+      for (const [g, idxs] of groupIndex) {
+        const inside = idxs.filter(x => x >= i && x < ei).length;
+        if (inside === 0 || inside === idxs.length) continue;
+        if (g instanceof Node && g.contains(level)) continue; // the change is inside g
+        const first = idxs[0], last = idxs[idxs.length - 1];
+        while (prefix.length && prefix[prefix.length - 1][0] >= first) prefix.pop();
+        while (suffix.length && suffix[suffix.length - 1][0] < last + 1) suffix.pop();
+        i = prefix.length ? prefix[prefix.length - 1][0] + 1 : 0;
+        j = prefix.length ? prefix[prefix.length - 1][1] + 1 : 0;
+        ei = suffix.length ? suffix[suffix.length - 1][0] : D.length;
+        ej = suffix.length ? suffix[suffix.length - 1][1] : L.length;
+        i = skipFixed(i, ei);
+        changed = true;
+        break; // recompute the level after every expansion
+      }
     }
     if (!changed) break;
     if (guard === D.length + 1) return { bail: 'unsupported', detail: 'clamp did not converge' };
@@ -425,75 +490,109 @@ const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDe
 /**
  * Apply one gap's plan to the DOM. Returns false (before any mutation) when the
  * middle does not resolve to one run of siblings — the caller then bails.
+ * Splices happen at the deepest element containing the whole change
+ * (spliceLevel), never at an outer container (BUG-34/BUG-36).
  */
-const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: ReconcileDeps): boolean => {
+const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: ReconcileDeps, allNodes: Node[]): boolean => {
   const { i, ei, j, ej } = plan;
   if (i === ei && j === ej) return true;
   const newNodes = serializeLexMiddle(L, j, ej, deps);
 
   if (i === ei) {
-    // Pure insertion, after the prefix.
-    let parent: Node | null = null;
-    let ref: Node | null = null;
-    if (i > 0) {
-      const prev = D[i - 1];
-      if (prev.k === 'c' && prev.piece.kind === 'text' && !prev.piece.owner) {
+    // Pure insertion. The level is decided by the nearest real (non-fixed)
+    // neighbours: between two at different depths it is the shallower one, so
+    // text typed after a <menucascade> stays outside it; with a neighbour on
+    // one side only it is that neighbour's parent, so text typed at the end of
+    // an <li><p> stays inside the <p>.
+    let pk = i - 1; while (pk >= 0 && D[pk].k === 'f') pk--;
+    let nk = i; while (nk < D.length && D[nk].k === 'f') nk++;
+    const pReal = pk >= 0 ? nodeOf(D[pk]) : null;
+    const nReal = nk < D.length ? nodeOf(D[nk]) : null;
+    if (!pReal && !nReal) {
+      if (D.length > 0) return false; // only fixed points (a block boundary) around it
+      for (const n of newNodes) rootEl.insertBefore(n, null);
+      return true;
+    }
+    // Left-affine after text: typing that continues a word stays in that
+    // word's element (Lexical merges a container's trailing text with the
+    // text after it, so this is the only signal there is). After an atomic
+    // element (a <uicontrol>), go to the shallower level instead.
+    const level: Node =
+      pReal && nReal
+        ? (D[pk].k === 'c' ? pReal.parentNode! : commonAncestor([pReal.parentNode!, nReal.parentNode!], rootEl))
+        : (pReal ?? nReal)!.parentNode!;
+    // Position after the immediately preceding item when it sits inside the
+    // level (keeps the old placement relative to comments/PIs), else after the
+    // nearest real one; with no predecessor, before the next.
+    const prevIdx = i > 0 && nodeOf(D[i - 1]) && level.contains(nodeOf(D[i - 1])!) && nodeOf(D[i - 1]) !== level ? i - 1 : (pReal ? pk : -1);
+    let ref: Node | null;
+    if (prevIdx >= 0) {
+      const prev = D[prevIdx];
+      const pn = nodeOf(prev)!;
+      const top = childOfLevel(pn, level);
+      if (!top) return false;
+      if (prev.k === 'c' && prev.piece.kind === 'text' && top === pn) {
         const node = prev.piece.node;
         const rawEnd = prev.piece.map[prev.off + 1];
-        parent = node.parentNode;
         ref = rawEnd < node.data.length ? node.splitText(rawEnd) : node.nextSibling;
       } else {
-        const top = topNodeOf(prev);
-        if (top) { parent = top.parentNode; ref = top.nextSibling; }
+        ref = top.nextSibling;
       }
-    }
-    if (!parent && i < D.length) {
-      const next = D[i];
-      if (next.k === 'c' && next.piece.kind === 'text' && !next.piece.owner) {
+    } else {
+      const next = D[nk];
+      const nn = nodeOf(next)!;
+      const top = childOfLevel(nn, level);
+      if (!top) return false;
+      if (next.k === 'c' && next.piece.kind === 'text' && top === nn) {
         const node = next.piece.node;
         const rawStart = next.piece.map[next.off];
-        parent = node.parentNode;
         ref = rawStart > 0 ? node.splitText(rawStart) : node;
       } else {
-        const top = topNodeOf(next);
-        if (top) { parent = top.parentNode; ref = top; }
+        ref = top;
       }
     }
-    if (!parent) {
-      if (D.length > 0) return false; // a block boundary with nothing around it
-      parent = rootEl;
-      ref = null;
-    }
-    for (const n of newNodes) parent.insertBefore(n, ref);
+    for (const n of newNodes) level.insertBefore(n, ref);
     return true;
   }
 
   const first = D[i];
   const last = D[ei - 1];
-  // Before mutating: every middle item must resolve to a sibling run under one parent.
+  const level = spliceLevel(D, i, ei, rootEl);
+  // Before mutating: every middle item must resolve to a sibling run under the level.
   const tops: Node[] = [];
   for (let k = i; k < ei; k++) {
-    const t = topNodeOf(D[k]);
+    const n = nodeOf(D[k]);
+    if (!n) return false;
+    const t = childOfLevel(n, level);
     if (!t) return false;
     if (tops[tops.length - 1] !== t) tops.push(t);
   }
-  const parent = tops[0].parentNode;
-  if (!parent || tops.some(t => t.parentNode !== parent)) return false;
   for (let k = 1; k < tops.length; k++) {
     if (tops[k - 1].nextSibling !== tops[k]) return false;
   }
+  // Never remove an element that holds content outside the changed run (an
+  // anchor, or another gap's text): that is how a straddling edit used to
+  // delete a <menucascade>'s unchanged <uicontrol> (BUG-34). Bail instead.
+  const middleNodes = new Set<Node>();
+  for (let k = i; k < ei; k++) { const n = nodeOf(D[k]); if (n) middleNodes.add(n); }
+  for (const top of tops) {
+    if (top.nodeType !== Node.ELEMENT_NODE) continue;
+    for (const n of allNodes) {
+      if (n !== top && !middleNodes.has(n) && top.contains(n)) return false;
+    }
+  }
 
   // Split the end first, then the start, so start offsets stay valid when both
-  // fall in one text node.
+  // fall in one text node. Only a text node directly under the level is split.
   let endNode: Node = tops[tops.length - 1];
-  if (last.k === 'c' && last.piece.kind === 'text' && !last.piece.owner) {
+  if (last.k === 'c' && last.piece.kind === 'text' && last.piece.node.parentNode === level) {
     const node = last.piece.node;
     const rawEnd = last.piece.map[last.off + 1];
     if (rawEnd < node.data.length) node.splitText(rawEnd);
     endNode = node;
   }
   let startNode: Node = tops[0];
-  if (first.k === 'c' && first.piece.kind === 'text' && !first.piece.owner) {
+  if (first.k === 'c' && first.piece.kind === 'text' && first.piece.node.parentNode === level) {
     const node = first.piece.node;
     const rawStart = first.piece.map[first.off];
     if (rawStart > 0) {
@@ -510,8 +609,8 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
   const toRemove: Node[] = [];
   while (cur) { toRemove.push(cur); if (cur === endNode) break; cur = cur.nextSibling; }
   if (cur !== endNode) return false;
-  for (const n of toRemove) parent.removeChild(n);
-  for (const n of newNodes) parent.insertBefore(n, ref);
+  for (const n of toRemove) level.removeChild(n);
+  for (const n of newNodes) level.insertBefore(n, ref);
   return true;
 };
 
@@ -542,7 +641,8 @@ export const reconcileInline = (
   if (scanned.drift) return report({ status: 'bail', reason: 'drift', tag, detail: scanned.drift });
   const D = scanned.units;
 
-  const dSig = D.filter(u => u.kind !== 'fixed').map(u => (u as DTextUnit | DAtomicUnit).sig);
+  const dNonFixed = D.filter(u => u.kind !== 'fixed') as Array<DTextUnit | DAtomicUnit>;
+  const dSig = dNonFixed.map(u => u.sig);
   const lSig = L.map(u => u.sig);
   if (dSig.length === lSig.length && dSig.every((s, k) => s === lSig[k])) {
     return report({ status: 'untouched', tag });
@@ -551,17 +651,47 @@ export const reconcileInline = (
   // Anchors: LCS over the non-fixed D units and the L units.
   const dNonFixedIdx: number[] = [];
   D.forEach((u, k) => { if (u.kind !== 'fixed') dNonFixedIdx.push(k); });
-  const pairs = lcsPairs(dSig, lSig).map(([a, b]) => [dNonFixedIdx[a], b] as [number, number]);
+  // Anchor on identity (idSig): a link matches its source <xref> even when its
+  // text changed; such pairs are reconciled inside the <xref> below.
+  const idOf = (u: DTextUnit | DAtomicUnit | LUnit) => (u.kind === 'atomic' ? u.idSig : u.sig);
+  const pairs = lcsPairs(dNonFixed.map(idOf), L.map(idOf)).map(([a, b]) => [dNonFixedIdx[a], b] as [number, number]);
+  const linkEdits: Array<{ el: Element; lex: any }> = [];
+  for (const [dk, lk] of pairs) {
+    const du = D[dk] as DTextUnit | DAtomicUnit;
+    const lu = L[lk];
+    if (du.sig !== lu.sig && du.kind === 'atomic' && du.isLink && lu.kind === 'atomic' && lu.isLink) {
+      linkEdits.push({ el: du.node, lex: lu.node });
+    }
+  }
 
   // Gaps between consecutive anchors (D units [dFrom, dTo) ↔ L units [lFrom, lTo)).
   const gaps: Array<{ D: DItem[]; L: LItem[] }> = [];
   let dFrom = 0, lFrom = 0;
-  const pushGap = (dTo: number, lTo: number) => {
-    const dItems: DItem[] = [];
-    for (let k = dFrom; k < dTo; k++) dItems.push(...dItemsOf(D[k]));
-    const lItems: LItem[] = [];
-    for (let k = lFrom; k < lTo; k++) lItems.push(...lItemsOf(L[k]));
+  const pushOne = (dUnits: DUnit[], lUnits: LUnit[]) => {
+    const dItems = dUnits.flatMap(dItemsOf);
+    const lItems = lUnits.flatMap(lItemsOf);
     if (dItems.length || lItems.length) gaps.push({ D: dItems, L: lItems });
+  };
+  // Edits accumulate against the load-time master, so one gap often holds
+  // two independent changes (a text edit next to an edited <uicontrol>).
+  // When both sides have the same number of units, pairwise of the same kind,
+  // split into one gap per pair so each change gets its own splice level.
+  const pushGap = (dTo: number, lTo: number) => {
+    const dSlice = D.slice(dFrom, dTo);
+    const lSlice = L.slice(lFrom, lTo);
+    const dReal = dSlice.filter(u => u.kind !== 'fixed');
+    const pairable = dReal.length > 1 && dReal.length === lSlice.length && dReal.every((u, k) => u.kind === lSlice[k].kind);
+    if (!pairable) { pushOne(dSlice, lSlice); return; }
+    let start = 0;
+    let realSeen = 0;
+    for (let k = 0; k < dSlice.length; k++) {
+      if (dSlice[k].kind === 'fixed') continue;
+      const end = realSeen === dReal.length - 1 ? dSlice.length : k + 1; // trailing fixed units ride with the last pair
+      pushOne(dSlice.slice(start, end), [lSlice[realSeen]]);
+      realSeen++;
+      start = end;
+      if (end === dSlice.length) break;
+    }
   };
   for (const [dk, lk] of pairs) {
     pushGap(dk, lk);
@@ -573,13 +703,21 @@ export const reconcileInline = (
   // Plan every gap before touching the DOM, so a bail leaves the clone pristine.
   const plans: Array<{ gap: { D: DItem[]; L: LItem[] }; plan: GapPlan }> = [];
   for (const gap of gaps) {
-    const plan = planGap(gap.D, gap.L);
+    const plan = planGap(gap.D, gap.L, rootEl);
     if ('bail' in plan) return report({ status: 'bail', reason: plan.bail, tag, detail: plan.detail });
     plans.push({ gap, plan });
   }
+  // Links whose text changed but whose href/attributes did not: reconcile
+  // inside the <xref>, so its own attributes stay byte-identical (C6).
+  for (const { el, lex } of linkEdits) {
+    const r = reconcileInline(el, Array.from(el.childNodes), lex, originMap, 'trim', deps);
+    if (r === 'bail') return report({ status: 'bail', reason: 'unsupported', tag, detail: 'link content not reconcilable' });
+  }
+  const allNodes: Node[] = [];
+  for (const u of D) for (const item of dItemsOf(u)) { const n = nodeOf(item); if (n) allNodes.push(n); }
   for (const { gap, plan } of plans) {
-    if (!applyGap(rootEl, gap.D, gap.L, plan, deps)) {
-      return report({ status: 'bail', reason: 'unsupported', tag, detail: 'changed run is not one sibling run' });
+    if (!applyGap(rootEl, gap.D, gap.L, plan, deps, allNodes)) {
+      return report({ status: 'bail', reason: 'unsupported', tag, detail: 'changed run is not one sibling run, or would remove unchanged content' });
     }
   }
   const firstDiff = dSig.findIndex((sig, k) => sig !== lSig[k]);

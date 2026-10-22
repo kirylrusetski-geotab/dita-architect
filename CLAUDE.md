@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.10.1 (2026-10-21)
+**Current version:** 0.10.2 (2026-10-22)
 
 ---
 
@@ -203,7 +203,9 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus, incl. the FR-064 `sampled/` real topics), `tests/sync/inline-reconcile.test.ts` (ADR-010 R1–R6; R1 asserts zero false rewrites over the whole corpus), `tests/sync/inline-wrap.test.ts` (ADR-010 I1–I7: every wrap element × 13 contexts), `tests/inline-wrap-plugin.test.tsx` (wrap commands, shortcuts, and the Suggesting-mode block through the real component tree), `tests/sync/structure-check.test.tsx` (FR-063: zero false warnings over the corpus), `tests/xml-insert.test.ts` (FR-045 API insertion transform).
+Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus, incl. the FR-064 `sampled/` real topics), `tests/sync/inline-reconcile.test.ts` (ADR-010 R1–R6; R1 asserts zero false rewrites over the whole corpus), `tests/sync/inline-wrap.test.ts` (ADR-010 I1–I7: every wrap element × 13 contexts), `tests/inline-wrap-plugin.test.tsx` (wrap commands, shortcuts, and the Suggesting-mode block through the real component tree), `tests/sync/structure-check.test.tsx` (FR-063: zero false warnings over the corpus), `tests/sync/inline-containers.test.ts` (BUG-34/36: edits inside container inlines), `tests/xml-insert.test.ts` (FR-045 API insertion transform).
+
+**Opt-in edit fuzz:** `npm run test:edit-fuzz` (about 18 s, skipped in `npm test`) appends a word to every editable text node of every corpus fixture (1,405 edits) and fails on any lost, added, duplicated, or reordered content outside the causes it lists as already filed (`KNOWN_FIXTURES`, the BUG-37 pattern). Run it after any change to the parser, the serializer, or `sync/inline-reconcile.ts`; when a listed bug is fixed, remove its allowance.
 
 Test-harness facts that cost time once: a non-headless Lexical editor with no mounted root rebuilds its selection from the (absent) DOM at the start of every update, so multi-update tests must re-select; register history *before* parsing, as the app's `HistoryPlugin` is; and mount a `ContentEditable` in component tests or Lexical will not commit updates.
 

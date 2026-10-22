@@ -21,6 +21,31 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.2',
+    date: '2026-10-22',
+    title: 'Edits inside a menu path, a list item\'s paragraph, or a link now change only what you edited.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Editing one item of a menu path (`<menucascade>`) no longer deletes the others. Before, changing `Save` to `Save As` in "File > Save" saved just `Save As`: the `File` step and the menu path itself were gone.',
+          'Text you type inside a list item\'s paragraph stays where you typed it. Before, when the paragraph also held a link or a UI control, the typed words could be saved outside the paragraph and after its final full stop, out of order.',
+          'A paragraph inside a list item keeps its attributes when you edit a link or other element inside it. Before, the `<p>` (and attributes such as `props`) was dropped on save.',
+          'Editing the text of a link that uses a key reference (`keyref`) no longer adds an empty `href=""` to it. A link\'s own attributes now stay exactly as they were when you edit its text.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'The inline reconciler (ADR-010) now splices a changed run at the deepest element that contains it instead of at the outermost container inline, never removes an element that holds unchanged content, splits one change region into one per element when both sides line up, and reconciles inside a link whose target and attributes did not change. Fixes BUG-34 and BUG-36.',
+          'A new opt-in edit fuzz, `npm run test:edit-fuzz`, appends a word to every editable text node of every test topic (1405 edits over the real-topic corpus) and checks that no element appears or disappears and no text is lost, duplicated, or reordered. Against the previous version it found no new failures, and this release fixes 30 of the old ones. The rest belong to already-filed bugs, including BUG-29, which it showed drops edits in table cells that hold a `<dl>` or `<note>`.',
+          'Filed for the next bug sweep: BUG-37 (text added to the end of bold, italic, or code text becomes a second element), BUG-38 (links that use a key reference are flagged as having an empty `href`), and BUG-39 (text typed right after a UI control picks up its bold styling).',
+          'Suite: 67 files, 1590 tests passing, 4 skipped (including the opt-in fuzz). New: `tests/sync/inline-containers.test.ts` (invariants C1 to C8).',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.1',
     date: '2026-10-21',
     title: 'Sections keep their identity: editing, adding to, or deleting a section now changes that section and nothing else.',

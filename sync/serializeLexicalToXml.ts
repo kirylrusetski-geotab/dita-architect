@@ -181,12 +181,14 @@ const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginM
   }
   if (type === 'link') {
     const xref = doc.createElement('xref');
-    xref.setAttribute('href', child.getURL());
+    // BUG-36: an <xref keyref> has no href; the LinkNode's URL is then '' and
+    // writing it would invent href="" on every rewrite.
+    const href = child.getURL();
+    if (href) xref.setAttribute('href', href);
     const linkOrigin = originMap?.get(child.getKey());
     if (linkOrigin?.inlineAttrs) {
       Object.entries(linkOrigin.inlineAttrs).forEach(([k, v]) => xref.setAttribute(k, v));
-    } else {
-      const href = child.getURL();
+    } else if (href) {
       xref.setAttribute('format', href.startsWith('http://') || href.startsWith('https://') ? 'html' : 'dita');
     }
     serializeInlineContent(child, doc, originMap).forEach(n => xref.appendChild(n));

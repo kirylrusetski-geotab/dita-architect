@@ -553,6 +553,26 @@ not change, which is the shape a dropped wrap has. Known v1 limit beyond the ADR
 `<filepath>`, and refless `<ph>` render unstyled, so their wraps are invisible in the visual editor
 (FR-068).
 
+**Amendment (2026-10-22, v0.10.2 — BUG-34 + BUG-36)** — Decision 4 said element runs are atomic and a
+container inline's units are clamped together, which the build implemented by splicing at the
+**outermost container**. That was wrong in three ways, all content loss on ordinary edits: replacing one
+`<uicontrol>` in a `<menucascade>` removed the whole cascade, including its *other* `<uicontrol>`, which
+was an unchanged anchor outside the gap (BUG-34); text inserted inside an `<li><p>` that held an element
+was placed after the `<p>` (words reordered); and the `<p>`'s attributes were lost (BUG-36). Corrected:
+(1) **splice level** is the deepest node containing the parent of every changed item, so a change inside
+one element of a container is spliced inside the container; (2) the clamp uses real DOM ancestry — a
+partly covered element is taken whole *unless it contains the whole change*; (3) **never remove an element
+that holds a node outside the changed run** (anchors or another gap's content) — bail instead;
+(4) **gaps split per unit** when both sides have the same number of units of matching kinds, because
+cumulative edits against the load-time master often put two independent changes in one gap;
+(5) **insertions** go to the shallower level between two neighbours at different depths, except after
+text, where they stay with the text (left-affine), and a pure insertion **slides left** across characters
+equal to its last one so typing that continues a word stays in that word's element; (6) links anchor on
+their **identity** (href + attributes) and a link whose text changed is reconciled *inside* its `<xref>`,
+so its attributes stay byte-identical; a rebuilt link never writes an empty `href`. Verified by a new
+opt-in edit fuzz over the corpus (1,405 edits: 0 new failures vs v0.10.1, 30 fixed). Residuals filed:
+BUG-37 (`<b>`/`<i>`/`<codeph>` text is still an atomic element piece), BUG-29 (cell `<dl>`/`<note>`).
+
 ---
 
 ## ADR-011 — Sections are identity-carrying containers, matched by ordinal
