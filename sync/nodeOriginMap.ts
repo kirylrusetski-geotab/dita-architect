@@ -35,6 +35,12 @@ export interface NodeOrigin {
   // serializer patches the wrapper in place instead of splitting it into
   // <p>text</p><ul/> and dropping its attributes (BUG-25). Unique per parse.
   pWrapperId?: number;
+  // BUG-43: true for a stamped leaf inline token (inlineTag set) whose owner
+  // (inline-units.ts scanner) is a <menucascade> — one step of a menu path.
+  // Visual-only: drives a CSS adjacent-sibling separator between two such
+  // steps (CascadeSeparatorPlugin), never document text, so it cannot reach
+  // the XML or the reconciler.
+  cascadeStep?: boolean;
 }
 
 // Factory to create a per-editor-instance map.

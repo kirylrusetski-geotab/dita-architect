@@ -265,11 +265,18 @@ export const atomsToLexical = (atoms: Atom[], originMap?: NodeOriginMapType): an
         n.setMode('token');
         if (atom.fmt & FMT_BOLD) n.toggleFormat('bold');
         else if (atom.fmt & FMT_ITALIC) n.toggleFormat('italic');
+        // BUG-43: mark a step of a <menucascade> so the editor can draw a
+        // visual-only separator between consecutive steps.
+        const cascadeStep = atom.owner?.tagName.toLowerCase() === 'menucascade';
         originMap?.set(
           n.getKey(),
-          Object.keys(atom.attrs).length > 0
-            ? { tag: atom.tag, bodyIndex: -1, inlineTag: atom.tag, inlineAttrs: atom.attrs }
-            : { tag: atom.tag, bodyIndex: -1, inlineTag: atom.tag }
+          {
+            tag: atom.tag,
+            bodyIndex: -1,
+            inlineTag: atom.tag,
+            ...(Object.keys(atom.attrs).length > 0 ? { inlineAttrs: atom.attrs } : null),
+            ...(cascadeStep ? { cascadeStep: true } : null),
+          },
         );
         nodes.push(n);
         break;

@@ -852,6 +852,16 @@ body {
   color: var(--editor-text);
 }
 
+/* BUG-43: a <menucascade>'s steps ("File", "Save") render with no separator
+   between them. Each step's DOM element gets this class (CascadeSeparatorPlugin);
+   the adjacent-sibling rule below then draws one between any two such steps
+   that are themselves adjacent siblings — never before the first step in a
+   run, with no author-facing attribute or text involved. */
+.dita-editor-cascade-step + .dita-editor-cascade-step::before {
+  content: ' \203A ';
+  color: var(--app-text-muted);
+}
+
 /* Read-only <info> preview nested under a step (P2-26 Phase 2). Indented with a
    subtle left bar and muted surface so it reads as supplementary, non-editable
    content. Editing <info> stays in the XML pane. */

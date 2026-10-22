@@ -27,6 +27,7 @@ import { ShortdescPlugin } from './components/ShortdescPlugin';
 import { InsertElementPlugin } from './components/InsertElementPlugin';
 import { InlineWrapPlugin } from './components/InlineWrapPlugin';
 import { TokenFormatResetPlugin } from './components/TokenFormatResetPlugin';
+import { CascadeSeparatorPlugin } from './components/CascadeSeparatorPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
@@ -1172,6 +1173,7 @@ export default function ProfessionalDitaEditor() {
                     <InsertElementPlugin suggesting={tab.documentMode === 'suggesting'} />
                     <InlineWrapPlugin />
                     <TokenFormatResetPlugin />
+                    <CascadeSeparatorPlugin />
                     <XrefValidationPlugin />
                     <HerettoImageResolverPlugin
                       herettoFile={tab.herettoFile}
