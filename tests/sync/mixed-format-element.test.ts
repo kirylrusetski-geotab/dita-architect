@@ -254,8 +254,7 @@ describe('BUG-44 — an edit inside the element changes only that text, keeping 
   it('the inline-elements fixture: appending to the nested <i>', () => {
     const xml = readFileSync(join(__dirname, 'fixtures/inline-elements.dita'), 'utf-8');
     const { out } = replaceText(xml, 'italic inside', 'italic inside ZQX');
-    // Trailing whitespace at EOF is byte-stability's one declared normalization.
-    expect(out.trimEnd()).toBe(xml.replace('italic inside', 'italic inside ZQX').trimEnd());
+    expect(out).toBe(xml.replace('italic inside', 'italic inside ZQX'));
   });
 });
 

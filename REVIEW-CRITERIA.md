@@ -21,7 +21,10 @@ content, or drifting between the two run modes.
 **Content survives the parse → edit → serialize round-trip without loss or drift.**
 
 - `parseXmlToLexical` → `serializeLexicalToXml` is byte-stable for unedited content: opening a topic
-  and saving it back without edits must not change the XML.
+  and saving it back without edits must not change the XML — byte for byte, with no declared
+  normalization (ADR-012: the serializer's last pass restores the source's spelling of every unchanged
+  token, including the whitespace after the root element). After an edit, markup the edit did not
+  change keeps its source spelling too.
 - Inline elements (`ph`, `uicontrol`, `xref`, `term`, `codeph`, conkeyref/keyref chips) and block
   elements survive editing — no silent dropping of siblings on block-split, no flattening.
 - This is the **top acceptance criterion** — WYSIWYG/DITA parity outranks every other consideration.

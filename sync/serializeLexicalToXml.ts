@@ -4,6 +4,7 @@ import type { NodeOriginMapType } from './nodeOriginMap';
 import { reconcileInline, type ReconcileDeps, type ReconcileMode } from './inline-reconcile';
 import { NOTE_BLOCK_TAGS, FMT_BOLD as RUN_BOLD, FMT_ITALIC as RUN_ITALIC, FMT_CODE as RUN_CODE } from './inline-units';
 import { BLOCK_CHILD_TAGS, CELL_BLOCK_TAGS, DD_BLOCK_TAGS } from './parseXmlToLexical';
+import { restoreSourceSpelling } from './source-spelling';
 
 interface XmlMeta {
   rootTag: string;
@@ -1719,7 +1720,10 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
   output = output.replace(/^<!DOCTYPE\s[^[>]*(?:\[[^\]]*\]\s*)?\s*>\s*/, '');
 
   // BUG-30: no declaration line at all when the source had none.
-  return xmlDecl ? `${xmlDecl}\n${doctype}\n${output}` : `${doctype}\n${output}`;
+  const serialized = xmlDecl ? `${xmlDecl}\n${doctype}\n${output}` : `${doctype}\n${output}`;
+  // ADR-012 (BUG-31): XMLSerializer re-spelled the whole document; put the
+  // source's spelling back wherever the markup is unchanged.
+  return restoreSourceSpelling(serialized, originalXml);
 };
 
 /**

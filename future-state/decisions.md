@@ -777,3 +777,105 @@ order-based `patchSection` / `patchSectionFromHeading` were removed: every sourc
 group, and a legacy h2 group is always new. Native smoke: untitled section kept `id`/`outputclass`,
 Enter inside a titled section stayed inside, a cell list grew in place, a conref section survived, and
 a titled section deleted heading-and-all was removed while its neighbours stayed byte-identical.
+
+---
+
+## ADR-012 — The serializer re-spells unchanged markup from the source
+
+**Date:** 2026-10-27 · **Status:** Accepted 2026-10-27 (Kiryl); **implemented in v0.10.4** (BUG-31). Took the
+next free number, as ADR-011 did: the Execution Plan's ADRs for Sessions 4–7 are now ADR-013–016.
+
+**Context** — `serializeLexicalToXml` patches a clone of the load-time DOM and then writes the **whole**
+document with one `XMLSerializer.serializeToString` pass. The DOM keeps the document's meaning but not
+its spelling, so the serializer imposes its own spelling everywhere, including regions no edit touched.
+Probed 2026-10-27 over the 8 sampled real topics that `byte-stability.test.ts` lists for BUG-31 (a
+token-level diff of each unedited round trip, throwaway): exactly two kinds of drift, nothing else.
+
+- **Empty elements**: `<keyword class="- topic/keyword "></keyword>` and `<prodname …></prodname>` in
+  `<prolog><metadata>` come back as `<x/>` (7 topics, 1–5 places each). The parser never reads the
+  prolog; nothing changed there but the bytes.
+- **Character references**: `&#160;` in body text comes back as the literal character
+  (`reference/platform-terms-and-definitions.dita`, one place, in a paragraph that was not edited).
+
+The same mechanism also re-spells attribute quoting and spacing (`class='x'`, `<p  a="1" >`), CRLF
+line ends, and `&gt;` / `>` choice — none in the corpus today, but common in hand-edited XML. Gate 1
+("byte-stable for unedited content") is unreachable for any such topic while the final pass is a
+whole-document serialize. No information is lost, so this was never Blocking-now; but every save of
+an untouched topic shows the author (and Heretto's history) changes they did not make.
+
+The original fix direction (BACKLOG) was to leave untouched regions as literal source substrings, as
+FR-045's `lib/xml-insert.ts` string splice does. Tracking "untouched" through the patch functions would
+mean every patch path reporting the DOM ranges it changed, with source offsets the DOM does not have
+(`DOMParser` records none), and a missed report would duplicate or drop source text.
+
+**Decision** — Keep the patch pipeline and the whole-document serialize exactly as they are, and add one
+last pass, `restoreSourceSpelling(output, source)` in a new `sync/source-spelling.ts`, that puts the
+source's spelling back wherever the markup is unchanged:
+
+1. **Tokenize** both strings into markup tokens: start/empty tag, end tag, text run, comment, PI, CDATA,
+   DOCTYPE. A tokenizer failure on either side (malformed markup the regexes do not model) returns the
+   output unchanged.
+2. **Canonicalize** each token to what it *means*: a tag is its name plus its attributes in order, with
+   decoded, normalized values (order is kept because XMLSerializer keeps it, so a reordered tag is a
+   real change to the output and keeps the serializer's spelling); `<x/>` is the two canonical
+   tokens of `<x></x>`; a text run is its decoded text with CRLF folded to LF; a comment/PI/CDATA/DOCTYPE
+   is its raw text with CRLF folded.
+3. **Align** the two canonical streams: common prefix and suffix first (an unedited topic is one linear
+   prefix match), Myers' O(ND) diff on the middle, with a cap on D past which the middle keeps the
+   output's spelling.
+4. **Emit**, walking the output's tokens: a run of output tokens whose canonical tokens align to a
+   consecutive run of source canonical tokens covering **whole** source tokens is written as that exact
+   source substring; anything else is written as the serializer wrote it. A source `<x/>` that gained
+   content therefore cannot be emitted for the output's `<x>` (it covers only half of the source token),
+   so new content is never written after a self-closed tag.
+5. **End of file**: when the output ends on the source's last markup token, the source's trailing
+   whitespace is appended (the DOM keeps no text after the root element). This removes byte-stability's
+   one declared normalization.
+
+The safety property is structural: anything emitted from the source is canonically equal to the output
+token(s) it replaces, so the pass can change spelling, never content. A test seam
+(`setSourceSpellingObserver`, the `setReconcileObserver` pattern) hands tests both strings.
+
+**Invariants** (each a test, written before code)
+
+- **B1** Every corpus fixture round-trips byte-identical unedited, including the 8 BUG-31 fixtures;
+  `KNOWN_FAILURES` is empty and the EOF-whitespace normalization is removed from `byte-stability.test.ts`.
+- **B2** The pass never changes the document: for every edit-fuzz edit, the output before and after
+  the pass parse to the same tree (compared through `XMLSerializer`).
+- **B3** After an edit elsewhere, untouched markup keeps its source spelling: a prolog `<keyword></keyword>`,
+  an `&#160;` in another paragraph, an `&#160;` in an unedited text run of the edited paragraph, and the
+  edited paragraph's own start tag (`<p  class='x' >`).
+- **B4** An edited text run is written in the serializer's spelling (its `&#160;` becomes the
+  character) — the documented limit, since a changed run has no source token to borrow from.
+- **B5** Content added to a source-self-closed element is written as `<x>…</x>`, never `<x/>…`.
+- **B6** Malformed or unmodelled input on either side leaves the serializer's output unchanged.
+
+**Consequences** — Gate 1 becomes exact: unedited means byte-identical, with no declared normalization.
+Edits show in a diff as only what changed, in Heretto's history too. The patch functions are unchanged,
+so this cannot reintroduce any of the walk bugs ADR-006/009/010/011 fixed. Costs: a tokenize + canonicalize
+of the output on every serialize (the source side is cached with the parsed DOM in `XmlMetaCache`), and
+a diff whose cost grows with how much of the document differs from the load-time master (edits
+accumulate against it). Limits: a changed text run, or a tag whose attributes changed, takes the
+serializer's spelling; entities other than the five XML ones and numeric references are not decoded, so
+a source using them keeps the serializer's spelling for that token (the parser would reject such a
+document without its DTD in any case).
+
+**Alternatives considered** — **(A)** Splice source substrings for untouched DOM subtrees (the BACKLOG
+direction): needs source offsets per DOM node, which `DOMParser` does not provide, so it means a second,
+offset-tracking XML parser kept in sync with the browser's — and every patch path reporting what it
+touched. Rejected: far larger, and a missed report corrupts content instead of spelling. **(B)** A custom
+XML serializer that remembers source spelling per node: same offset problem. **(C)** Targeted
+post-processing (`<x/>` → `<x></x>` when the source did that; re-encode U+00A0 as `&#160;`): has to guess
+per token and is wrong whenever source spelling is mixed (some `<x/>`, some `<x></x>`). Rejected: an
+alignment against the source answers per token, so it never guesses.
+
+**Implementation note (2026-10-27, v0.10.4)** — Built as decided; three refinements the tests forced.
+(1) **Attributes stay in source order** in the canonical form (the draft sorted them): XMLSerializer keeps
+order, so a sorted form made a reordered tag look unchanged and the B2 tree check (order-sensitive)
+caught it. (2) **An alignment pair is used only when its two canonical entries are equal**, so the safety
+property holds even against a bug in the diff. (3) **The diff keeps only the window of diagonals each
+step reads** (O(D²) memory, not O(D·(N+M))). Measured: the pass ran on all 1,407 edit-fuzz edits and
+re-spelled the output of 608, with the same tree every time (B2); a seeded randomized test (200
+deletions, insertions, and content changes over mixed spellings) gets every byte outside the change from
+the source; under 1 ms per pass on the largest real fixture (25.6 KB), about 3 ms on a 200 KB document,
+8.9 ms with 620 of its 1,240 paragraphs edited (jsdom).

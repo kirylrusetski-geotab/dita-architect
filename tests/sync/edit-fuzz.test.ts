@@ -22,6 +22,9 @@
 // one left was BUG-44 (a <b> with a nested <i>, inline-elements.dita).
 // After BUG-44 (v0.10.4): 1407 edits (a <b>'s nested <i> is its own text
 // node now), 0 failed, 0 bailed; KNOWN_FIXTURES is empty.
+// BUG-31 (ADR-012 B2): every edit also checks that the source-spelling pass
+// left the document tree unchanged; at v0.10.4 the pass ran on all 1407 edits
+// and re-spelled the output of 608, every one with the same tree.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, sep } from 'path';
@@ -31,6 +34,11 @@ import { parseXmlToLexical } from '../../sync/parseXmlToLexical';
 import { serializeLexicalToXml, createXmlMetaCache } from '../../sync/serializeLexicalToXml';
 import { createNodeOriginMap } from '../../sync/nodeOriginMap';
 import { setReconcileObserver } from '../../sync/inline-reconcile';
+import { setSourceSpellingObserver } from '../../sync/source-spelling';
+
+/** The tree as XMLSerializer sees it: equal strings mean the same document. */
+const tree = (xml: string): string =>
+  new XMLSerializer().serializeToString(new DOMParser().parseFromString(xml, 'text/xml'));
 
 const FIXTURES = join(__dirname, 'fixtures');
 
@@ -88,8 +96,13 @@ describe.skipIf(!process.env.EDIT_FUZZ)('edit fuzz — append a word to every te
 
         const bails: string[] = [];
         setReconcileObserver(r => { if (r.status === 'bail') bails.push(`${r.tag}: ${r.reason} ${r.detail ?? ''}`); });
+        // ADR-012 B2: the source-spelling pass may change spelling, never the document.
+        let respelled = true;
+        setSourceSpellingObserver((before, after) => { respelled = tree(before) === tree(after); });
         const out = serializeLexicalToXml(editor.getEditorState(), xml, originMap, createXmlMetaCache());
         setReconcileObserver(null);
+        setSourceSpellingObserver(null);
+        if (!respelled) bails.push('source-spelling pass changed the document tree');
         edits++;
 
         const before = tagCounts(xml);

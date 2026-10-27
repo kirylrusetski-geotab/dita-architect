@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 //
 // FR-047 — Gate 1 enforcement: parse → serialize with ZERO edits must return
-// the input byte-for-byte (modulo the single declared normalization below).
-// `toContain` assertions elsewhere cannot catch attribute rewrites, dropped
-// wrappers, or deleted elements; this suite can.
+// the input byte-for-byte. `toContain` assertions elsewhere cannot catch
+// attribute rewrites, dropped wrappers, or deleted elements; this suite can.
+// (Until BUG-31 / ADR-012 the suite ignored trailing whitespace at EOF — the
+// DOM keeps no text after the root element. The serializer now restores it,
+// so there is no declared normalization left.)
 //
 // Known-broken fixtures are marked `it.fails` with their BUG-04 S-ID: the
 // suite stays green today, and the moment a fix lands the corresponding
@@ -16,18 +18,13 @@ import { roundTrip } from '../helpers/createTestEditor';
 const FIXTURES_DIR = join(__dirname, 'fixtures');
 const SAMPLED_DIR = join(FIXTURES_DIR, 'sampled');
 
-/** The one declared normalization: ignore trailing whitespace at EOF. */
-function normalize(xml: string): string {
-  return xml.replace(/\s+$/, '');
-}
-
 function fixture(name: string): string {
   return readFileSync(join(FIXTURES_DIR, name), 'utf-8');
 }
 
 function expectByteStable(name: string) {
   const xml = fixture(name);
-  expect(normalize(roundTrip(xml))).toBe(normalize(xml));
+  expect(roundTrip(xml)).toBe(xml);
 }
 
 describe('byte-stability: unedited round-trips over the fixture corpus', () => {
@@ -177,22 +174,13 @@ const KNOWN_FAILURES: Record<string, string> = {
   // list, byte-stable now. `installation-codes` stays below under BUG-31,
   // which it also has.)
 
-  // BUG-31 — serializing the whole cloned document through one
-  // XMLSerializer.serializeToString pass re-normalizes empty-element tag
-  // syntax (<x></x> -> <x/>) and character-entity choice (&#160; -> the
-  // literal character) everywhere, including regions the edit never touched
-  // (prolog/metadata). No information is lost — this is syntax-only drift —
-  // but it means Gate 1's byte-stability is not actually achievable for any
-  // topic with such a construct until the serializer stops doing a whole-
-  // document pass.
-  'concept/auxiliary-rules.dita': 'BUG-31',
-  'concept/hos-status-page.dita': 'BUG-31',
-  'reference/driver-safety-scorecard-defaults.dita': 'BUG-31',
-  'reference/querytype-getopenendedorigindestinationmatrix.dita': 'BUG-31',
-  'task/viewing-the-hos-logs-report.dita': 'BUG-31',
-  'troubleshooting-topic/why-cant-i-add-users.dita': 'BUG-31',
-  'reference/platform-terms-and-definitions.dita': 'BUG-31',
-  'topic/installation-codes.dita': 'BUG-31',
+  // (BUG-31 — the whole-document XMLSerializer pass re-spelled markup no
+  // edit touched: <x></x> -> <x/> in prolog metadata, &#160; -> the literal
+  // character — was fixed in v0.10.4 by ADR-012's source-spelling pass. Its
+  // eight fixtures left this list, byte-identical now: auxiliary-rules,
+  // hos-status-page, driver-safety-scorecard-defaults,
+  // querytype-getopenendedorigindestinationmatrix, viewing-the-hos-logs-report,
+  // why-cant-i-add-users, platform-terms-and-definitions, installation-codes.)
 };
 
 describe('byte-stability: sampled real-topic corpus (FR-064)', () => {
