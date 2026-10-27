@@ -1252,12 +1252,15 @@ export default function ProfessionalDitaEditor() {
                       }}
                       onChangeCountChanged={(tabId, count) => updateTab(tabId, { trackedChangeCount: count })}
                     />
+                    {/* Inside SyncManager so it can read an xref's scope/format (ADR-013 decision 8). */}
+                    <InlineValidationPlugin
+                      xmlContent={tab.xmlContent}
+                      validationTrigger={tab.validationTrigger}
+                      onValidationResults={(errors) => updateTab(tab.id, { inlineValidationErrors: errors })}
+                      herettoFolderUuid={tab.herettoFile?.parentFolderUuid ?? null}
+                      herettoFileUuid={tab.herettoFile?.uuid ?? null}
+                    />
                   </SyncManager>
-                  <InlineValidationPlugin
-                    xmlContent={tab.xmlContent}
-                    validationTrigger={tab.validationTrigger}
-                    onValidationResults={(errors) => updateTab(tab.id, { inlineValidationErrors: errors })}
-                  />
                   <TableColumnSizer />
                   <TableActionMenuPlugin />
                 </div>

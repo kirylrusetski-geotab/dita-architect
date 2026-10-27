@@ -31,7 +31,7 @@ const listingCache = new TtlCache<string, HerettoFolderListing>(5 * 60_000, 500)
 // share the request in flight instead of fetching one folder once per reference.
 const inFlight = new Map<string, Promise<HerettoFolderListing | null>>();
 
-export const clearHerettoPathCache = (): void => { listingCache.clear(); inFlight.clear(); };
+export const clearHerettoPathCache = (): void => { listingCache.clear(); inFlight.clear(); resourceFolderCache.clear(); };
 
 /** A folder's listing and parent, fetched once per cache lifetime. Null on any failure. */
 export const fetchFolderListing = (uuid: string): Promise<HerettoFolderListing | null> => {
@@ -66,6 +66,75 @@ const requestFolderListing = async (uuid: string): Promise<HerettoFolderListing 
   }
 };
 
+// A file's folder never changes for a given UUID, so successes are kept.
+const resourceFolderCache = new TtlCache<string, string>(30 * 60_000, 500);
+
+/**
+ * The folder a Heretto file lives in, from its metadata (`folder-uuid`), or
+ * null on any failure. For tabs that know only the file's UUID (an API load,
+ * a Replace), so relative hrefs can still be resolved.
+ */
+export const fetchResourceFolder = async (fileUuid: string): Promise<string | null> => {
+  const cached = resourceFolderCache.get(fileUuid);
+  if (cached) return cached;
+  try {
+    const res = await fetch(`/heretto-api/all-files/${fileUuid}`);
+    if (!res.ok) return null;
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/xml');
+    const folder = doc.querySelector('parsererror') ? null : doc.documentElement.getAttribute('folder-uuid');
+    if (folder) resourceFolderCache.set(fileUuid, folder);
+    return folder || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Resolve `href` from `folderUuid`, saying *why* when it does not resolve:
+ * `missing` means Heretto answered and the path is not there (a broken link);
+ * `error` means a listing could not be fetched (nothing is known — a
+ * validator must not call that broken, ADR-013 decision 8).
+ */
+export type HerettoPathResult =
+  | { status: 'found'; target: HerettoPathTarget }
+  | { status: 'missing' }
+  | { status: 'error' };
+
+export const resolveHerettoPathResult = async (href: string, folderUuid: string): Promise<HerettoPathResult> => {
+  const path = href.split('#')[0];
+  if (!path || path.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(path)) return { status: 'missing' };
+
+  let segments: string[];
+  try {
+    segments = path.split('/').filter(s => s && s !== '.').map(decodeURIComponent);
+  } catch {
+    return { status: 'missing' }; // malformed percent-encoding
+  }
+  if (segments.length === 0) return { status: 'missing' };
+
+  let current = folderUuid;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const segment = segments[i];
+    const listing = await fetchFolderListing(current);
+    if (!listing) return { status: 'error' };
+    if (segment === '..') {
+      if (!listing.parentUuid) return { status: 'missing' };
+      current = listing.parentUuid;
+      continue;
+    }
+    const folder = listing.items.find(item => item.type === 'folder' && item.name === segment);
+    if (!folder) return { status: 'missing' };
+    current = folder.uuid;
+  }
+
+  const fileName = segments[segments.length - 1];
+  if (fileName === '..') return { status: 'missing' };
+  const listing = await fetchFolderListing(current);
+  if (!listing) return { status: 'error' };
+  const file = listing.items.find(item => item.type === 'file' && item.name === fileName);
+  return file ? { status: 'found', target: { uuid: file.uuid, name: file.name, folderUuid: current } } : { status: 'missing' };
+};
+
 /**
  * Resolve `href` (relative, as DITA writes it) from the folder `folderUuid`.
  * The fragment is ignored. Returns null for anything that does not resolve to
@@ -73,35 +142,6 @@ const requestFolderListing = async (uuid: string): Promise<HerettoFolderListing 
  * URL, or a failed fetch along the way.
  */
 export const resolveHerettoPath = async (href: string, folderUuid: string): Promise<HerettoPathTarget | null> => {
-  const path = href.split('#')[0];
-  if (!path || path.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(path)) return null;
-
-  let segments: string[];
-  try {
-    segments = path.split('/').filter(s => s && s !== '.').map(decodeURIComponent);
-  } catch {
-    return null; // malformed percent-encoding
-  }
-  if (segments.length === 0) return null;
-
-  let current = folderUuid;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const segment = segments[i];
-    const listing = await fetchFolderListing(current);
-    if (!listing) return null;
-    if (segment === '..') {
-      if (!listing.parentUuid) return null;
-      current = listing.parentUuid;
-      continue;
-    }
-    const folder = listing.items.find(item => item.type === 'folder' && item.name === segment);
-    if (!folder) return null;
-    current = folder.uuid;
-  }
-
-  const fileName = segments[segments.length - 1];
-  if (fileName === '..') return null;
-  const listing = await fetchFolderListing(current);
-  const file = listing?.items.find(item => item.type === 'file' && item.name === fileName);
-  return file ? { uuid: file.uuid, name: file.name, folderUuid: current } : null;
+  const result = await resolveHerettoPathResult(href, folderUuid);
+  return result.status === 'found' ? result.target : null;
 };

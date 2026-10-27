@@ -12,45 +12,14 @@ import { join } from 'path';
 import { resolveHerettoPath, clearHerettoPathCache } from '../lib/heretto-path';
 import { loadKeyRegistry, MapLoadError, MAX_MAP_LEVELS, MAX_MAPS } from '../lib/heretto-map-loader';
 import { herettoFolderCache } from '../constants/heretto';
+import { serveHeretto, herettoRequests, type FakeFile, type FakeTenant } from './helpers/fakeHeretto';
 
 const MAPS = join(__dirname, 'fixtures', 'maps');
 const realMap = (name: string) => readFileSync(join(MAPS, name), 'utf-8');
 
-interface FakeFolder { name: string; parent: string | null }
-interface FakeFile { name: string; folder: string; content: string }
-interface FakeTenant { folders: Record<string, FakeFolder>; files: Record<string, FakeFile> }
-
-let requests: string[] = [];
-
-/** Install a fetch stub serving `t`. `fail` maps a URL path to a forced outcome. */
-function serve(t: FakeTenant, fail: Record<string, 'network' | number> = {}) {
-  requests = [];
-  vi.stubGlobal('fetch', vi.fn(async (input: string) => {
-    const url = String(input);
-    requests.push(url);
-    const forced = fail[url];
-    if (forced === 'network') throw new TypeError('Failed to fetch');
-    if (typeof forced === 'number') return new Response('nope', { status: forced });
-    const m = url.match(/^\/heretto-api\/all-files\/([^/]+)(\/content)?$/);
-    if (!m) return new Response('not found', { status: 404 });
-    const [, uuid, content] = m;
-    const folder = t.folders[uuid];
-    if (folder && !content) {
-      const kids = [
-        ...Object.entries(t.folders).filter(([, f]) => f.parent === uuid).map(([id, f]) => `<folder name="${f.name}" id="${id}"/>`),
-        ...Object.entries(t.files).filter(([, f]) => f.folder === uuid).map(([id, f]) => `<resource name="${f.name}" type="Map" id="${id}" mime-type="application/xml" xmldb-type="XMLResource" />`),
-      ].join('');
-      const parentAttr = folder.parent ? ` parent-folder-id="${folder.parent}"` : '';
-      return new Response(`<?xml version="1.0" ?><folder id="${uuid}"${parentAttr}><name>${folder.name}</name><children>${kids}</children></folder>`, { status: 200, headers: { 'content-type': 'application/xml' } });
-    }
-    const file = t.files[uuid];
-    if (file && !content) {
-      return new Response(`<?xml version="1.0" ?><resource id="${uuid}" folder-uuid="${file.folder}"><name>${file.name}</name><mime-type>application/xml</mime-type></resource>`, { status: 200, headers: { 'content-type': 'application/xml' } });
-    }
-    if (file && content) return new Response(file.content, { status: 200, headers: { 'content-type': 'application/xml' } });
-    return new Response('not found', { status: 404 });
-  }));
-}
+// The fake tenant is shared with the cross-file xref tests.
+const serve = serveHeretto;
+const requests = herettoRequests;
 
 const MAP = (inner: string, title = 'M') =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">\n<map id="m" class="- map/map "><title class="- topic/title ">${title}</title>${inner}</map>`;

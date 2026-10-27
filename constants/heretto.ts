@@ -46,6 +46,10 @@ export class TtlCache<K, V> {
     this.map.set(key, { value, expiry: Date.now() + this.ttlMs });
   }
 
+  delete(key: K): void {
+    this.map.delete(key);
+  }
+
   clear(): void {
     this.map.clear();
   }

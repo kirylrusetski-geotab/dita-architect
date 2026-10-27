@@ -1,15 +1,28 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useContext, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getRoot, $isElementNode } from 'lexical';
 import type { LexicalNode } from 'lexical';
 import { $isLinkNode } from '@lexical/link';
 import { extractXmlIds } from '../lib/xml-utils';
+import { SyncContext } from '../sync/SyncContext';
+import { isCrossFileHref, checkCrossFileHref, type CrossFileResult } from '../lib/cross-file-xref';
+import { fetchResourceFolder } from '../lib/heretto-path';
 
 interface InlineValidationPluginProps {
   xmlContent: string;
   validationTrigger: number;
   onValidationResults?: (errors: Map<string, { type: 'broken-xref' | 'unresolved-keyref', message: string }>) => void;
+  /** The open topic's Heretto folder (ADR-013 decision 8): cross-file xrefs are
+   *  checked only when it is known — a local-file tab has none. */
+  herettoFolderUuid?: string | null;
+  /** The open topic's Heretto UUID, used to find its folder when a tab knows
+   *  only the file (an API load, a Replace). */
+  herettoFileUuid?: string | null;
 }
+
+// A failed check (Heretto unreachable) is retried after this long, not on every
+// validation pass.
+const UNKNOWN_RETRY_MS = 30_000;
 
 const BROKEN_XREF_CLASS = 'dita-validation-broken-xref';
 const UNRESOLVED_KEYREF_CLASS = 'dita-validation-unresolved-keyref';
@@ -20,12 +33,37 @@ export const InlineValidationPlugin = ({
   xmlContent,
   validationTrigger,
   onValidationResults,
+  herettoFolderUuid = null,
+  herettoFileUuid = null,
 }: InlineValidationPluginProps) => {
   const [editor] = useLexicalComposerContext();
+  // The folder relative hrefs resolve from: the tab's, or else the file's own.
+  const [lookedUpFolder, setLookedUpFolder] = useState<string | null>(null);
+  useEffect(() => {
+    setLookedUpFolder(null);
+    if (herettoFolderUuid || !herettoFileUuid) return;
+    let live = true;
+    void fetchResourceFolder(herettoFileUuid).then(folder => { if (live) setLookedUpFolder(folder); });
+    return () => { live = false; };
+  }, [herettoFolderUuid, herettoFileUuid]);
+  const folderUuid = herettoFolderUuid ?? lookedUpFolder;
+  // Optional: mounted inside SyncManager the plugin can read an xref's
+  // scope/format/keyref (originMap.inlineAttrs); outside it, it cannot.
+  const sync = useContext(SyncContext);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const xmlIdsRef = useRef<Set<string>>(new Set());
   const onValidationResultsRef = useRef(onValidationResults);
   onValidationResultsRef.current = onValidationResults;
+  // Cross-file results by `folder|href`; checks in flight; and a handle on the
+  // latest validate function for results that arrive later.
+  const crossFileRef = useRef(new Map<string, { result: CrossFileResult; at: number }>());
+  const crossFilePendingRef = useRef(new Set<string>());
+  const validateRef = useRef<() => void>(() => {});
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Update XML IDs cache when XML content changes
   useEffect(() => {
@@ -106,6 +144,22 @@ export const InlineValidationPlugin = ({
                 message: `Target '${targetId}' not found`,
               });
             }
+          } else if (folderUuid && isCrossFileHref(href, sync?.nodeOriginMap.get(node.getKey())?.inlineAttrs)) {
+            // ADR-013 decision 8: an xref to another Heretto file. The check is
+            // async; a result re-runs this validation when it lands.
+            const key = `${folderUuid}|${href}`;
+            const known = crossFileRef.current.get(key);
+            const stale = known?.result.status === 'unknown' && Date.now() - known.at > UNKNOWN_RETRY_MS;
+            if (known?.result.status === 'broken') {
+              errors.set(node.getKey(), { type: 'broken-xref', message: known.result.message });
+            } else if ((!known || stale) && !crossFilePendingRef.current.has(key)) {
+              crossFilePendingRef.current.add(key);
+              void checkCrossFileHref(href, folderUuid).then(result => {
+                crossFilePendingRef.current.delete(key);
+                crossFileRef.current.set(key, { result, at: Date.now() });
+                if (mountedRef.current && result.status !== 'unknown') validateRef.current();
+              });
+            }
           }
         }
 
@@ -126,7 +180,13 @@ export const InlineValidationPlugin = ({
         previousErrorKeysRef.current = new Set(errors.keys());
       });
     });
-  }, [editor, applyValidationStyles]);
+  }, [editor, applyValidationStyles, folderUuid, sync]);
+  validateRef.current = validateAndStyle;
+
+  // A folder that becomes known later (looked up from the file) is checked at once.
+  useEffect(() => {
+    if (folderUuid) validateAndStyle();
+  }, [folderUuid, validateAndStyle]);
 
   // Debounced validation on content changes
   useEffect(() => {
