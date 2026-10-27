@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   FORMAT_TEXT_COMMAND,
@@ -18,13 +18,16 @@ import {
   OPEN_INSERT_LINK_MODAL_COMMAND,
 } from '../dita-architect';
 import { $setBlocksType } from '@lexical/selection';
-import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, PenLine, Eye, Check, X, Tag } from 'lucide-react';
+import { FileText, AlertTriangle, Heading1, Heading2, ListOrdered, List, Table, Undo, Redo, Trash2, Link, ChevronDown, Pencil, PenLine, Eye, Check, X, Tag, Braces } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip } from './Tooltip';
 import type { DocumentMode } from '../types/tab';
 import { ConfirmModal } from './ConfirmModal';
 import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND, WRAP_SHORTCUTS } from './InlineWrapPlugin';
 import { WRAP_TAGS, WRAP_TAG_LABELS, type WrapTag } from '../lib/inline-wrap';
+import { KeyRegistryContext } from './KeyRegistryContext';
+import { INSERT_VARIABLE_COMMAND } from './InsertVariablePlugin';
+import { VariablePickerModal } from './VariablePickerModal';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 /** Shortcut hint for an inline element, from the plugin's single map. */
@@ -82,6 +85,9 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
   const [linkScope, setLinkScope] = useState('');
   const [isInlineMenuOpen, setIsInlineMenuOpen] = useState(false);
   const inlineMenuRef = useRef<HTMLDivElement>(null);
+  // FR-066: Insert Variable needs the connected map's registry.
+  const keyRegistry = useContext(KeyRegistryContext);
+  const [isVariablePickerOpen, setIsVariablePickerOpen] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -406,6 +412,19 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
           </div>
         )}
       </div>
+      {/* FR-066: insert a variable from the connected map (ADR-013 decision 9). */}
+      <Tooltip content={keyRegistry ? 'Insert variable' : 'Connect a map (Heretto ▸ Connect a Map…) to insert variables'}>
+        <button
+          aria-label="Insert variable"
+          disabled={editingDisabled || !keyRegistry}
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => setIsVariablePickerOpen(true)}
+          className={`${contentBtnClass}${keyRegistry ? '' : ' opacity-40'}`}
+          style={{ color: 'var(--editor-toolbar-text-strong)' }}
+        >
+          <Braces className="w-3.5 h-3.5" />
+        </button>
+      </Tooltip>
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <div
         className="flex items-center rounded"
@@ -462,6 +481,18 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
             toast('Cleared editor contents');
           }}
           onClose={() => setIsClearConfirmOpen(false)}
+        />
+      )}
+
+      {/* Insert Variable picker (FR-066) */}
+      {isVariablePickerOpen && keyRegistry && (
+        <VariablePickerModal
+          registry={keyRegistry}
+          onInsert={entry => {
+            setIsVariablePickerOpen(false);
+            editor.dispatchCommand(INSERT_VARIABLE_COMMAND, { key: entry.key, id: entry.id, tag: entry.tag });
+          }}
+          onClose={() => setIsVariablePickerOpen(false)}
         />
       )}
 

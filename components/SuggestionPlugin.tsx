@@ -39,6 +39,7 @@ import {
 import { toast } from 'sonner';
 import { serializeLexicalToXml, useSyncContext, warnOnStructureMismatch } from '../sync';
 import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND } from './InlineWrapPlugin';
+import { INSERT_VARIABLE_COMMAND } from './InsertVariablePlugin';
 import { $isTrackedTextNode, TrackedTextNode } from './TrackedTextNode';
 import {
   $insertTrackedText,
@@ -298,6 +299,15 @@ export const SuggestionPlugin = ({
       ),
       editor.registerCommand(
         UNWRAP_INLINE_COMMAND,
+        () => {
+          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
+          return true;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      // FR-066: inserting a variable adds an inline element, untracked like a wrap.
+      editor.registerCommand(
+        INSERT_VARIABLE_COMMAND,
         () => {
           toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
           return true;

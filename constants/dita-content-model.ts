@@ -91,7 +91,7 @@ const toSet = (tags: ReadonlySet<string> | readonly string[]): ReadonlySet<strin
  * postreq's inline form, table/simpletable cells, and the inside of the
  * container-phrase elements (ph, xref, b/i) themselves.
  */
-const INLINE_PHRASE: readonly string[] = [
+export const INLINE_PHRASE: readonly string[] = [
   'ph', 'term', 'codeph', 'xref', 'image', 'menucascade',
   'b', 'strong', 'i', 'em',
   'uicontrol', 'wintitle', 'keyword', 'filepath', 'cite',
