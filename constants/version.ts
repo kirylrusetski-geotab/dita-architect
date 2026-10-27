@@ -21,6 +21,32 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.5',
+    date: '2026-10-27',
+    title: 'Topics now open exactly as Heretto stores them, and Format never changes your text.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Opening a topic (from Heretto, a file, or the API) no longer reformats its XML. Before, every topic was re-indented on open, and that reformatting could change text: spaces appeared around subscripts and some links (`H<sub>2</sub>O` read "H 2 O"), spaces were dropped at the edges of table cells, and a code block lost the indentation of its first line. Saving then wrote those changes to Heretto. Now a topic you open and save without editing is identical to what Heretto has, and after an edit only what you changed is different.',
+          'The Format button (and Format Document in the XML pane) still lays out the XML one block element per line, but it no longer touches text: paragraphs, table cells, code blocks, and anything with inline markup are kept exactly as they are.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'Heretto often stores a topic as a few very long lines, so the XML pane now shows it that way when you open it. Turn on word wrap, or press Format to lay it out; formatting only moves line breaks between block elements, so it is safe to save.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'The four load paths no longer call `formatXml` (BUG-45, an amendment to ADR-012). `formatXml` was rewritten: it re-indents only the children of an element that holds no text of its own and whose children are all known block elements, and copies every other element byte for byte. Checked over the whole test corpus: before, the editor showed different text for 7 of 52 topics after formatting; now none. Suite: 77 files, 1,878 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.4',
     date: '2026-10-27',
     title: 'Saving a topic you did not edit now leaves it byte-for-byte unchanged, and bold or italic text with something inside it shows everything it holds.',
@@ -29,7 +55,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Bug Fixes',
         items: [
           'Bold, italic, or code text that holds another element now shows all of it in the visual editor. Before, `<b>bold with <i>italic inside</i> it</b>` showed as plain bold text, and a variable inside bold text (for example `<b><ph conkeyref="…"/></b>`, common for product SKUs) did not show at all. Editing any part of it now changes only that text and keeps every element and attribute.',
-          'Saving no longer re-spells markup you did not touch. Before, every save rewrote empty elements such as `<keyword></keyword>` in a topic\'s metadata as `<keyword/>`, wrote `&#160;` as an invisible no-break space, and dropped the newline at the end of the file. Now, after an edit, only what you changed differs from the XML as the editor opened it. Known issue, fixed next: opening a topic still re-indents its XML, and trims the leading and trailing spaces inside a code block.',
+          'Saving no longer re-spells markup you did not touch. Before, every save rewrote empty elements such as `<keyword></keyword>` in a topic\'s metadata as `<keyword/>`, wrote `&#160;` as an invisible no-break space, and dropped the newline at the end of the file. Now, after an edit, only what you changed differs from the XML as the editor opened it. Known issue, fixed in 0.10.5: opening a topic still re-indents its XML, and trims the leading and trailing spaces inside a code block.',
           'Text that is both bold and code (or italic and code) now saves as `<b><codeph>…</codeph></b>`. Before, the code formatting won and the bold or italic was dropped.',
           'Bold or italic text that ends a paragraph with a space inside it (for example `<p>Click <b>Save </b></p>`) now shows as bold or italic in the visual editor, and typing there stays inside it. Before, it showed as plain text.',
         ],

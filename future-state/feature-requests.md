@@ -1021,6 +1021,8 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Serves:** Writer experience and WYSIWYG/DITA parity (the top acceptance criterion): the visual editor stops hiding structure the XML has.
 
+**Presentational elements get their real look, not the indicator (added 2026-10-27):** in the v0.10.5 smoke Kiryl noticed `H<sub>2</sub>O` renders with a full-size "2" — the XML is correct (`<sub>` is a stamped inline token and round-trips byte for byte), but the visual editor gives it no style. For the highlighting-domain elements whose meaning *is* their presentation, the class should drive the real rendering instead of the dotted underline: `<sub>` / `<sup>` → subscript / superscript (`vertical-align` + smaller size), `<u>` → underline, `<tt>` → monospace, `<line-through>` / `<overline>` → the matching text decoration. Same mechanism as the rest of this FR (`components/CascadeSeparatorPlugin.tsx` already stamps a class from `originMap` this way, BUG-43), so it adds no serializer or parser change.
+
 **Not in scope:** per-element colours, a legend, or styling container inlines (`<menucascade>`) as a group.
 
 ### Acceptance criteria

@@ -6,6 +6,16 @@ Shipped work by version (newest first) and the dated changelog. Split out of [BA
 
 ## Completed
 
+### Shipped in v0.10.5 (2026-10-27) — BUG-45 (ADR-012 amendment)
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| BUG-45 | Every load path ran `formatXml` before the XML became the tab's content and master, and `formatXml` changed text: the editor showed different text for 7 of 52 corpus fixtures (5 real topics — e.g. "refer to Installation overview." → "refer to  Installation overview  ."), `H<sub>2</sub>O` read "H 2 O", review PIs mid-sentence doubled the spaces around them, a `<codeblock>` lost its first-line indentation, an empty element gained whitespace — all written back to Heretto on save | Bug | **Fixed (ADR-012 amendment, accepted 2026-10-27: "keep it verbatim").** The four load paths (`lib/native-api-bridge.ts` load-content, `hooks/useExternalLoad.ts`, `hooks/useHerettoCms.ts` open and refresh) keep the source bytes in `xmlContent` and `savedXmlRef`. `formatXml` (Format button, Format Document) rewritten in `lib/xml-utils.ts`: whitespace moves only between the children of an element that holds no text of its own and whose element children are all known block elements (`BLOCK_ELEMENTS`; an `<image placement="break">` counts); every other element is copied verbatim; preformatted elements and `xml:space="preserve"` always; malformed input returned unchanged. The old inline-list tokenizer and merge are gone. `xml-insert`'s append already handled a closing tag sharing its line with content, so API inserts into one-line Heretto topics work unchanged (pinned). |
+
+Tests: `tests/xml-format.test.ts` (67: every corpus fixture — same editor text, every text-holding element byte-identical, idempotent; the broken cases; the layout still produced; malformed input) and `tests/bug45-load-verbatim.test.tsx` (5: the four load paths through their real entry points, plus an API insert into a one-line topic) — 31 red before the fix (16 corpus fixtures failed the stricter byte check, not only the 7 whose visible text changed). Full suite 77 files / 1878 passed / 4 skipped; tsc, `npm run build`, `macos/build.sh`, edit fuzz clean; eslint clean on the new files (two errors and two warnings remain in the touched hooks/bridge, all present unchanged at v0.10.4).
+
+Smoke (2026-10-27, native app built from `6f5bb13`, verified with `GET /api/tabs/:id/content` against the **source files themselves**): `auxiliary-rules` (real, stored as one long line) opened byte-identical (4,033 of 4,033 bytes) and the XML pane showed Heretto's own layout; after adding ` ZQX` to a body paragraph the tab differed from the file by exactly those 4 bytes. A test topic with `H<sub>2</sub>O`, a `<uicontrol>`, and an indented `<codeblock>` opened byte-identical; "H2O" rendered without spaces; after an edit, **Format** re-indented the block structure and left every text-holding element byte-identical, the codeblock's `"  indented first\n    second\n"` included.
+
 ### Shipped in v0.10.4 (2026-10-27) — BUG-44 and BUG-31 (ADR-012)
 
 | ID | Item | Type | Resolution |
@@ -584,6 +594,8 @@ Reverse-chronological. Newest day first; within a day, entries read in the order
 - **BUG-31 fixed (`a5de1a1`, Opus) — ADR-012 accepted.** A source-spelling pass after the whole-document serialize puts back the source's bytes wherever a token is unchanged in meaning; the patch functions are untouched. The BACKLOG direction (splice untouched DOM subtrees as source substrings) was rejected in the ADR: `DOMParser` keeps no source offsets. All 52 byte-stability fixtures now byte-identical with no declared normalization. ADR-012 took the next free number, as ADR-011 did: the Execution Plan's Session 4–7 ADRs are now ADR-013–016.
 - **BACKLOG correction.** v0.10.3's release left the BUG-30, BUG-38, BUG-39, and BUG-41 rows (and a "5 items — sweep warranted" header) in Sweep-ready though all four had shipped; removed with this release's update. Both bug lanes are now empty except the resolved historical Larger rows.
 - **v0.10.4 released.** Native smoke passed for both fixes, diffed against a fresh unedited load. It found **BUG-45** (pre-existing, Blocking now): every load path runs `formatXml`, so the master is already a re-indented copy of the source, and a `<codeblock>`'s leading/trailing whitespace is trimmed. ADR-012's exactness is relative to that master; BUG-45 is the remaining gap to Heretto's own bytes. Next: BUG-45, then Session 4.
+- **BUG-45 fixed (`6f5bb13`, Opus) — ADR-012 amendment.** Probed before deciding: `formatXml` changed visible text in 7 of 52 corpus fixtures, not just whitespace. Kiryl chose "keep it verbatim" over "keep formatting, safely": the load paths no longer format, and `formatXml` was rewritten to be content-safe for the explicit Format action. 72 tests first (31 red).
+- **v0.10.5 released.** Native smoke compared against the source files themselves, not the loaded copy: an unedited topic is byte-identical to its file, and an edited one differs only by the edit. Every bug lane is empty. Next: Session 4 (v0.11.0, ADR-013).
 
 ### 2026-10-22
 
