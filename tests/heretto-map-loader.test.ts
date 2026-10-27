@@ -399,4 +399,12 @@ describe('resolveHerettoPath', () => {
     expect(requests.filter(r => r === '/heretto-api/all-files/a')).toHaveLength(1);
     expect(herettoFolderCache.get('a')?.map(i => i.name).sort()).toEqual(['B', 'here.dita']);
   });
+
+  it('parallel lookups through one folder share one request (a map level resolves in parallel)', async () => {
+    serve(tree());
+    const results = await Promise.all(Array.from({ length: 25 }, () => resolveHerettoPath('B/topic.dita', 'a')));
+    expect(results.every(r => r?.uuid === 't1')).toBe(true);
+    expect(requests.filter(r => r === '/heretto-api/all-files/a')).toHaveLength(1);
+    expect(requests.filter(r => r === '/heretto-api/all-files/ab')).toHaveLength(1);
+  });
 });

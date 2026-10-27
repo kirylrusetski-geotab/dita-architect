@@ -31,7 +31,7 @@ import { CascadeSeparatorPlugin } from './components/CascadeSeparatorPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
-import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard } from 'lucide-react';
+import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard, Network } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { TopicTypeModal } from './components/TopicTypeModal';
 import { SaveTopicModal } from './components/SaveTopicModal';
@@ -57,6 +57,9 @@ import { useTabManager } from './hooks/useTabManager';
 import { createTab, type DocumentMode } from './types/tab';
 import { useLocalFile } from './hooks/useLocalFile';
 import { useHerettoCms } from './hooks/useHerettoCms';
+import { useKeyRegistry } from './hooks/useKeyRegistry';
+import { KeyRegistryContext } from './components/KeyRegistryContext';
+import { ConnectMapModal } from './components/ConnectMapModal';
 import { useExternalLoad } from './hooks/useExternalLoad';
 import { EDITOR_NODES } from './constants/editor-nodes';
 
@@ -294,6 +297,10 @@ export default function ProfessionalDitaEditor() {
     setConfirmModal,
   });
 
+  // ADR-013: the connected map's key registry, app-wide; chips read it from context.
+  const keyRegistry = useKeyRegistry();
+  const [isConnectMapOpen, setIsConnectMapOpen] = useState(false);
+
   // External content loading hook
   useExternalLoad({
     createTab,
@@ -486,6 +493,7 @@ export default function ProfessionalDitaEditor() {
   };
 
   return (
+    <KeyRegistryContext.Provider value={keyRegistry.registry}>
     <div className="h-screen flex flex-col overflow-hidden" data-theme={appTheme} style={{ backgroundColor: 'var(--app-bg)' }}>
       {/* Drop overlay */}
       {isDragOver && (
@@ -518,6 +526,18 @@ export default function ProfessionalDitaEditor() {
           testHerettoConnection={testHerettoConnection}
           saveHerettoCredentials={saveHerettoCredentials}
           onClose={() => setIsHerettoStatusOpen(false)}
+        />
+      )}
+
+      {/* Connect a Map (P2-27) — also the failure modal for a failed connect or reload */}
+      {(isConnectMapOpen || keyRegistry.error) && (
+        <ConnectMapModal
+          connectedMapName={keyRegistry.connectedMap?.name ?? null}
+          loading={keyRegistry.loading}
+          error={keyRegistry.error}
+          onConnect={keyRegistry.connect}
+          onClearError={keyRegistry.clearError}
+          onClose={() => setIsConnectMapOpen(false)}
         />
       )}
 
@@ -890,6 +910,41 @@ export default function ProfessionalDitaEditor() {
                       <Upload className="w-3.5 h-3.5" />
                       Replace existing...
                     </button>
+                    <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
+                    {/* P2-27: the key registry's map (ADR-013) */}
+                    <button
+                      role="menuitem"
+                      onClick={() => { setIsHerettoDropdownOpen(false); setIsConnectMapOpen(true); }}
+                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
+                      style={{ color: 'var(--app-text-secondary)' }}
+                    >
+                      <Network className="w-3.5 h-3.5" />
+                      {keyRegistry.connectedMap ? 'Connect a different map…' : 'Connect a Map…'}
+                    </button>
+                    {keyRegistry.connectedMap && (
+                      <>
+                        <button
+                          role="menuitem"
+                          onClick={() => { setIsHerettoDropdownOpen(false); void keyRegistry.reload(); }}
+                          disabled={keyRegistry.loading}
+                          title={keyRegistry.connectedMap.name}
+                          className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app disabled:opacity-50"
+                          style={{ color: 'var(--app-text-secondary)' }}
+                        >
+                          {keyRegistry.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          Reload map
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => { setIsHerettoDropdownOpen(false); keyRegistry.disconnect(); }}
+                          className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
+                          style={{ color: 'var(--app-text-secondary)' }}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Disconnect {keyRegistry.connectedMap.name}
+                        </button>
+                      </>
+                    )}
                     <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
                   </>
                 )}
@@ -1513,5 +1568,6 @@ export default function ProfessionalDitaEditor() {
         </div>
       </div>
     </div>
+    </KeyRegistryContext.Provider>
   );
 }

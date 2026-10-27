@@ -27,12 +27,24 @@ export interface HerettoPathTarget {
 // Same lifetime as herettoFolderCache (5 minutes); this one also keeps the parent.
 const listingCache = new TtlCache<string, HerettoFolderListing>(5 * 60_000, 500);
 
-export const clearHerettoPathCache = (): void => listingCache.clear();
+// A map's submaps resolve in parallel, mostly through the same few folders:
+// share the request in flight instead of fetching one folder once per reference.
+const inFlight = new Map<string, Promise<HerettoFolderListing | null>>();
+
+export const clearHerettoPathCache = (): void => { listingCache.clear(); inFlight.clear(); };
 
 /** A folder's listing and parent, fetched once per cache lifetime. Null on any failure. */
-export const fetchFolderListing = async (uuid: string): Promise<HerettoFolderListing | null> => {
+export const fetchFolderListing = (uuid: string): Promise<HerettoFolderListing | null> => {
   const cached = listingCache.get(uuid);
-  if (cached) return cached;
+  if (cached) return Promise.resolve(cached);
+  const pending = inFlight.get(uuid);
+  if (pending) return pending;
+  const request = requestFolderListing(uuid).finally(() => inFlight.delete(uuid));
+  inFlight.set(uuid, request);
+  return request;
+};
+
+const requestFolderListing = async (uuid: string): Promise<HerettoFolderListing | null> => {
   try {
     const res = await fetch(`/heretto-api/all-files/${uuid}`);
     if (!res.ok) return null;

@@ -111,6 +111,37 @@ body {
   border-bottom: 2px solid var(--validation-unresolved-keyref);
 }
 
+/* --- Reference chips (DitaPhRefNode) and their key states (ADR-013) --- */
+
+.dita-chip {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background-color: var(--app-surface-raised, #2a2a3e);
+  color: var(--app-text-muted, #999);
+  border: 1px solid var(--app-border-subtle, #333);
+  user-select: none;
+}
+
+/* No map connected: not checked, so it must not look like "fine". */
+.dita-chip--no-map {
+  border-style: dashed;
+}
+
+/* Map connected, key not defined in it. */
+.dita-chip--unresolved {
+  background-color: var(--validation-unresolved-keyref-bg);
+  border-color: var(--validation-unresolved-keyref);
+  color: var(--app-text-primary);
+}
+
+/* Map connected, key found. */
+.dita-chip--resolved {
+  border-color: var(--app-border);
+  color: var(--app-text-primary);
+}
+
 .dita-placeholder-text {
   font-style: italic;
   color: var(--app-text-muted);

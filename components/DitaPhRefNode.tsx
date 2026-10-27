@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { DecoratorNode } from 'lexical';
 import type { LexicalEditor, EditorConfig, NodeKey, SerializedLexicalNode } from 'lexical';
+import { KeyRegistryContext } from './KeyRegistryContext';
+import { chipKeyState, CHIP_STATE_CLASS } from '../lib/key-chip-state';
 
 interface SerializedDitaPhRefNode extends SerializedLexicalNode {
   refType: string;
@@ -10,20 +12,16 @@ interface SerializedDitaPhRefNode extends SerializedLexicalNode {
   refTag?: string;
 }
 
-function PhRefComponent({ refValue }: { refValue: string }) {
+// ADR-013 decision 7: the key state is read from context while rendering —
+// connecting or reloading a map re-renders chips and never touches the editor.
+function PhRefComponent({ refType, refValue }: { refType: string; refValue: string }) {
+  const registry = useContext(KeyRegistryContext);
+  const keyState = chipKeyState(refType, refValue, registry);
   return (
     <code
       contentEditable={false}
-      style={{
-        padding: '1px 4px',
-        borderRadius: '3px',
-        fontSize: '0.85em',
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        backgroundColor: 'var(--app-surface-raised, #2a2a3e)',
-        color: 'var(--app-text-muted, #999)',
-        border: '1px solid var(--app-border-subtle, #333)',
-        userSelect: 'none',
-      }}
+      className={keyState ? `dita-chip ${CHIP_STATE_CLASS[keyState.state]}` : 'dita-chip'}
+      title={keyState?.tooltip}
     >
       {refValue}
     </code>
@@ -65,7 +63,7 @@ export class DitaPhRefNode extends DecoratorNode<React.ReactElement> {
   }
 
   decorate(_editor: LexicalEditor, _config: EditorConfig): React.ReactElement {
-    return <PhRefComponent refValue={this.__refValue} />;
+    return <PhRefComponent refType={this.__refType} refValue={this.__refValue} />;
   }
 
   getTextContent(): string {
