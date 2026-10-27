@@ -9,7 +9,7 @@ import type { HerettoItem } from '../types/heretto';
  * TTL-aware cache for Heretto folder listings.
  * Entries expire after 5 minutes and the cache caps at 500 entries (LRU eviction).
  */
-class TtlCache<K, V> {
+export class TtlCache<K, V> {
   private map = new Map<K, { value: V; expiry: number }>();
   constructor(private ttlMs: number, private maxSize: number) {}
 
