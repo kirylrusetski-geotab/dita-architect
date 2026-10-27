@@ -204,11 +204,13 @@ const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginM
       }
       return [img];
     }
-    const ph = doc.createElement('ph');
-    ph.setAttribute(child.getRefType(), child.getRefValue());
+    // BUG-46: the chip's own element (`<uicontrol conkeyref/>` for a uicontrol
+    // variable, FR-066), not always <ph>.
+    const el = doc.createElement(child.getRefTag());
+    el.setAttribute(child.getRefType(), child.getRefValue());
     const origText = child.getTextContent();
-    if (origText) ph.appendChild(doc.createTextNode(origText));
-    return [ph];
+    if (origText) el.appendChild(doc.createTextNode(origText));
+    return [el];
   }
   return [doc.createTextNode(child.getTextContent())];
 };

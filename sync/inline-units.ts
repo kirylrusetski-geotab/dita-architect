@@ -87,10 +87,13 @@ export interface LinkAtom extends AtomBase {
   children: Atom[];
 }
 
-/** A ref-carrying `<ph>`/`<term>`, or an inline `<image>` → DitaPhRefNode. */
+/** A ref-carrying `<ph>`/`<term>`, any other ref-carrying inline element with
+ *  no text of its own (BUG-46), or an inline `<image>` → DitaPhRefNode. */
 export interface ChipAtom extends AtomBase {
   kind: 'chip';
   node: Element;
+  /** The element's tag, lower-cased: the chip serializes as this element. */
+  refTag: string;
   refType: string;
   refValue: string;
   text: string;
@@ -142,19 +145,23 @@ export const scanInlineElement = (el: Element, owner: Element | null): Atom[] =>
     return [{ kind: 'link', node: el, owner, href, attrs: Object.keys(attrs).length > 0 ? attrs : null, children }];
   }
 
-  if (
-    (tag === 'ph' || tag === 'term') &&
-    (el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref'))
-  ) {
+  const hasRef = !!(el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref'));
+  // A <ph>/<term> with a ref is a chip whatever it holds. Any other element
+  // with a ref and no text of its own is one too (BUG-46): its content comes
+  // from the reference, so as text it would be an empty, invisible node —
+  // <keyword conkeyref="varsProductnames/…"/> is the common real case.
+  // An element with fallback text keeps the stamped-text display below, and an
+  // <image> stays an image chip whatever it carries.
+  if (hasRef && tag !== 'image' && (tag === 'ph' || tag === 'term' || !(el.textContent || '').trim())) {
     const refType = el.hasAttribute('conkeyref') ? 'conkeyref' : el.hasAttribute('keyref') ? 'keyref' : 'conref';
     const refValue = el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref') || '';
-    return [{ kind: 'chip', node: el, owner, refType, refValue, text: el.textContent || '' }];
+    return [{ kind: 'chip', node: el, owner, refTag: tag, refType, refValue, text: el.textContent || '' }];
   }
 
   if (tag === 'image') {
     const href = el.getAttribute('href') || '';
     const alt = el.querySelector('alt')?.textContent || el.getAttribute('alt') || '';
-    return [{ kind: 'chip', node: el, owner, refType: 'image', refValue: href, text: alt }];
+    return [{ kind: 'chip', node: el, owner, refTag: 'image', refType: 'image', refValue: href, text: alt }];
   }
 
   const elementText = (fmt: number): TextAtom => ({
@@ -320,7 +327,7 @@ export const atomsToLexical = (atoms: Atom[], originMap?: NodeOriginMapType): an
         break;
       }
       case 'chip':
-        nodes.push($createDitaPhRefNode(atom.refType, atom.refValue, atom.text));
+        nodes.push($createDitaPhRefNode(atom.refType, atom.refValue, atom.text, atom.refTag));
         break;
       case 'fixed':
         break;

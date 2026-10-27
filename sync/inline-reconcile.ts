@@ -96,7 +96,9 @@ const stampedSig = (tag: string, attrs: Record<string, string>, fmt: number, tex
 const linkSig = (href: string, attrs: Record<string, string> | null, childSigs: string[]) =>
   `l|${href}|${sortedAttrs(attrs)}|${childSigs.join('\u0000')}`;
 const linkIdSig = (href: string, attrs: Record<string, string> | null) => `l|${href}|${sortedAttrs(attrs)}`;
-const chipSig = (refType: string, refValue: string, text: string) => `c|${refType}|${refValue}|${text}`;
+// The element is part of a chip's identity (BUG-46): <keyword conkeyref="x"/>
+// and <ph conkeyref="x"/> are different elements.
+const chipSig = (refTag: string, refType: string, refValue: string, text: string) => `c|${refTag}|${refType}|${refValue}|${text}`;
 
 /** Collapse a raw text node the way the parser does, keeping a normalized→raw offset map. */
 const collapse = (raw: string): { norm: string; map: number[] } => {
@@ -196,7 +198,7 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
       const childSigs = inner.units.filter(u => u.kind !== 'fixed').map(u => (u as DTextUnit | DAtomicUnit).sig);
       units.push({ kind: 'atomic', sig: linkSig(atom.href, atom.attrs, childSigs), idSig: linkIdSig(atom.href, atom.attrs), isLink: true, node: atom.node, owner: atom.owner });
     } else {
-      const sig = chipSig(atom.refType, atom.refValue, atom.text);
+      const sig = chipSig(atom.refTag, atom.refType, atom.refValue, atom.text);
       units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner });
     }
   }
@@ -275,7 +277,7 @@ const lexUnits = (lexicalNode: any, originMap?: NodeOriginMapType): LUnit[] | nu
       units.push({ kind: 'atomic', sig: linkSig(child.getURL(), attrs, inner.map(u => u.sig)), idSig: linkIdSig(child.getURL(), attrs), isLink: true, node: child });
     } else if (type === 'ditaphref') {
       if (child.getRefType() === 'info-chip') continue; // visual-only
-      const sig = chipSig(child.getRefType(), child.getRefValue(), child.getTextContent());
+      const sig = chipSig(child.getRefTag(), child.getRefType(), child.getRefValue(), child.getTextContent());
       units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child });
     } else {
       return null;

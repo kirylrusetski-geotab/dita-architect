@@ -225,7 +225,7 @@ const traverseXmlElement = (xmlNode: Element, originMap: NodeOriginMapType, body
         if (conkeyref || keyref || conref) {
           const refType = conkeyref ? 'conkeyref' : keyref ? 'keyref' : 'conref';
           const refValue = conkeyref || keyref || conref;
-          return $createDitaPhRefNode(refType, refValue!, `[${refType}: ${refValue}]`);
+          return $createDitaPhRefNode(refType, refValue!, `[${refType}: ${refValue}]`, 'note');
         }
 
         const noteType = (xmlNode.getAttribute('type') || 'note').toUpperCase();

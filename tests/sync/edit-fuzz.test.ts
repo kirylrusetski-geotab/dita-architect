@@ -25,6 +25,9 @@
 // BUG-31 (ADR-012 B2): every edit also checks that the source-spelling pass
 // left the document tree unchanged; at v0.10.4 the pass ran on all 1407 edits
 // and re-spelled the output of 608, every one with the same tree.
+// After BUG-46 (ADR-013, 2026-10-27): still 1407 edits, 0 findings. The 37
+// text-less <keyword conkeyref/> elements that became chips were empty text
+// nodes before, which this fuzz never edited (it skips blank text nodes).
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, sep } from 'path';
@@ -124,6 +127,8 @@ describe.skipIf(!process.env.EDIT_FUZZ)('edit fuzz — append a word to every te
       }
     }
 
+    // The counts the header records, printed so a run can be compared with them.
+    console.log(`edit fuzz: ${edits} edits, ${findings.length} findings`);
     expect(edits).toBeGreaterThan(1000);
     const unexplained = findings.filter(f => !KNOWN_FIXTURES[f.fixture]);
     expect(unexplained.map(f => `${f.fixture}#${f.index}: ${f.detail}`)).toEqual([]);
