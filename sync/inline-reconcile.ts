@@ -165,8 +165,8 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
         const el = atom.node as Element;
         const onlyChild = el.firstChild;
         if (onlyChild && onlyChild === el.lastChild && onlyChild.nodeType === Node.TEXT_NODE) {
-          const raw = (onlyChild as Text).data;
-          const map = Array.from({ length: raw.length + 1 }, (_, k) => k);
+          // An edge trim at the paragraph's start removed `lead` raw characters.
+          const map = Array.from({ length: atom.text.length + 1 }, (_, k) => atom.lead + k);
           piece = { kind: 'text', node: onlyChild as Text, owner: atom.owner, map, len: atom.text.length };
         } else {
           piece = { kind: 'elem', node: el, owner: atom.owner, len: atom.text.length };
@@ -505,22 +505,40 @@ const levelOwnFormat = (level: Node): number => {
   return 0;
 };
 
+/** BUG-44: every format the elements around `level` already provide — `level`
+ *  itself and each ancestor (an <i> inside a <b>, an <xref> inside a <b>). */
+const inheritedFormat = (level: Node): number => {
+  let fmt = 0;
+  for (let n: Node | null = level; n; n = n.parentNode) fmt |= levelOwnFormat(n);
+  return fmt;
+};
+
 /**
- * True when `level` is a formatting element (<b>/<i>/<codeph>) but the new
- * content about to be spliced into [j, ej) does not uniformly carry that
- * same format — the author is removing or changing the formatting itself
- * (e.g. an unbold), not editing text that stays wrapped by it, so the whole
- * element must be replaced instead of just its text content ("expand to the
- * whole element when the format changes", BUG-37).
+ * True when formatting elements (<b>/<i>/<codeph>) between `level` and the
+ * reconciled root provide a format that the new content about to be spliced
+ * into [j, ej) does not uniformly carry — the author is removing or changing
+ * the formatting itself (e.g. an unbold), not editing text that stays wrapped
+ * by it, so the element must be replaced instead of just its text content
+ * ("expand to the whole element when the format changes", BUG-37).
  */
-const formatChangesInside = (level: Node, L: LItem[], j: number, ej: number): boolean => {
-  const want = levelOwnFormat(level);
+const formatChangesInside = (level: Node, rootEl: Element, L: LItem[], j: number, ej: number): boolean => {
+  let want = 0;
+  for (let n: Node | null = level; n && n !== rootEl; n = n.parentNode) want |= levelOwnFormat(n);
   if (want === 0) return false;
   for (let k = j; k < ej; k++) {
     const item = L[k];
     if (item.k !== 'c' || (item.fmt & want) !== want) return true;
   }
   return false;
+};
+
+/** Promote `level` past each formatting element whose format the new content
+ *  drops (BUG-37), one parent at a time — for an <i> inside a <b>, removing
+ *  only the italic stops at the <b> (BUG-44). Never above the reconciled root. */
+const promoteForFormat = (level: Node, rootEl: Element, L: LItem[], j: number, ej: number): Node => {
+  let cur = level;
+  while (cur !== rootEl && cur.parentNode && formatChangesInside(cur, rootEl, L, j, ej)) cur = cur.parentNode;
+  return cur;
 };
 
 /** `stripFmt` removes a format bit new content must not re-apply because the
@@ -577,7 +595,7 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     const nReal = nextItem ? nodeOf(nextItem) : null;
     if (!pReal && !nReal) {
       if (D.length > 0) return false; // only fixed points (a block boundary) around it
-      for (const n of serializeLexMiddle(L, j, ej, deps, levelOwnFormat(rootEl))) rootEl.insertBefore(n, null);
+      for (const n of serializeLexMiddle(L, j, ej, deps, inheritedFormat(rootEl))) rootEl.insertBefore(n, null);
       return true;
     }
     // Left-affine after text: typing that continues a word stays in that
@@ -593,10 +611,11 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     // provides, or an append would nest a second one inside the first — but
     // only when the new content actually keeps that format; typing a
     // differently-formatted run right at its boundary goes beside it instead
-    // (formatChangesInside promotes level to its parent, as if it had always
-    // been a plain atomic neighbour).
-    if (formatChangesInside(level, L, j, ej)) level = level.parentNode!;
-    const newNodes = serializeLexMiddle(L, j, ej, deps, levelOwnFormat(level));
+    // (promoteForFormat moves level to its parent, as if it had always
+    // been a plain atomic neighbour). BUG-44: the format to strip is every
+    // format the elements around the level provide, not just its own.
+    level = promoteForFormat(level, rootEl, L, j, ej);
+    const newNodes = serializeLexMiddle(L, j, ej, deps, inheritedFormat(level));
     // Position after the immediately preceding item when it sits inside the
     // level (keeps the old placement relative to comments/PIs), else after the
     // nearest real one; with no predecessor, before the next.
@@ -642,8 +661,8 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
   // or changes that very format (e.g. removing bold), the whole element must
   // still be replaced — promote level to its parent, which makes the element
   // itself one ordinary "top" node below, exactly as before this fix.
-  if (formatChangesInside(level, L, j, ej)) level = level.parentNode!;
-  const newNodes = serializeLexMiddle(L, j, ej, deps, levelOwnFormat(level));
+  level = promoteForFormat(level, rootEl, L, j, ej);
+  const newNodes = serializeLexMiddle(L, j, ej, deps, inheritedFormat(level));
   // Before mutating: every middle item must resolve to a sibling run under the level.
   const tops: Node[] = [];
   for (let k = i; k < ei; k++) {

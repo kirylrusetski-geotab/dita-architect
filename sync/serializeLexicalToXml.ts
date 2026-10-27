@@ -120,34 +120,21 @@ const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
  * <uicontrol>, <wintitle>) are re-emitted as their original DITA tag instead of
  * the generic <b>/<i> fallback inferred from format flags.
  */
-/** One text run as DITA: plain, <codeph>, <b>, <i>, or <b><i>. Shared by the
- *  full-rewrite path below and the inline reconciler (ADR-010). */
+/** One text run as DITA: plain, or nested <b> › <i> › <codeph> for each format
+ *  it has. Shared by the full-rewrite path below and the inline reconciler
+ *  (ADR-010). BUG-44: code no longer drops bold/italic — a <b><codeph> parses
+ *  as bold code, so writing it back as a bare <codeph> would lose the <b>. */
 const serializeTextRun = (text: string, fmt: number, doc: Document): Node => {
-  if (fmt & RUN_CODE) {
-    const codeph = doc.createElement('codeph');
-    codeph.appendChild(doc.createTextNode(text));
-    return codeph;
-  }
-  const isBold = (fmt & RUN_BOLD) !== 0;
-  const isItalic = (fmt & RUN_ITALIC) !== 0;
-  if (isBold && isItalic) {
-    const b = doc.createElement('b');
-    const i = doc.createElement('i');
-    i.appendChild(doc.createTextNode(text));
-    b.appendChild(i);
-    return b;
-  }
-  if (isBold) {
-    const b = doc.createElement('b');
-    b.appendChild(doc.createTextNode(text));
-    return b;
-  }
-  if (isItalic) {
-    const i = doc.createElement('i');
-    i.appendChild(doc.createTextNode(text));
-    return i;
-  }
-  return doc.createTextNode(text);
+  let node: Node = doc.createTextNode(text);
+  const wrap = (tag: string) => {
+    const el = doc.createElement(tag);
+    el.appendChild(node);
+    node = el;
+  };
+  if (fmt & RUN_CODE) wrap('codeph');
+  if (fmt & RUN_ITALIC) wrap('i');
+  if (fmt & RUN_BOLD) wrap('b');
+  return node;
 };
 
 const lexicalFmt = (child: any): number =>
@@ -443,9 +430,9 @@ const SAFE_INLINE_FMT: Record<string, number> = {
 /**
  * Build format runs from a DOM element's inline content, mirroring exactly what
  * parseTextNodes would produce in Lexical: newline-collapse on text nodes (raw
- * textContent for inline elements), then edge-trim of the first/last run —
- * including the parser's quirk of dropping the format flag when an edge trim
- * rewrites the node. Returns null (bail) on anything outside the safe subset.
+ * textContent for inline elements), then edge-trim of the first/last run,
+ * which keeps the run's format. Returns null (bail) on anything outside the
+ * safe subset.
  */
 const buildDomInlineRuns = (domEl: Element): InlineRun[] | null => {
   const runs: InlineRun[] = [];
@@ -466,17 +453,18 @@ const buildDomInlineRuns = (domEl: Element): InlineRun[] | null => {
       return null; // PI, comment, CDATA — outside the modeled subset
     }
   }
+  // The edge trim keeps the run's format (BUG-44, as the scanner now does).
   if (runs.length > 0) {
     const first = runs[0];
     const trimmed = first.text.replace(/^\s+/, '');
     if (!trimmed) runs.shift();
-    else if (trimmed !== first.text) { first.text = trimmed; first.fmt = 0; }
+    else if (trimmed !== first.text) first.text = trimmed;
   }
   if (runs.length > 0) {
     const last = runs[runs.length - 1];
     const trimmed = last.text.replace(/\s+$/, '');
     if (!trimmed) runs.pop();
-    else if (trimmed !== last.text) { last.text = trimmed; last.fmt = 0; }
+    else if (trimmed !== last.text) last.text = trimmed;
   }
   return runs;
 };

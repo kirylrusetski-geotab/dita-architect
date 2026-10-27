@@ -18,7 +18,10 @@
 // BUG-37 pattern; the four BUG-29 fixtures left KNOWN_FIXTURES.
 // After BUG-37 (v0.10.3, bug sweep): the BUG-37 pattern allowance is gone — a
 // <b>/<i>/<codeph> is spliced into like ordinary text, so appending to one no
-// longer changes tag counts. 43 failures remain, all BUG-26.
+// longer changes tag counts. 43 failures remain, all BUG-26; after BUG-26 the
+// one left was BUG-44 (a <b> with a nested <i>, inline-elements.dita).
+// After BUG-44 (v0.10.4): 1407 edits (a <b>'s nested <i> is its own text
+// node now), 0 failed, 0 bailed; KNOWN_FIXTURES is empty.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, sep } from 'path';
@@ -32,14 +35,7 @@ import { setReconcileObserver } from '../../sync/inline-reconcile';
 const FIXTURES = join(__dirname, 'fixtures');
 
 /** Fixtures whose edits are known to fail, and the bug that owns the failure. */
-const KNOWN_FIXTURES: Record<string, string> = {
-  // BUG-37's fix is scoped to a <b>/<i>/<codeph> with exactly one text child
-  // (its common real-world shape — the corpus has none of the shape below).
-  // inline-elements.dita's <b>bold with <i>italic inside</i> it</b> has
-  // mixed content, so it keeps the pre-fix atomic-element fallback and still
-  // shows BUG-37's original symptom (BUG-44).
-  'inline-elements.dita': 'BUG-44 (a <b>/<i>/<codeph> with mixed content still gets BUG-37\'s symptom)',
-};
+const KNOWN_FIXTURES: Record<string, string> = {};
 
 const WORD = 'ZQXFUZZ';
 

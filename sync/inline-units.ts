@@ -38,8 +38,11 @@ export const NOTE_BLOCK_TAGS = new Set(['p', 'ul', 'ol', 'codeblock', 'table', '
  * - `segment`: the block-split loops (`<p>` wrapping blocks, table cells,
  *   `<dd>`) — whitespace-only text is dropped, nothing is trimmed, PIs and
  *   comments are ignored.
+ * - `keep`: the children of a mixed-content `<b>`/`<i>`/`<codeph>` (BUG-44) —
+ *   every text node is kept and nothing is trimmed; the trim of the paragraph
+ *   the element sits in still applies to its edges.
  */
-export type ScanMode = 'trim' | 'segment';
+export type ScanMode = 'trim' | 'segment' | 'keep';
 
 interface AtomBase {
   /** The DOM node this atom came from. For a `fixed` block boundary it is null. */
@@ -111,10 +114,23 @@ const attrsOf = (el: Element, skip?: string): Record<string, string> => {
   return out;
 };
 
+/** Add a wrapping `<b>`/`<i>`/`<codeph>`'s format to atoms scanned inside it
+ *  (BUG-44): text and stamped atoms carry it, a link's children carry it, a
+ *  chip has no format to carry. */
+const withFormat = (atoms: Atom[], fmt: number): Atom[] =>
+  atoms.map(a => {
+    if (a.kind === 'text' || a.kind === 'stamped') return { ...a, fmt: a.fmt | fmt };
+    if (a.kind === 'link') return { ...a, children: withFormat(a.children, fmt) };
+    return a;
+  });
+
 /**
  * Scan one inline element the way `parseInlineElement` did. Branch order is
- * load-bearing: `<b><i>x</i></b>` is bold-only via textContent (never reaches
- * the container branch), while `<ph><b>x</b></ph>` is a container.
+ * load-bearing: a `<b>`/`<i>`/`<codeph>` is formatted text, never a container,
+ * while `<ph><b>x</b></ph>` is a container. A `<b>`/`<i>`/`<codeph>` with
+ * element children (BUG-44) is scanned child by child, each child carrying the
+ * element's format — taking its textContent (the old rule) dropped the nested
+ * element, and with it any variable chip, from the editor.
  */
 export const scanInlineElement = (el: Element, owner: Element | null): Atom[] => {
   const tag = el.tagName.toLowerCase();
@@ -144,11 +160,18 @@ export const scanInlineElement = (el: Element, owner: Element | null): Atom[] =>
   const elementText = (fmt: number): TextAtom => ({
     kind: 'text', node: el, owner, fmt, text: el.textContent || '', source: 'element', lead: 0, trail: 0,
   });
-  if (tag === 'codeph') return [elementText(FMT_CODE)];
-  if (tag === 'b' || tag === 'strong') return [elementText(FMT_BOLD)];
-  if (tag === 'i' || tag === 'em') return [elementText(FMT_ITALIC)];
+  const ownFmt =
+    tag === 'codeph' ? FMT_CODE
+    : tag === 'b' || tag === 'strong' ? FMT_BOLD
+    : tag === 'i' || tag === 'em' ? FMT_ITALIC
+    : 0;
+  const hasElementChild = Array.from(el.childNodes).some(c => c.nodeType === Node.ELEMENT_NODE);
+  if (ownFmt) {
+    if (!hasElementChild) return [elementText(ownFmt)];
+    return withFormat(scanInlineChildren(Array.from(el.childNodes), 'keep', owner ?? el), ownFmt);
+  }
 
-  if (Array.from(el.childNodes).some(c => c.nodeType === Node.ELEMENT_NODE)) {
+  if (hasElementChild) {
     // Container inline: flattened to its children's atoms (with the
     // container's own edge trim, as parseTextNodes(el) applied it). The
     // outermost container is the owner.
@@ -203,9 +226,12 @@ export const scanInlineChildren = (childNodes: Node[], mode: ScanMode, owner: El
  * parseTextNodes' edge trim, reproduced on atoms. It acted on the first and
  * last *Lexical node* (so fixed atoms are skipped), only when that node was a
  * TextNode (text or stamped — not a link or chip), and it replaced a changed
- * node with a plain `$createTextNode(trimmed)`: format flag and inlineTag stamp
- * both lost. A node that trimmed to nothing was dropped (here: becomes fixed,
- * so the reconciler still preserves its DOM node).
+ * node with a plain `$createTextNode(trimmed)`: the inlineTag stamp is lost. A
+ * node that trimmed to nothing was dropped (here: becomes fixed, so the
+ * reconciler still preserves its DOM node). BUG-44: a text atom keeps its
+ * format — the old rule also dropped it, so `<b>bold <i>end </i></b>` at the
+ * end of a paragraph showed its last run as plain text and an edit there
+ * could not stay inside the elements it came from.
  */
 const edgeTrim = (atoms: Atom[]): void => {
   const trimAt = (idx: number, re: RegExp, side: 'lead' | 'trail'): void => {
@@ -223,7 +249,7 @@ const edgeTrim = (atoms: Atom[]): void => {
         kind: 'text',
         node: atom.node,
         owner: atom.owner,
-        fmt: 0,
+        fmt: atom.kind === 'text' ? atom.fmt : 0,
         text: trimmed,
         source: atom.kind === 'text' ? atom.source : 'element',
         lead: side === 'lead' ? prevLead + removed : prevLead,
@@ -263,8 +289,11 @@ export const atomsToLexical = (atoms: Atom[], originMap?: NodeOriginMapType): an
       case 'stamped': {
         const n = $createTextNode(atom.text);
         n.setMode('token');
+        // Its own presentation (bold for uicontrol, italic for wintitle) plus
+        // any format from a <b>/<i>/<codeph> it sits in (BUG-44).
+        if (atom.fmt & FMT_CODE) n.toggleFormat('code');
         if (atom.fmt & FMT_BOLD) n.toggleFormat('bold');
-        else if (atom.fmt & FMT_ITALIC) n.toggleFormat('italic');
+        if (atom.fmt & FMT_ITALIC) n.toggleFormat('italic');
         // BUG-43: mark a step of a <menucascade> so the editor can draw a
         // visual-only separator between consecutive steps.
         const cascadeStep = atom.owner?.tagName.toLowerCase() === 'menucascade';

@@ -53,9 +53,11 @@ const inlineKind = (tag: string): Kind => ({
 const $countEditor = (originMap: NodeOriginMapType): Map<string, number> => {
   const counts = new Map<string, number>();
   const bump = (key: string) => counts.set(key, (counts.get(key) ?? 0) + 1);
+  const isCode = (n: LexicalNode) => (n as unknown as { hasFormat(f: string): boolean }).hasFormat('code');
 
   const visit = (node: LexicalNode) => {
     const type = node.getType();
+    const prev = node.getPreviousSibling();
     if (type === 'link') bump('xref');
     else if (type === 'quote') bump('note');
     else if (type === 'table') bump('table');
@@ -71,7 +73,11 @@ const $countEditor = (originMap: NodeOriginMapType): Map<string, number> => {
     } else if (type === 'text') {
       const origin = originMap.get(node.getKey());
       if (origin?.inlineTag) bump(`inline:${origin.inlineTag}`);
-      else if ((node as unknown as { hasFormat(f: string): boolean }).hasFormat('code')) bump('codeph');
+      else if (isCode(node) && !(prev && prev.getType() === 'text' && !originMap.get(prev.getKey())?.inlineTag && isCode(prev))) {
+        // One <codeph> per run of adjacent code text: a <codeph> holding a
+        // nested <b> parses to several code nodes (BUG-44).
+        bump('codeph');
+      }
     }
     if ($isElementNode(node)) node.getChildren().forEach(visit);
   };
