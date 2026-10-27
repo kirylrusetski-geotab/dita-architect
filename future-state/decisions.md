@@ -904,3 +904,140 @@ element byte-identical, and is idempotent; **B9** it still lays block structure 
 **B10** an API insert into an unformatted topic changes only the insertion point. `compareXml`'s first
 tier (`formatXml(a) === formatXml(b)` → "formatting only") becomes stricter, never looser: two documents
 whose text differs can no longer format equal.
+
+---
+
+## ADR-013 — A connected map's key registry: the whole mapref tree, DITA precedence, view-only chips
+
+**Date:** 2026-10-27 · **Status:** Accepted 2026-10-27 (Kiryl: whole tree, no three-level cap; the chip
+extension is Session 4's first step, filed as BUG-46) — Execution Plan Session 4, P2-27/FR-035 + FR-066
+
+**Context** — Keyref and conkeyref chips cannot say whether their key resolves, cross-file xrefs are
+never checked, and inserting a variable means typing `<ph conkeyref="key/id"/>` in the XML pane. FR-035
+scoped a fix on 2026-04-10 from the Altitude User Guide alone; before designing, every map in the live
+tenant was read (2026-10-27, throwaway scripts, read-only: 899 folders, **449 maps**, 0 fetch or parse
+errors). What the maps actually do, against what FR-035 assumed:
+
+- **Keys live on any topicref-class element.** Of 1,878 key-defining elements, 133 are `<keydef>` and 33
+  `<glossref>`; **1,707 (91%) are a plain `<topicref keys>`**, 5 a `<topicsetref>`. The User Guide root's
+  18 keys include 2 `GLOS-*` keys on plain `<topicref>`s — a `<keydef>`/`<glossref>`-only loader finds 16.
+  12 `@keys` values carry more than one name.
+- **Every reference is a relative path.** All 726 submap references are relative hrefs (0 UUIDs, 0
+  absolute); 2 are `<topicref format="ditamap">`, not `<mapref>`; 1,075 hrefs climb with `..`, often above
+  the map's own folder (`../Data_Dictionary/…`). The REST API has no path lookup, but every folder's XML
+  carries `parent-folder-id` and a `<children>` listing (name → UUID), and a resource's metadata carries its
+  `folder-uuid` — so a path resolves one folder at a time.
+- **Trees are deeper than three levels.** Submap depth below the connected map: 214 maps 0, 129 at 1, 67 at
+  2, 24 at 3, **9 at 4, 6 at 5**. The production Altitude Help Center map is depth 5 (84 maps in its tree);
+  the largest tree is 164 maps. FR-035's three-level cap came from one chain (root → variables-within-
+  variables → variables) and would cut 15 real trees short, the Help Center among them. 0 cycles; 7
+  referenced submaps do not exist (sandbox/archive leftovers).
+- **Keys are defined more than once.** 10 trees define some key twice with different targets — the Help
+  Center map 18 times (the `Altitude_Copy` warehouse redefines every Altitude key one level deeper). Which
+  definition wins depends on traversal order, so the rule must be the spec's, not a guess.
+- **Key scopes exist but are rare** — 5 `@keyscope`s in 2 maps; one map defines `checking-vehicle-eligibility`
+  in each of its three scopes.
+- **No text-only keys** (0 `<keydef>`s with `<keyword>` and no href). Variables are conkeyref targets in
+  warehouse topics: `@id`-carrying `<ph>` mostly, also `<uicontrol>`, `<wintitle>`, `<keyword>`, `<note>`.
+- **Most variable references are invisible today.** The scanner makes a chip only of `<ph>`/`<term>` with a
+  ref; `<keyword conkeyref/>` (37 in the corpus), `<uicontrol conkeyref/>`, `<wintitle conkeyref/>` parse to
+  an *empty* text node — byte-stable, kept on edit (probed), but nothing on screen. A chip state cannot be
+  shown on them, and FR-066 would insert something the writer cannot see.
+
+DITA 1.3 key precedence (spec, "Core concepts for working with keys"): the effective definition is the
+first in a **breadth-first** traversal of the map tree — the shallowest map wins, document order within a
+map — "so higher-level map authors can override keys defined in referenced submaps"; a child scope's keys
+are addressable from the parent as `scope.key`.
+
+**Decision**
+
+1. **Path resolution — `lib/heretto-path.ts`.** `resolveHerettoPath(href, folderUuid)` → `{ uuid, name,
+   folderUuid } | null`: drop the fragment, walk `..` through the folder's `parent-folder-id`, named
+   segments through the folder's `<children>`, all listings through the existing `herettoFolderCache`
+   (5-minute TTL). One resolver serves maps, conkeyref targets, and cross-file xrefs. (The image resolver
+   keeps its breadcrumb-based `ancestorUuids` walk; moving it onto this resolver is filed as debt, not done
+   here.)
+2. **Loader — `lib/heretto-map-loader.ts`.** `loadKeyRegistry(mapUuid)` fetches the map's metadata (name,
+   `folder-uuid`) and content, then walks the tree **breadth-first, level by level** (a level's maps fetched
+   in parallel): every element with `@keys` defines each whitespace-separated name; every `<mapref>` or
+   element with `format="ditamap"` and an `@href` is a submap, resolved against *its own map's* folder. No
+   fixed level cap: a visited set stops cycles, and a safety cap of **10 levels and 300 maps** (twice the
+   largest real tree) stops runaway structure — reaching it is reported, never silent. A submap that cannot
+   be resolved or fetched is skipped and counted; only the connected map itself failing fails the connect.
+3. **Precedence.** First definition in that breadth-first, document-order walk wins; later definitions of the
+   same name are kept only as a count. Keys inside an element with `@keyscope` register as `scope.key` (how
+   the parent scope addresses them) and also under the bare name when no unscoped definition exists, marked
+   with the scope, so a topic inside the scope shows resolved. Keyscope-aware resolution per topic is out
+   of scope (2 maps use it).
+4. **Registry shape.** `KeyRegistry = { map: { uuid, name }, keys: Map<string, KeyDefinition>, mapsRead,
+   mapsSkipped, capped }`, `KeyDefinition = { href: string | null, mapName, mapUuid, mapFolderUuid, scope? }`.
+   The href stays as written (with its fragment); its target UUID is resolved lazily, when the picker or a
+   validator needs it — connecting does not walk folders for 1,000+ targets.
+5. **Where it lives — `hooks/useKeyRegistry.ts`**, beside `useHerettoCms` in `dita-architect.tsx`: one
+   registry for the app (not per tab), exposed through a `KeyRegistryContext`. **Persistence:** only the map
+   `{ uuid, name }` goes to `localStorage`; the registry is rebuilt on launch silently — success restores
+   chips, failure leaves them in the no-map state with no toast and no modal. **Feedback:** connect success
+   is a toast (`Connected X.ditamap — N key definitions loaded`, plus `, M submaps could not be read` when
+   M > 0); connect failure is a modal with distinct language for network failure, not-found/bad UUID, and
+   not-a-map/malformed XML, and the previous registry stays in force. "Connect a Map…" and "Reload map" go
+   in the Heretto dropdown.
+6. **Chips cover every ref-carrying inline element.** The scanner makes a chip of `<ph>`/`<term>` with a
+   ref (unchanged) **and of any other inline element carrying `conkeyref`/`keyref`/`conref` with no text of
+   its own** (`<keyword conkeyref/>`, `<uicontrol conkeyref/>`, …); an element with fallback text keeps
+   today's stamped-text display. `DitaPhRefNode` gains **`refTag`** (the element name; JSON field defaults
+   to `ph`, so existing serialized state imports unchanged); the reconciler's chip signature includes it,
+   and a chip the author creates serializes as `<refTag refType="refValue"/>`, not always `<ph>`.
+7. **Chip states are view-only.** The chip component reads `KeyRegistryContext` during render; it never
+   calls `editor.update`, so connecting, reloading, or failing can change no byte of any document. Three
+   states for `conkeyref`/`keyref` chips (the key is the part before `/`): **no map** (muted, dashed border,
+   tooltip `Load a ditamap to verify this key resolves`), **unresolved** (the existing
+   `--validation-unresolved-keyref` yellow, tooltip `Key not found in the loaded map`), **resolved**
+   (normal text colour, solid border, tooltip `Key found in X.ditamap`). `conref` and image chips get no state.
+8. **Cross-file xrefs.** For a tab opened from Heretto, an xref href with no scheme, not `#…`, and not
+   `scope="external"`/`format="html"` resolves its path from the tab's `herettoFile.parentFolderUuid`; the
+   target's XML is fetched once per UUID (TTL cache) and the fragment checked the DITA way (`#topicid` names
+   a topic in the file; `#topicid/elementid` an `@id` inside it). Missing file or fragment → the existing
+   broken-xref underline with a message naming which. A network error marks nothing (an error is not
+   evidence of a broken link). Local-file tabs are not checked. Independent of the connected map.
+9. **Insert Variable (FR-066)** reads the registry: a key's target topic is fetched on demand and every
+   inline `@id` element listed; inserting creates a chip with `refTag` = the target's element, so the output
+   is `<tag conkeyref="key/id"/>` — the conref rule, not the writer, picks the element.
+
+**Invariants** (each a test, written before code)
+
+- **I1** Against saved, scrubbed copies of the real maps: the User Guide root resolves exactly its 18 keys
+  (`VARS` + 17 `GLOS-*`, including the 2 on plain `<topicref>`); `Altitude_variables.ditamap` resolves its 15,
+  among them `varsAltitude`, `varsAltitudeUI`, `varsAltitudeNotes`, `varsAltitudeNav`, `varsAltitudeXREF`.
+  (The plan's warehouse half named 5 keys; the map has grown to 15.)
+- **I1b** Precedence: a key defined at level 1 and again at level 2 resolves to the level-1 definition even
+  when the level-2 map comes first in document order; a five-level chain resolves its deepest key; a cycle
+  terminates; a missing submap is skipped and counted.
+- **I2** Connecting, reloading, or failing changes no byte of any open topic (serialize before and after).
+- **I3** Exactly three chip states with the tooltips above; each state's class differs from the others.
+- **I4** Insert Variable emits `<tag conkeyref="key/id"/>` at the caret; the document is otherwise
+  byte-identical.
+- **I5** A persisted map restores silently; a failed restore leaves chips in no-map state and shows nothing.
+- **I6** Cross-file: a missing fragment in a fetched topic underlines; a present one does not;
+  same-document `#anchor` validation is unchanged.
+- **I7** The chip extension changes no byte: the byte-stability corpus is byte-identical, reconcile R1 is
+  still zero false rewrites, and the edit fuzz has 0 failures (its edit count may fall: an empty text node
+  that becomes a chip is no longer an editable text node — the new count is recorded).
+
+**Consequences** — A writer connects any map in the tenant, including the Help Center, and gets its real
+key set with the spec's precedence. Every variable reference in the corpus becomes visible. The resolver
+gives later work (map discovery, P3-43; images) one path walk instead of two. Costs: a connect to a large
+tree is up to ~300 map fetches plus folder listings (parallel per level; the folder cache shares the
+listings); the chip extension touches the parser and reconciler, so Gate 1's full suite and the edit fuzz
+gate it. Limits: keyscope resolution is approximate (decision 3); a key's target is not checked until
+something asks for it, so a key whose href is broken still shows resolved (the key exists — the target is
+the warehouse's problem); conkeyref element ids are not validated by the chip state (three states only).
+
+**Alternatives considered** — **(A) FR-035's three-level cap** — simple, but measured to truncate 15 real
+trees, the production Help Center among them, and a truncated tree shows real keys as unresolved. **(B)
+Depth-first document order** — what a naive recursion does. Measured on the production Help Center tree, it
+picks the `Altitude_Copy` definition for **12 of 282 keys**, all five `varsAltitude*` warehouses among them;
+breadth-first picks the real warehouse for every one. **(C) Read only `<keydef>`/
+`<glossref>`** (the FR sketch) — misses 91% of key definitions. **(D) Resolve hrefs by filename search**
+(what the `read-map.py` skill does) — wrong whenever two folders hold the same filename, which the
+`Altitude_Copy` tree guarantees. **(E) Store chip state in the node** (a `resolved` field set by an update)
+— makes connecting an editor update, which risks I2 and pollutes undo history; render-time context cannot.

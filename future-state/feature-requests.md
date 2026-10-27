@@ -82,6 +82,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Shipped v0.10.0 |
 | 🟢  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Shipped v0.9.8 |
 | 🟢  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Shipped v0.9.8 (first pass; 4 gaps open) |
+| 🔴  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Open |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 
 ---
@@ -1001,6 +1002,37 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 1. The grammar document exists with at least one raw XML sample per suggestion kind, scrubbed of personal data.
 2. A table maps `TrackedMark {changeId, kind, author, date}` to the PI attributes, with gaps named.
 3. The scratch topic is deleted from Heretto afterwards (or lives in a sandbox folder the manifest names).
+
+---
+
+## FR-066: Insert Variable from the connected map's key registry
+
+**Requested:** 2026-10-27 (the roadmap has listed it as "NEW — file as FR" since 2026-07-18)
+**Source:** Roadmap v0.11.0 (map-aware authoring); filed at the start of Execution Plan Session 4
+**Status:** Open
+**Priority:** P2
+**Impact:** High — inserting a variable is the one authoring step the 1.0 acceptance script (step 2) still sends to the XML pane
+**Model weight:** Sonnet, on top of P2-27/FR-035's registry (ADR-013)
+
+**Problem:** A writer who wants a product name, a UI label, or a navigation path from the variable warehouses has to know the warehouse key and the element id by heart, switch to the XML pane, and type `<ph conkeyref="varsAltitudeUI/OptionsMenu"/>`. A wrong key or id is invisible until a build. Heretto's own insert menu lists elements, not variables.
+**Signal:** Real topics lean on this constantly: the byte-stability corpus alone carries 107 `conkeyref`s across 16 keys (`varsProductnames` 34, `varsCamProdSKU` 22, `varsAltitudeXREF` 13, …). The variables skills (`heretto-variables`, `heretto-apply-variables`) exist because finding the right id by hand is slow.
+**Smallest slice:** With a map connected (FR-035), a searchable picker lists the variables the registry can reach — each warehouse key's target topic is fetched on demand and every element with an `@id` becomes an entry (`key/id`, the element's text, its tag) — and Enter inserts the reference at the caret.
+**Serves:** WYSIWYG/DITA parity and writer experience; the 1.0 acceptance script's "insert a conkeyref variable from the connected map's registry".
+
+### Observed facts (2026-10-27, read from the live tenant — design from these, not from memory)
+
+- A warehouse topic is a flat `<topic>` whose variables are `@id`-carrying elements: in five of the Altitude warehouses (Navigation, Notes, UI, Variable, XREF), 63 `<ph>` (some wrapping a `<wintitle>`, a `<menucascade>`, or an `<xref>`), 1 `<uicontrol>`, 1 `<wintitle>`, and 3 `<note>` (block). Product names in other warehouses are `<keyword>` (`<keyword conkeyref="varsProductnames/…"/>`, 37 in the corpus).
+- DITA's conref rule makes the **referencing element match the target's type**: a `<uicontrol id>` target is referenced by `<uicontrol conkeyref>`, a `<keyword id>` by `<keyword conkeyref>`. The picker therefore takes the element from the target — the writer does not choose it — and a block target (`<note>`) is not offered for inline insertion.
+- No map in the tenant defines a text-only key (`<keydef>` with `<keyword>` and no `href`: 0 of 1,878 key definitions across 449 maps), so "variables" here means conkeyref into warehouse topics, not `keyref` text keys.
+- Today only `<ph>`/`<term>` with a ref become a visible chip; a `<keyword>`, `<uicontrol>`, or `<wintitle>` with `conkeyref` parses to an empty text node — it round-trips byte for byte but is **invisible** in the visual editor. An inserted variable must be visible, so ADR-013 extends the chip to every ref-carrying inline element.
+
+### Acceptance criteria
+
+1. The picker is disabled (with a tooltip pointing at Connect a Map) when no map is connected.
+2. Inserting emits exactly `<tag conkeyref="key/id"/>` at the caret, `tag` being the target's element, and the rest of the document is byte-identical (ADR-013 I4).
+3. The inserted variable shows as a resolved chip immediately.
+4. Blocked in Suggesting mode with the same toast as the inline-wrap block.
+5. Undo removes the insertion; redo restores it; both serialize to the matching state.
 
 ---
 
