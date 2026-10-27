@@ -21,6 +21,30 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.4',
+    date: '2026-10-27',
+    title: 'Saving a topic you did not edit now leaves it byte-for-byte unchanged, and bold or italic text with something inside it shows everything it holds.',
+    sections: [
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Bold, italic, or code text that holds another element now shows all of it in the visual editor. Before, `<b>bold with <i>italic inside</i> it</b>` showed as plain bold text, and a variable inside bold text (for example `<b><ph conkeyref="…"/></b>`, common for product SKUs) did not show at all. Editing any part of it now changes only that text and keeps every element and attribute.',
+          'Saving no longer re-spells markup you did not touch. Before, every save rewrote empty elements such as `<keyword></keyword>` in a topic\'s metadata as `<keyword/>`, wrote `&#160;` as an invisible no-break space, and dropped the newline at the end of the file. Now, after an edit, only what you changed differs from the XML as the editor opened it. Known issue, fixed next: opening a topic still re-indents its XML, and trims the leading and trailing spaces inside a code block.',
+          'Text that is both bold and code (or italic and code) now saves as `<b><codeph>…</codeph></b>`. Before, the code formatting won and the bold or italic was dropped.',
+          'Bold or italic text that ends a paragraph with a space inside it (for example `<p>Click <b>Save </b></p>`) now shows as bold or italic in the visual editor, and typing there stays inside it. Before, it showed as plain text.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'The inline scanner now reads a `<b>`/`<i>`/`<codeph>` with element children child by child, each child carrying the wrapper\'s format; the inline reconciler strips every format the surrounding elements already provide from spliced text, so nothing is double-wrapped (BUG-44).',
+          'The serializer ends with a new source-spelling pass (ADR-012): it aligns the output\'s markup tokens with the source\'s by meaning and writes the source\'s exact bytes wherever a token is unchanged. It can change only spelling, never content, and the edit fuzz checks that on every one of its 1,407 edits (BUG-31).',
+          'The byte-stability suite now compares byte for byte with no exceptions, and every one of its 52 fixtures passes (8 were known failures before this release). The edit fuzz has no known failures left. Suite: 75 files, 1,806 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.3',
     date: '2026-10-22',
     title: 'Bug sweep: a cleaner save every time you type near a UI control, a link, a menu path, or two lists in a row.',

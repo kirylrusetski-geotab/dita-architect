@@ -878,4 +878,7 @@ step reads** (O(D²) memory, not O(D·(N+M))). Measured: the pass ran on all 1,4
 re-spelled the output of 608, with the same tree every time (B2); a seeded randomized test (200
 deletions, insertions, and content changes over mixed spellings) gets every byte outside the change from
 the source; under 1 ms per pass on the largest real fixture (25.6 KB), about 3 ms on a 200 KB document,
-8.9 ms with 620 of its 1,240 paragraphs edited (jsdom).
+8.9 ms with 620 of its 1,240 paragraphs edited (jsdom). **Scope found in the native smoke:** "the source"
+here is the editor's master — the XML as loaded. Every load path runs `formatXml` before that point
+(BUG-45), so the master is already a re-indented copy of what Heretto holds; this ADR makes the serializer
+exact relative to the master, and BUG-45 is the remaining gap to Heretto's bytes.

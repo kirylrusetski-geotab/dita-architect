@@ -181,6 +181,23 @@ describe('BUG-44 — the editor shows what a mixed-content <b>/<i>/<codeph> hold
       { type: 'text', text: 'end', bold: true, italic: true },
     ]);
   });
+
+  it('a plain <b> trimmed at the paragraph end keeps its bold (the old trim dropped it)', () => {
+    expect(leaves(DOC('<p>Click <b>Save </b></p>'))).toEqual([
+      { type: 'text', text: 'Click ' },
+      { type: 'text', text: 'Save', bold: true },
+    ]);
+  });
+
+  it('a plain <b> trimmed at the paragraph start: an edit lands at the right offset', () => {
+    const xml = DOC('<p><b> Save</b> it.</p>');
+    expect(leaves(xml)).toEqual([
+      { type: 'text', text: 'Save', bold: true },
+      { type: 'text', text: ' it.' },
+    ]);
+    const { out } = replaceText(xml, 'Save', 'Save all');
+    expect(out).toBe(xml.replace('<b> Save</b>', '<b> Save all</b>'));
+  });
 });
 
 describe('BUG-44 — unedited: byte-stable, no reconciler patch, no structure warning', () => {
