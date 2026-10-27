@@ -5,7 +5,6 @@ import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus, ImportVerif
 import { herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
 import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml, stripHerettoClassAttrs } from '../lib/xml-utils';
-import { formatXml } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -487,8 +486,9 @@ export function useHerettoCms({
     if (!importVerification) return;
     const { firstContent, item, pathStr, breadcrumbs } = importVerification;
 
-    const beautified = formatXml(firstContent);
-    const newTab = createTab(beautified);
+    // BUG-45: open the topic exactly as Heretto holds it, so an unedited save
+    // sends Heretto its own bytes back. Formatting is the author's choice.
+    const newTab = createTab(firstContent);
     const parentCrumb = breadcrumbs[breadcrumbs.length - 1];
     const ancestorUuids = breadcrumbs.map(b => b.uuid);
 
@@ -619,17 +619,17 @@ export function useHerettoCms({
       const res = await fetch(`/heretto-api/all-files/${file.uuid}/content`, { signal: withTimeout(abort.signal) });
       if (!res.ok) throw new Error();
       if (!res.headers.get('content-type')?.includes('application/xml')) throw new Error('Heretto returned a non-XML response');
+      // BUG-45: kept exactly as Heretto holds it, as on open.
       const content = await res.text();
-      const beautified = formatXml(content);
 
       if (abort.signal.aborted) return;
 
       // Update savedXmlRef outside the state updater to avoid mutating React state.
-      savedXmlRef.current = beautified;
+      savedXmlRef.current = content;
 
       setTabs(prev => prev.map(t => {
         if (t.id !== tabId) return t;
-        return { ...t, xmlContent: beautified, lastUpdatedBy: 'code' as const, herettoRemoteChanged: false, herettoJustLoaded: false };
+        return { ...t, xmlContent: content, lastUpdatedBy: 'code' as const, herettoRemoteChanged: false, herettoJustLoaded: false };
       }));
       setTimeout(() => {
         setTabs(prev => prev.map(t => t.id === tabId ? { ...t, syncTrigger: t.syncTrigger + 1 } : t));

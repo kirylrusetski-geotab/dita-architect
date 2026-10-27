@@ -882,3 +882,25 @@ the source; under 1 ms per pass on the largest real fixture (25.6 KB), about 3 m
 here is the editor's master — the XML as loaded. Every load path runs `formatXml` before that point
 (BUG-45), so the master is already a re-indented copy of what Heretto holds; this ADR makes the serializer
 exact relative to the master, and BUG-45 is the remaining gap to Heretto's bytes.
+
+**Amendment (2026-10-27, BUG-45 — accepted by Kiryl: "keep it verbatim")** — *A topic opens exactly as its
+source has it.* Every load path (`lib/native-api-bridge.ts` load-content, `hooks/useExternalLoad.ts`,
+`hooks/useHerettoCms.ts` open and refresh) used to run `formatXml` before the XML became the tab's content
+and so the serializer's master. That was not cosmetic: measured over the corpus, the editor showed
+different text for 7 of 52 fixtures (5 real topics — e.g. "refer to Installation overview." → "refer to
+Installation overview  ."), and constructed cases showed "H<sub>2</sub>O" → "H 2 O", doubled spaces around
+mid-sentence review PIs, and a `<codeblock>` losing its first-line indentation — all written back to
+Heretto on save. Decisions: (1) **loading never formats**: the tab's content and `savedXmlRef` are the
+source bytes, so with this ADR an unedited save sends Heretto its own bytes and an edited save differs
+only by the edit; (2) **formatting is the author's action only** (Format button, Format Document), and
+**`formatXml` is content-safe**: it moves whitespace only between the children of an element that holds
+no text of its own and whose element children are all known block elements (an `<image placement="break">`
+counts as one), copies every other element verbatim — preformatted elements and `xml:space="preserve"`
+always — and returns malformed input unchanged. Accepted cost: Heretto topics often arrive as a few very
+long lines; the XML pane's word-wrap toggle and the Format button cover it. Invariants (tests first, 31 of
+them red): **B7** each of the four load paths keeps the source bytes in `xmlContent` and `savedXmlRef`;
+**B8** for every corpus fixture `formatXml` leaves the editor's text unchanged, keeps every text-holding
+element byte-identical, and is idempotent; **B9** it still lays block structure out one element per line;
+**B10** an API insert into an unformatted topic changes only the insertion point. `compareXml`'s first
+tier (`formatXml(a) === formatXml(b)` → "formatting only") becomes stricter, never looser: two documents
+whose text differs can no longer format equal.

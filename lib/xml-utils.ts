@@ -14,174 +14,121 @@
  */
 import { RECOGNIZED_ELEMENTS, STRUCTURAL_CONTAINERS } from '../constants/heretto';
 // ── XML Formatting ──────────────────────────────────────────────────────────
+//
+// formatXml backs the Format button and Monaco's Format Document. BUG-45: it
+// must never change text. The old formatter trimmed every text run and put
+// any element missing from an inline list on its own line, so
+// "H<sub>2</sub>O" read "H 2 O", review PIs mid-sentence doubled spaces, and a
+// <codeblock> lost its first-line indentation. The rule now: whitespace moves
+// only between the children of an element that holds no text of its own and
+// whose element children are all known block elements; every other element
+// is copied verbatim, byte for byte, on one line. An element we do not know
+// can only make the output less tidy, never different.
 
-type XmlToken = { type: 'opening' | 'closing' | 'self-closing' | 'text' | 'comment' | 'pi' | 'doctype'; text: string };
-
-function tokenizeXml(xml: string): XmlToken[] {
-  const tokens: XmlToken[] = [];
-  let i = 0;
-
-  while (i < xml.length) {
-    if (xml[i] === '<') {
-      // Comment
-      if (xml.startsWith('<!--', i)) {
-        const end = xml.indexOf('-->', i + 4);
-        const ce = end === -1 ? xml.length : end + 3;
-        tokens.push({ type: 'comment', text: xml.substring(i, ce) });
-        i = ce; continue;
-      }
-      // PI
-      if (xml.startsWith('<?', i)) {
-        const end = xml.indexOf('?>', i + 2);
-        const pe = end === -1 ? xml.length : end + 2;
-        tokens.push({ type: 'pi', text: xml.substring(i, pe) });
-        i = pe; continue;
-      }
-      // DOCTYPE
-      if (xml.startsWith('<!', i)) {
-        const end = xml.indexOf('>', i + 2);
-        const de = end === -1 ? xml.length : end + 1;
-        tokens.push({ type: 'doctype', text: xml.substring(i, de) });
-        i = de; continue;
-      }
-      // Tag — advance past quotes
-      let j = i + 1;
-      while (j < xml.length && xml[j] !== '>') {
-        if (xml[j] === '"') { j = xml.indexOf('"', j + 1); if (j === -1) j = xml.length; else j++; }
-        else if (xml[j] === "'") { j = xml.indexOf("'", j + 1); if (j === -1) j = xml.length; else j++; }
-        else j++;
-      }
-      const tag = xml.substring(i, j + 1);
-      if (tag.startsWith('</')) tokens.push({ type: 'closing', text: tag });
-      else if (tag.endsWith('/>')) tokens.push({ type: 'self-closing', text: tag });
-      else tokens.push({ type: 'opening', text: tag });
-      i = j + 1;
-    } else {
-      let j = i;
-      while (j < xml.length && xml[j] !== '<') j++;
-      tokens.push({ type: 'text', text: xml.substring(i, j) });
-      i = j;
-    }
-  }
-  return tokens;
-}
-
-// Inline DITA elements that must stay on the same line as surrounding text
-const INLINE_ELEMENTS = new Set([
-  'ph', 'codeph', 'b', 'i', 'strong', 'em', 'xref', 'uicontrol', 'term',
-  'keyword', 'filepath', 'varname', 'cmdname', 'msgph', 'menucascade',
-  'wintitle', 'fn', 'cite', 'q', 'tm', 'option', 'parmname', 'apiname',
-  'userinput', 'systemoutput', 'synph', 'abbreviated-form', 'indexterm',
-  'boolean', 'state',
+/** Elements that never sit in running text, so the whitespace around them
+ *  inside a text-free parent carries no meaning. */
+const BLOCK_ELEMENTS = new Set([
+  // topics and their top level
+  'concept', 'task', 'reference', 'topic', 'troubleshooting', 'glossentry', 'glossgroup',
+  'title', 'titlealts', 'navtitle', 'searchtitle', 'shortdesc', 'abstract', 'prolog', 'related-links',
+  'conbody', 'taskbody', 'refbody', 'body', 'troublebody', 'glossBody', 'glossdef', 'glossterm',
+  // prolog
+  'metadata', 'author', 'source', 'publisher', 'copyright', 'copyryear', 'copyrholder', 'critdates',
+  'created', 'revised', 'permissions', 'audience', 'category', 'keywords', 'prodinfo', 'prodname',
+  'vrmlist', 'vrm', 'brand', 'series', 'platform', 'prognum', 'featnum', 'component', 'othermeta', 'resourceid',
+  // body blocks
+  'section', 'sectiondiv', 'bodydiv', 'example', 'p', 'note', 'lq', 'dl', 'dlhead', 'dthd', 'ddhd',
+  'dlentry', 'dt', 'dd', 'ul', 'ol', 'sl', 'li', 'sli', 'fig', 'figgroup', 'codeblock', 'pre', 'lines',
+  'msgblock', 'screen', 'object', 'table', 'tgroup', 'colspec', 'thead', 'tbody', 'row', 'entry',
+  'simpletable', 'sthead', 'strow', 'stentry', 'draft-comment', 'required-cleanup',
+  // task
+  'prereq', 'context', 'steps', 'steps-unordered', 'steps-informal', 'step', 'substeps', 'substep',
+  'cmd', 'info', 'stepxmp', 'stepresult', 'steptroubleshooting', 'tutorialinfo', 'choices', 'choice',
+  'choicetable', 'chhead', 'chrow', 'choptionhd', 'chdeschd', 'choption', 'chdesc', 'result', 'postreq',
+  'tasktroubleshooting',
+  // reference
+  'refsyn', 'properties', 'prophead', 'proptypehd', 'propvaluehd', 'propdeschd', 'property',
+  'proptype', 'propvalue', 'propdesc',
+  // troubleshooting
+  'condition', 'troubleSolution', 'cause', 'remedy', 'responsibleParty',
+  // related links
+  'link', 'linktext', 'desc', 'linkpool', 'linklist', 'linkinfo',
 ]);
 
-function getTokenTagName(tok: XmlToken): string {
-  const match = tok.text.match(/^<\/?([a-zA-Z][\w.-]*)/);
-  return match ? match[1].toLowerCase() : '';
-}
+/** Elements whose own whitespace is content: always copied verbatim. */
+const PREFORMATTED_ELEMENTS = new Set(['codeblock', 'pre', 'lines', 'msgblock', 'screen']);
 
-/** Merge runs of text + inline elements into single text tokens so the
- *  formatter keeps them on one line instead of splitting across lines. */
-function mergeInlineRuns(tokens: XmlToken[]): XmlToken[] {
-  const result: XmlToken[] = [];
-  let i = 0;
+type FmtNode =
+  | { kind: 'el'; name: string; start: number; end: number; open: string; close: string | null; attrs: string; children: FmtNode[] }
+  | { kind: 'text'; raw: string }
+  | { kind: 'other'; raw: string; cdata: boolean };
 
-  while (i < tokens.length) {
-    const tok = tokens[i];
-    const isText = tok.type === 'text';
-    const isInlineOpen = tok.type === 'opening' && INLINE_ELEMENTS.has(getTokenTagName(tok));
-    const isInlineSelf = tok.type === 'self-closing' && INLINE_ELEMENTS.has(getTokenTagName(tok));
+const FMT_TOKEN = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<!DOCTYPE(?:[^[>]|\[[^\]]*\])*>|<\/([^\s>]+)\s*>|<([^\s/>!?]+)((?:\s+[^\s=/>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|[^<]+/y;
 
-    if (isText || isInlineOpen || isInlineSelf) {
-      // Try to collect a run of text + inline elements
-      let j = i;
-      let depth = 0;
-      let merged = '';
-      let hasInline = false;
-
-      while (j < tokens.length) {
-        const t = tokens[j];
-        const tn = getTokenTagName(t);
-
-        if (t.type === 'text') {
-          merged += t.text;
-          j++;
-        } else if (t.type === 'opening' && INLINE_ELEMENTS.has(tn)) {
-          merged += t.text.trim();
-          depth++;
-          hasInline = true;
-          j++;
-        } else if (t.type === 'closing' && INLINE_ELEMENTS.has(tn) && depth > 0) {
-          merged += t.text.trim();
-          depth--;
-          j++;
-        } else if (t.type === 'self-closing' && INLINE_ELEMENTS.has(tn)) {
-          merged += t.text.trim();
-          hasInline = true;
-          j++;
-        } else {
-          break;
-        }
-      }
-
-      if (hasInline && depth === 0) {
-        result.push({ type: 'text', text: merged });
-        i = j;
-      } else {
-        // Unbalanced or no inline elements — emit tokens individually
-        for (let k = i; k < j; k++) {
-          result.push(tokens[k]);
-        }
-        i = j;
-      }
+/** Parse into a node list; null on anything not well-formed (left unformatted). */
+const parseForFormat = (xml: string): FmtNode[] | null => {
+  const top: FmtNode[] = [];
+  const stack: Array<Extract<FmtNode, { kind: 'el' }>> = [];
+  const add = (n: FmtNode) => (stack.length ? stack[stack.length - 1].children : top).push(n);
+  let pos = 0;
+  while (pos < xml.length) {
+    FMT_TOKEN.lastIndex = pos;
+    const m = FMT_TOKEN.exec(xml);
+    if (!m || m[0].length === 0) return null;
+    const raw = m[0];
+    const end = pos + raw.length;
+    if (m[1] !== undefined) {
+      const el = stack.pop();
+      if (!el || el.name !== m[1]) return null;
+      el.close = raw;
+      el.end = end;
+    } else if (m[2] !== undefined) {
+      const el: Extract<FmtNode, { kind: 'el' }> = { kind: 'el', name: m[2], start: pos, end, open: raw, close: null, attrs: m[3], children: [] };
+      add(el);
+      if (!m[4]) stack.push(el);
+    } else if (raw[0] === '<') {
+      add({ kind: 'other', raw, cdata: raw.startsWith('<![CDATA[') });
     } else {
-      result.push(tok);
-      i++;
+      add({ kind: 'text', raw });
     }
+    pos = end;
   }
-  return result;
-}
+  return stack.length ? null : top;
+};
+
+const isBlockChild = (n: Extract<FmtNode, { kind: 'el' }>): boolean =>
+  BLOCK_ELEMENTS.has(n.name) || (n.name === 'image' && /\splacement\s*=\s*["']break["']/.test(n.attrs));
+
+/** True when the whitespace between this element's children carries no meaning. */
+const canReindent = (el: Extract<FmtNode, { kind: 'el' }>): boolean =>
+  el.close !== null &&
+  el.children.length > 0 &&
+  !PREFORMATTED_ELEMENTS.has(el.name) &&
+  !/\sxml:space\s*=\s*["']preserve["']/.test(el.attrs) &&
+  el.children.every(c =>
+    c.kind === 'text' ? !c.raw.trim() : c.kind === 'el' ? isBlockChild(c) : !c.cdata);
 
 export function formatXml(xml: string): string {
+  const nodes = parseForFormat(xml);
+  if (!nodes) return xml;
   const indent = '  ';
-  const tokens = mergeInlineRuns(tokenizeXml(xml.trim()));
-  let result = '';
-  let level = 0;
-
-  for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i];
-
-    if (tok.type === 'pi' || tok.type === 'doctype') {
-      result += tok.text.trim() + '\n';
-    } else if (tok.type === 'comment') {
-      result += indent.repeat(level) + tok.text.trim() + '\n';
-    } else if (tok.type === 'closing') {
-      level = Math.max(0, level - 1);
-      result += indent.repeat(level) + tok.text.trim() + '\n';
-    } else if (tok.type === 'self-closing') {
-      result += indent.repeat(level) + tok.text.trim() + '\n';
-    } else if (tok.type === 'opening') {
-      // Inline collapse: <tag>text</tag> on one line
-      if (
-        i + 2 < tokens.length &&
-        tokens[i + 1].type === 'text' &&
-        tokens[i + 2].type === 'closing'
-      ) {
-        const text = tokens[i + 1].text.trim();
-        result += indent.repeat(level) + tok.text.trim() + text + tokens[i + 2].text.trim() + '\n';
-        i += 2;
-      } else {
-        result += indent.repeat(level) + tok.text.trim() + '\n';
-        level++;
-      }
-    } else if (tok.type === 'text') {
-      const trimmed = tok.text.trim();
-      if (trimmed) {
-        result += indent.repeat(level) + trimmed + '\n';
-      }
+  const lines: string[] = [];
+  const emit = (n: FmtNode, level: number) => {
+    if (n.kind === 'text') {
+      // Text reaches here only between top-level nodes (whitespace, by
+      // well-formedness) or as a child of a re-indentable element (whitespace
+      // too, by canReindent): it is the layout being replaced.
+      if (n.raw.trim()) lines.push(indent.repeat(level) + n.raw);
+      return;
     }
-  }
-  return result.trimEnd();
+    if (n.kind === 'other') { lines.push(indent.repeat(level) + n.raw); return; }
+    if (!canReindent(n)) { lines.push(indent.repeat(level) + xml.slice(n.start, n.end)); return; }
+    lines.push(indent.repeat(level) + n.open);
+    for (const c of n.children) emit(c, level + 1);
+    lines.push(indent.repeat(level) + n.close);
+  };
+  for (const n of nodes) emit(n, 0);
+  return lines.join('\n');
 }
 
 export const escapeXml = (s: string): string =>

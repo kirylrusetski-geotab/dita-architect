@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Tab } from '../types/tab';
 import { createTab } from '../types/tab';
-import { validateDitaXml, formatXml } from '../lib/xml-utils';
+import { validateDitaXml } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
 interface UseExternalLoadParams {
@@ -54,11 +54,10 @@ export function useExternalLoad({
           }
 
           try {
-            // Format XML
-            const formattedXml = formatXml(xml);
-
-            // Create new tab
-            const newTab = createTab(formattedXml);
+            // Create new tab. BUG-45: the XML is kept exactly as sent;
+            // formatting is the author's choice (Format), never a side effect
+            // of loading.
+            const newTab = createTab(xml);
             newTab.localFileName = fileName;
 
             // Set Heretto connection if a target UUID is provided. Populating

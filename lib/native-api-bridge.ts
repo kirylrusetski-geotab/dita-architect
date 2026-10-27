@@ -1,5 +1,5 @@
 import type { Tab } from '../types/tab';
-import { validateDitaXml, formatXml } from './xml-utils';
+import { validateDitaXml } from './xml-utils';
 import { computeProposedXml } from './xml-insert';
 import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
@@ -173,8 +173,9 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       }
 
       try {
-        const formattedXml = formatXml(xml);
-        const newTab = createTab(formattedXml);
+        // BUG-45: the tab keeps the XML exactly as sent; formatting is the
+        // author's choice (Format), never a side effect of loading.
+        const newTab = createTab(xml);
         newTab.localFileName = fileName;
         if (herettoTargetUuid) {
           newTab.herettoReplaceTarget = { uuid: herettoTargetUuid };
