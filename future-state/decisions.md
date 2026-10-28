@@ -1041,3 +1041,18 @@ breadth-first picks the real warehouse for every one. **(C) Read only `<keydef>`
 (what the `read-map.py` skill does) — wrong whenever two folders hold the same filename, which the
 `Altitude_Copy` tree guarantees. **(E) Store chip state in the node** (a `resolved` field set by an update)
 — makes connecting an editor update, which risks I2 and pollutes undo history; render-time context cannot.
+
+**Implementation note (2026-10-28, v0.11.0)** — Built as decided, tests first; four things the build and
+the smoke added. (1) **Folder requests are shared while in flight**: a level's submaps resolve in
+parallel, mostly through the same folders, and without it one folder was fetched once per reference (the
+300-map test took 6 s). (2) **The resolver says why** (`resolveHerettoPathResult`: found / missing /
+error), so a validator never calls a link broken on a failed fetch. (3) **Tabs that know only their file
+UUID** — an API load (the AI-drafting flow), a dev-server load, a Replace — carry no `parentFolderUuid`;
+`fetchResourceFolder` reads the file's `folder-uuid` so cross-file checks run for them too. (4) **BUG-48**:
+the native smoke drew no underline on broken links although the plugin set the class — `.dita-editor-text-link`'s
+`text-decoration` shorthand (P2-30, v0.9.3) overrode `.dita-validation-broken-xref` at equal specificity,
+so the same-document indicator had been invisible since then too; a more specific rule fixes both. The
+loader, run against the live tenant: User Guide root 18 keys, warehouse map 15, Help Center 282 keys from
+84 maps in 3.8 s with every `varsAltitude*` key from the real warehouse, the largest tree 1,321 keys from
+166 maps in 4.4 s. Limits as stated in Consequences; an Insert Variable search covers the selected key's
+variables, not every key's at once.

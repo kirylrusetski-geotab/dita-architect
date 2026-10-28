@@ -51,7 +51,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | FR-032                                                                                          | Extend body element indicators to non-task topic types                            | 2026-03-27 | Shipped (P2-32/33/34/35)  |
 | 🟢  | FR-033                                                                                          | Normalize separators in "Open from Heretto" search                                | 2026-03-30 | Shipped v0.9.1.1          |
 | 🟢  | FR-034                                                                                          | Larger Replace in Heretto preview modal with fluid diff height                    | 2026-04-06 | Shipped v0.9.1.1          |
-| 🔴  | [FR-035](#fr-035-connect-a-map--key-registry-keyref-validation-and-cross-file-xref-validation)  | "Connect a Map" — key registry, keyref validation, and cross-file xref validation | 2026-04-10 | Open                      |
+| 🟢  | [FR-035](#fr-035-connect-a-map--key-registry-keyref-validation-and-cross-file-xref-validation)  | "Connect a Map" — key registry, keyref validation, and cross-file xref validation | 2026-04-10 | Shipped v0.11.0 (2026-10-28, ADR-013) |
 | 🔴  | [FR-036](#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic)              | Map discovery — surface ditamaps that reference the current topic                 | 2026-04-10 | Open                      |
 | 🔴  | [FR-037](#fr-037-general-discoverability--empty-states-onboarding-hints-and-feature-surfacing)  | General discoverability — empty states, onboarding hints, and feature surfacing   | 2026-04-13 | Open                      |
 | 🟢  | FR-038                                                                                          | Base visual styling for xrefs in the visual editor                                | 2026-04-14 | Shipped v0.9.3            |
@@ -82,7 +82,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-063](#fr-063-post-sync-structural-mismatch-warning)                                        | Post-sync structural mismatch warning (links vs. xrefs)                          | 2026-10-19 | Shipped v0.10.0 |
 | 🟢  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Shipped v0.9.8 |
 | 🟢  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Shipped v0.9.8 (first pass; 4 gaps open) |
-| 🔴  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Open |
+| 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 
 ---
@@ -161,7 +161,7 @@ The table context menu shipped in FR-024 lacks proper accessibility attributes a
 
 **Requested:** 2026-04-10
 **Source:** Kiryl Rusetski, with engineering scoping by Rafael Santos and UX scoping by Maya Chen
-**Status:** Open
+**Status:** Shipped (v0.11.0, 2026-10-28) — as ADR-013, which replaced two of the scoping decisions below after every real map was read: no three-level cap (trees reach 5 levels; the whole tree is walked breadth-first with a 10-level / 300-map safety cap), and keys are read from `@keys` on any element, not only `<keydef>`/`<glossref>` (91% of real key definitions are a plain `<topicref keys>`).
 **Priority:** P2 (tracked as P2-27 in BACKLOG.md)
 **Impact:** High
 
@@ -1009,7 +1009,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-27 (the roadmap has listed it as "NEW — file as FR" since 2026-07-18)
 **Source:** Roadmap v0.11.0 (map-aware authoring); filed at the start of Execution Plan Session 4
-**Status:** Open
+**Status:** Shipped (v0.11.0, 2026-10-28)
 **Priority:** P2
 **Impact:** High — inserting a variable is the one authoring step the 1.0 acceptance script (step 2) still sends to the XML pane
 **Model weight:** Sonnet, on top of P2-27/FR-035's registry (ADR-013)

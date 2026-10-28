@@ -21,6 +21,43 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.0',
+    date: '2026-10-28',
+    title: 'Connect a map to check every variable and key in your topic, and insert variables from it without touching the XML.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          '**Connect a Map** (Heretto menu): paste the UUID of a map, or a Heretto link to it. DITA Architect reads that map and every map it references, however deep (the Altitude Help Center is five levels), and collects every key they define. A toast says how many keys were loaded, and which submaps could not be read, if any. The map is remembered: next time the app opens it reconnects silently. **Reload map** reads it again; **Disconnect** forgets it.',
+          'Variable and key chips now show whether their key resolves. **Dashed border**: no map connected, so nothing is checked yet. **Yellow**: the connected map does not define this key. **Solid border**: the key was found; hover to see which map defines it.',
+          '**Insert Variable** (the `{}` button in the editor toolbar, once a map is connected): pick a key, then a variable from its warehouse topic, and press Enter. The variable is inserted at the cursor as the same element its target is (`<uicontrol conkeyref="varsAltitudeUI/OptionsMenu"/>` for a UI label), as DITA requires, and nothing else in the topic changes. Blocked in Suggesting mode, like the other inline elements.',
+          'Links to other topics are now checked. For a topic opened from Heretto, an xref such as `other.dita#topic/element` is looked up in Heretto: if the file, the topic, or the element does not exist, the link gets the red wavy underline and its tooltip says which. If Heretto cannot be reached, nothing is marked. Links within the same topic are checked as before.',
+        ],
+      },
+      {
+        heading: 'Bug Fixes',
+        items: [
+          'Variables written as `<keyword conkeyref="…"/>`, `<uicontrol conkeyref="…"/>`, and every other element except `<ph>` and `<term>` were invisible in the visual editor (the XML kept them, but the writer saw nothing and could not tell they were there). They now show as chips like every other variable.',
+          'A broken link now shows its red wavy underline. Since 0.9.3 the plain link underline had hidden it, so a link to a missing target in the same topic looked like any other link (its tooltip still named the problem).',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'If a map is not found, is not a map, or cannot be read, a dialog explains which, and the map you had connected stays connected.',
+          'Connecting a map, reloading it, or failing to never changes a topic: the chip states are display only.',
+          'Keys defined inside a key scope are matched by name; scope-aware resolution per topic is not supported (two maps in the repository use scopes).',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-013: every map in the repository (449) was read before designing. Keys are read from `@keys` on any element (91% of real key definitions are a plain `<topicref keys>`), submaps from `<mapref>` or `format="ditamap"`, relative paths are resolved folder by folder (`lib/heretto-path.ts`), and the first definition in a breadth-first walk wins, as the DITA 1.3 specification says. In the Help Center map a depth-first walk would have picked the `Altitude_Copy` warehouse for 12 keys. Checked against the live repository: the User Guide map gives 18 keys, the Help Center 282 keys from 84 maps in under 4 seconds. Suite: 82 files, 2,035 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.10.5',
     date: '2026-10-27',
     title: 'Topics now open exactly as Heretto stores them, and Format never changes your text.',
