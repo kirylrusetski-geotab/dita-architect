@@ -61,6 +61,7 @@ import { useHerettoCms } from './hooks/useHerettoCms';
 import { useKeyRegistry } from './hooks/useKeyRegistry';
 import { KeyRegistryContext } from './components/KeyRegistryContext';
 import { ConnectMapModal } from './components/ConnectMapModal';
+import { ContentModelViolationModal } from './components/ContentModelViolationModal';
 import { useExternalLoad } from './hooks/useExternalLoad';
 import { EDITOR_NODES } from './constants/editor-nodes';
 
@@ -260,6 +261,8 @@ export default function ProfessionalDitaEditor() {
     setHerettoSelected,
     herettoSaving,
     herettoSaveProgress,
+    contentModelViolations,
+    setContentModelViolations,
     isHerettoDropdownOpen,
     setIsHerettoDropdownOpen,
     herettoDropdownRef,
@@ -539,6 +542,14 @@ export default function ProfessionalDitaEditor() {
           onConnect={keyRegistry.connect}
           onClearError={keyRegistry.clearError}
           onClose={() => setIsConnectMapOpen(false)}
+        />
+      )}
+
+      {/* Pre-save content-model violation (FR-067 / ADR-014) — blocks Save to Heretto */}
+      {contentModelViolations && contentModelViolations.length > 0 && (
+        <ContentModelViolationModal
+          violations={contentModelViolations}
+          onClose={() => setContentModelViolations(null)}
         />
       )}
 

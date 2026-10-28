@@ -218,6 +218,66 @@ describe('saveTab — ADR-008 pending-review guard', () => {
   });
 });
 
+// ─── saveTab — FR-067 / ADR-014 I4: content-model gate ────────────────────────
+
+describe('saveTab — FR-067 / ADR-014 I4 content-model gate', () => {
+  // <fig> is not a valid child of <cmd> (P2-36 I3 / ADR-014 I2).
+  const INVALID_XML = '<?xml version="1.0"?>\n<task id="t"><title>T</title><taskbody><steps><step><cmd>Do this.<fig><title>F</title></fig></cmd></step></steps></taskbody></task>';
+
+  it('returns 400 with error + details, and never calls handleHerettoSave', async () => {
+    const tab = makeTab({
+      xmlContent: INVALID_XML,
+      herettoFile: { uuid: 'abc', name: 'test.dita', path: '/test.dita' },
+    });
+    const { api, handlers } = setup(tab);
+
+    const raw = await api.saveTab(tab.id);
+    const res = JSON.parse(raw);
+
+    expect(res.success).toBe(false);
+    expect(res.httpStatus).toBe(400);
+    expect(res.error).toContain('<fig> is not a valid child of <cmd>');
+    expect(res.details).toEqual([
+      { element: 'fig', parent: 'cmd', line: expect.any(Number), column: expect.any(Number) },
+    ]);
+    expect(handlers.handleHerettoSave).not.toHaveBeenCalled();
+  });
+
+  it('the pending-review guard still runs first — a stale pending review is reported as that, not as a content-model violation', async () => {
+    // tab.xmlContent here is the pre-PUT document (stale while a review is
+    // pending, per ADR-008) — checking its structure would be meaningless,
+    // so the existing pendingReview guard is left ahead of this one.
+    const tab = makeTab({
+      xmlContent: INVALID_XML,
+      herettoFile: { uuid: 'abc', name: 'test.dita', path: '/test.dita' },
+      pendingReview: { proposedXml: BASE_XML, baseXml: BASE_XML },
+    });
+    const { api } = setup(tab);
+
+    const raw = await api.saveTab(tab.id);
+    const res = JSON.parse(raw);
+
+    expect(res.success).toBe(false);
+    expect(res.httpStatus).toBe(400);
+    expect(res.error).toMatch(/pending review/);
+    expect(res.details).toBeUndefined();
+  });
+
+  it('a structurally valid document is unaffected (control case, same as the existing allow test)', async () => {
+    const tab = makeTab({
+      herettoFile: { uuid: 'abc', name: 'test.dita', path: '/test.dita' },
+    });
+    const { api, handlers } = setup(tab);
+
+    const raw = await api.saveTab(tab.id);
+    const res = JSON.parse(raw);
+
+    expect(res.success).toBe(true);
+    expect(res.details).toBeUndefined();
+    expect(handlers.handleHerettoSave).toHaveBeenCalledWith(tab.id);
+  });
+});
+
 // ─── insertSection ────────────────────────────────────────────────────────────
 
 describe('insertSection — suggesting-mode guard removed (ADR-008)', () => {

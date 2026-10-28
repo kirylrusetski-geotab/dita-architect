@@ -3,6 +3,7 @@ import Editor, { OnMount, OnChange, Monaco } from '@monaco-editor/react';
 
 import type { ThemeName } from './Toolbar';
 import { isBrokenXrefTag } from '../lib/xref-validation';
+import { validateContentModel, violationMessage } from '../lib/content-model-validate';
 
 // ── Syntax Theme Types & Options ────────────────────────────────────────────
 
@@ -759,6 +760,21 @@ export const MonacoDitaEditor: React.FC<MonacoDitaEditorProps> = ({
           severity: monaco.MarkerSeverity.Warning,
         });
       }
+    }
+
+    // --- FR-067 / ADR-014: pre-save content-model validation, live ---
+    // Woven in here so a violation is live in the SAME markers/panel every
+    // other check already feeds — no new tab field, no race with this
+    // function's own debounced re-runs. The hard gate at save time
+    // (hooks/useHerettoCms.ts, lib/native-api-bridge.ts) re-checks the exact
+    // content being written independently; this is the always-visible half.
+    for (const violation of validateContentModel(content)) {
+      markers.push({
+        startLineNumber: violation.line, startColumn: violation.column,
+        endLineNumber: violation.line, endColumn: violation.column + violation.element.length + 1,
+        message: violationMessage(violation),
+        severity: monaco.MarkerSeverity.Error,
+      });
     }
 
     monaco.editor.setModelMarkers(model, 'dita-validation', markers);

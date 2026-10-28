@@ -5,6 +5,7 @@ import type { HerettoItem, HerettoSearchResult, HerettoSearchStatus, ImportVerif
 import { herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
 import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml, stripHerettoClassAttrs } from '../lib/xml-utils';
+import { validateContentModel, summarizeViolations, type ContentModelViolation } from '../lib/content-model-validate';
 import { toast } from 'sonner';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -48,6 +49,9 @@ export function useHerettoCms({
   const [herettoSelected, setHerettoSelected] = useState<HerettoItem | HerettoSearchResult | null>(null);
   const [herettoSaving, setHerettoSaving] = useState(false);
   const [herettoSaveProgress, setHerettoSaveProgress] = useState<'idle' | 'saving' | 'verifying' | 'complete'>('idle');
+  // FR-067 / ADR-014: a blocked Save to Heretto has no existing feedback
+  // surface of its own (unlike Replace's own modal), so it gets this one.
+  const [contentModelViolations, setContentModelViolations] = useState<ContentModelViolation[] | null>(null);
   const [isHerettoDropdownOpen, setIsHerettoDropdownOpen] = useState(false);
   const herettoDropdownRef = useRef<HTMLDivElement>(null);
   const [herettoSaveFileName, setHerettoSaveFileName] = useState('');
@@ -532,6 +536,16 @@ export function useHerettoCms({
     const herettoFile = tab.herettoFile;
     const content = tab.xmlContent;
 
+    // FR-067 / ADR-014: re-checked synchronously here, independent of the
+    // live error panel (MonacoDitaEditor), which is debounced and can be
+    // stale at this exact instant. Blocks before any fetch — xmlContent,
+    // savedXmlRef, and every dirty flag stay untouched (I3).
+    const violations = validateContentModel(content);
+    if (violations.length > 0) {
+      setContentModelViolations(violations);
+      return;
+    }
+
     // Abort any in-flight save to avoid concurrent overwrites
     herettoSaveAbortRef.current?.abort();
     const abort = new AbortController();
@@ -752,6 +766,14 @@ export function useHerettoCms({
     const tabId = activeTab.id;
     const content = activeTab.xmlContent;
 
+    // FR-067 / ADR-014: same independent gate as handleHerettoSave. Reuses
+    // HerettoReplaceModal's own existing error display rather than a second
+    // overlay — the full list is live in the editor's error panel either way.
+    const violations = validateContentModel(content);
+    if (violations.length > 0) {
+      return { success: false, error: summarizeViolations(violations) };
+    }
+
     try {
       // Step 1: PUT content to replace existing file
       const putRes = await fetch(`/heretto-api/all-files/${target.uuid}/content`, {
@@ -839,6 +861,8 @@ export function useHerettoCms({
     setHerettoSelected,
     herettoSaving,
     herettoSaveProgress,
+    contentModelViolations,
+    setContentModelViolations,
     isHerettoDropdownOpen,
     setIsHerettoDropdownOpen,
     herettoDropdownRef,

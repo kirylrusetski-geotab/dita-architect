@@ -224,10 +224,21 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/save
 |--------|-----------|
 | 400 | Tab has no associated Heretto file |
 | 400 | Tab has a pending review — accept or reject it before saving |
+| 400 | The document violates the DITA 1.3 content model (e.g. `<fig>` inside `<cmd>`) — `details` is an array of `{ element, parent, line, column }`, one per violation (FR-067 / ADR-014). Checked before Heretto ever sees the document; `handleHerettoSave` is not called. |
+| 400 | The save to Heretto itself failed (the PUT, or verifying it afterward) — `error` names the reason; no `details` field |
 | 404 | Tab ID not found |
-| 500 | Save operation failed — `details` field contains the error |
 
 **When to use this:** After the author accepts a proposal (from `PUT` or `insert-section`) and the content is live in the tab, call this to persist to Heretto. Do not call immediately after `PUT` — since v0.9.3, `PUT` stages a review rather than applying, so save will be refused until the author accepts.
+
+**Example — content-model violation:**
+```json
+{
+  "success": false,
+  "httpStatus": 400,
+  "error": "1 structural problem blocks this save: <fig> is not a valid child of <cmd> (line 7). Open the error list in the editor for details.",
+  "details": [{ "element": "fig", "parent": "cmd", "line": 7, "column": 23 }]
+}
+```
 
 ---
 

@@ -1,5 +1,6 @@
 import type { Tab } from '../types/tab';
 import { validateDitaXml } from './xml-utils';
+import { validateContentModel, summarizeViolations } from './content-model-validate';
 import { computeProposedXml } from './xml-insert';
 import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
@@ -116,6 +117,20 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       // ADR-008: since PUT no longer writes xmlContent, saving while a review is
       // pending would silently push the pre-PUT document to Heretto.
       if (tab.pendingReview) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has a pending review — accept or reject it before saving' });
+
+      // FR-067 / ADR-014 I4: validated here, independently, so an AI-drafted
+      // document never reaches Heretto invalid either. Checked before
+      // handleHerettoSave is even called — a blocked API save has no UI
+      // side effect (no modal pops up under an API-only caller).
+      const violations = validateContentModel(tab.xmlContent);
+      if (violations.length > 0) {
+        return JSON.stringify({
+          success: false,
+          httpStatus: 400,
+          error: summarizeViolations(violations),
+          details: violations,
+        });
+      }
 
       try {
         await handleHerettoSave(id);

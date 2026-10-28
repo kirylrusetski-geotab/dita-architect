@@ -51,10 +51,15 @@ content, or drifting between the two run modes.
 - `PUT /api/tabs/:id/content` validates structure and rejects malformed XML (400) before applying.
 - Destructive operations (Replace in Heretto) follow the established `PUT` → fetch-back → `compareXml`
   verification pattern.
+- Save to Heretto, Replace in Heretto, and `POST /api/tabs/:id/save` are validated against the DITA 1.3
+  content model (`lib/content-model-validate.ts`, FR-067 / ADR-014) before any write — a structural
+  violation (e.g. `<fig>` inside `<cmd>`) blocks the write with its element, parent, and location,
+  never a guess at a soft/hard distinction the content model itself doesn't encode.
 - A change that can emit invalid or namespace-corrupted XML is **Blocking now** (Fix Now lane),
   not a batched bug.
 - **Review check:** serialization tests for the touched path; confirm no `xmlns` appears in output;
-  confirm validation rejects malformed input. **Pipeline owner:** Elena + Taylor.
+  confirm validation rejects malformed input; confirm the content-model gate runs before every write path
+  that reaches Heretto. **Pipeline owner:** Elena + Taylor.
 
 ## Gate 3 — Run-mode parity
 
