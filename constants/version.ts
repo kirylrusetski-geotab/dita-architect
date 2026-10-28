@@ -21,6 +21,33 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.0',
+    date: '2026-10-28',
+    title: 'A structurally invalid topic is now caught before it reaches Heretto, with the exact line and element.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'Saving to Heretto, replacing an existing topic, and the API\'s save endpoint now check the document\'s structure before writing anything. A problem such as a figure directly inside a step\'s command, or a numbered list directly inside a troubleshooting remedy, blocks the save and names the element, its parent, and where it is in the XML pane — instead of being discovered only when Heretto\'s own schema rejects it.',
+          'The same check runs live while you edit, so a structural problem shows in the error indicator and panel (the one that already flags a missing DOCTYPE or a broken `<xref>`) before you even try to save.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'There is no "save anyway" for these — a structural problem here is the kind Heretto would reject outright, not a style preference.',
+          'Nothing about this changes what gets saved: a document with no structural problems saves exactly as it did before.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'FR-067 / ADR-014: `lib/content-model-validate.ts` walks the document against the DITA 1.3 content-model table built in the previous session (P2-36), locating each violation by matching a scan of the raw XML against the parsed structure. The check runs twice — once woven into the XML pane\'s existing live validation, once again, independently, at the exact moment of every save — so a stale result never lets something through. Checked clean against the whole byte-stability corpus (no existing real topic trips it) and against the four invalid shapes the content-model table named as examples. Suite: 84 files, 2,115 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-10-28',
     title: 'Connect a map to check every variable and key in your topic, and insert variables from it without touching the XML.',

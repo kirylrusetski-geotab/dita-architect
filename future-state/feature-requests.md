@@ -83,7 +83,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Shipped v0.9.8 |
 | 🟢  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Shipped v0.9.8 (first pass; 4 gaps open) |
 | 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
-| 🔴  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Open |
+| 🟢  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Shipped v0.12.0 (2026-10-28, ADR-014) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 
 ---
@@ -1041,7 +1041,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-28 (the roadmap has listed it as "NEW — file as FR" since 2026-07-18)
 **Source:** Roadmap v0.12.0 (Validation); filed at the start of Execution Plan Session 5
-**Status:** Open
+**Status:** Shipped (v0.12.0, 2026-10-28) — as ADR-014. The check runs woven into the live error panel and, independently, at the instant of every write (Save, Replace, and the API's `saveTab`); `handleHerettoSaveNew` was left out and filed as debt.
 **Priority:** P2
 **Impact:** High — Gate 2 ("the app never emits XML Heretto rejects") is currently unenforced for structural violations; a `<fig>` inside `<cmd>` parses and serializes cleanly today and is only caught when Heretto's own schema rejects the save
 **Model weight:** Sonnet (P2-36's content-model table already exists; this is a consumer of it plus a save-path gate and an API contract addition)
