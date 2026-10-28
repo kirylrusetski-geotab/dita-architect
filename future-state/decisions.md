@@ -1056,3 +1056,102 @@ loader, run against the live tenant: User Guide root 18 keys, warehouse map 15, 
 84 maps in 3.8 s with every `varsAltitude*` key from the real warehouse, the largest tree 1,321 keys from
 166 maps in 4.4 s. Limits as stated in Consequences; an Insert Variable search covers the selected key's
 variables, not every key's at once.
+
+---
+
+## ADR-014 — Pre-save content-model validation: woven into the live panel, re-checked synchronously at write time
+
+**Date:** 2026-10-28 · **Status:** Accepted (Execution Plan Session 5, P2-36/FR-067)
+
+**Context** — P2-36 (Session 3) built `constants/dita-content-model.ts` (`isValidChild(parent, child)`, a flat
+parent→children set, no severity tiers) and named the gap it exists to close: the parser's own body-split
+code is more tolerant than real DITA (a `<fig>` inside `<cmd>` parses and round-trips cleanly), so an
+invalid document is discovered only when Heretto's PUT rejects it — after the attempt, as a DTD-error
+string with no location. The session's own architectural-trigger question ("write ADR-014 only if the API
+`saveTab` path also gains the check") resolves yes: `saveTab` needs the check (Gate 2 — "the API must not
+push invalid XML either"), and that means a new structured error shape (`details: violations[]`) on an
+existing endpoint, plus a new step in the save/replace write contract — both are architectural triggers
+per GOVERNANCE.md.
+
+A naming detail worth recording: `constants/dita-content-model.ts`'s header comment paired this work with
+"P2-37/FR-067", but P2-37 (context-aware `+`-menu insertion filtering) is a different, still-open feature
+that happens to read the same table for a different reason (what the menu offers) — unrelated to validating
+what is about to be saved. The comment is corrected to name FR-067 alone.
+
+The surface this blocks on matters: `tab.xmlErrors` is NOT a quiet place to merge new findings into.
+`MonacoDitaEditor.tsx`'s `validateDita` already owns it — called on mount, 500 ms after every keystroke, and
+100 ms after every `value`-prop change — and each call **replaces** the array (`onValidation` →
+`updateTab(id, { xmlErrors: errors })`). A violation merged into that array from outside `validateDita`
+would be overwritten by Monaco's own next validation pass within roughly half a second, not a reliable "the
+existing xmlErrors surface" the plan asks for.
+
+**Decision**
+
+1. **`lib/content-model-validate.ts`** — pure `validateContentModel(xml): ContentModelViolation[]`
+   (`{ element, parent, line, column }`, tag spelling preserved as written). Walks `doc.documentElement` in
+   pre-order checking every direct parent→child edge against `isValidChild`, exactly as P2-36's own I2 test
+   does (`collectEdges` + the same filter) — this is the same comparison already proven against the whole
+   corpus, not a new one. Location: one regex pass over the raw string collects every start-tag's `(tagName,
+   offset)` in document order (skipping comments/CDATA/PIs/DOCTYPE, as `structure-check.ts` already does);
+   zipped index-for-index against the DOM pre-order element list, which visits elements in the same linear
+   order their start tags appear in source for ordinary (unnamespaced) XML. A tag-name mismatch at any zipped
+   pair — the one case that would mean the zip assumption broke — abandons locations for the whole call
+   (every violation gets `line: 1, column: 1` and a `console.warn`) rather than ever reporting a wrong one.
+   Malformed XML (`parsererror`) returns `[]`: distinguishing malformed-XML handling is `validateDitaXml`'s
+   job, not this validator's.
+2. **Woven into `MonacoDitaEditor.tsx`'s `validateDita`** as additional `error`-severity markers, alongside
+   the DOCTYPE/structural/xref checks already there. This is "the existing xmlErrors surface" literally: no
+   new `Tab` field, no merge, no race with Monaco's own revalidation cycle — a violation is live in the
+   bottom-left error indicator and panel the moment the author's content matches it, exactly like every
+   other check that feeds those markers.
+3. **Re-checked independently and synchronously at write time** — `handleHerettoSave`, `handleHerettoReplace`
+   (`hooks/useHerettoCms.ts`) and `saveTab` (`lib/native-api-bridge.ts`) each call `validateContentModel`
+   fresh on the exact string about to be PUT, never trusting the live panel's debounced, possibly-stale
+   state. A violation returns before any `fetch`.
+4. **No "Save anyway"** — the table has no severity tier (P2-36 built it as a flat valid/invalid set), so
+   every finding here is a hard block, matching the plan's own instruction ("not offered for violations
+   Heretto's DTD would reject").
+5. **Presentation reuses what each write path already has, rather than adding one new UI piece per path:**
+   `handleHerettoSave` has no existing feedback surface beyond a toast, so it gets a new, minimal
+   `ContentModelViolationModal` listing every violation (element, parent, `line:column`); `handleHerettoReplace`
+   returns `{ success: false, error: <one-line summary> }` through `HerettoReplaceModal`'s own existing error
+   display (already a `Modal`) — no second overlay stacked on top of it; `saveTab` returns
+   `{ success: false, httpStatus: 400, error, details: violations[] }` with no UI side effect (an API/AI
+   caller gets a structured answer without a modal popping up under it; a human who later opens that tab
+   still sees the same violations live, via decision 2).
+6. **`handleHerettoSaveNew`** (Save As / create a new Heretto file) carries the identical risk and is **not**
+   touched here — filed as an ADR-014 debt row rather than silently widened into.
+
+**Invariants** (from FR-067's acceptance criteria, each a test written before the code)
+
+- **I1** The whole byte-stability corpus (`sampled/` included) validates clean through
+  `validateContentModel` — zero false positives, matching P2-36's own I2 result for `isValidChild` directly.
+- **I2** The four P2-36 I3 constructs (`<fig>` in `<cmd>`, `<section>` in `<step>`, bare `<ol>`/`<ul>` in
+  `<remedy>`, `<steps>` in `<conbody>`) each produce a violation naming the right element and parent, at a
+  location that round-trips (re-slicing the source at `line:column` finds that element's own start tag).
+- **I3** A blocked `handleHerettoSave`/`handleHerettoReplace` call never reaches `fetch`; `xmlContent`,
+  `savedXmlRef.current`, and every Heretto dirty flag are the same object/value before and after the call.
+- **I4** `POST /api/tabs/:id/save` returns `{ success: false, httpStatus: 400, error, details: violations[] }`
+  for the same invalid input, and never calls `handleHerettoSave` when it does (no UI side effect from an
+  API-only caller).
+
+**Consequences** — Gate 2 becomes locally executable for structural shape, not just "Heretto will catch it
+eventually": a `<fig>` inside `<cmd>` is named, with a location, before any network round-trip, in both the
+human-authoring and the AI-drafting (API) paths. Costs: one more rule inside `validateDita` (a string scan
+and a DOM walk per validation cycle — the same order of cost the existing checks there already pay) and one
+more synchronous validation pass at the moment of every save/replace (negligible: the corpus's largest real
+fixture is 25.6 KB). Limits: no severity tiers, so a future soft-warning kind of violation would need the
+content-model table itself to grow one first, not a guess bolted on here; the location zip degrades to
+`1,1` for any document shape that breaks the pre-order-matches-source-order assumption (not expected for
+ordinary unnamespaced DITA XML, never observed in the corpus, but never silently wrong either way).
+
+**Alternatives considered** — **(A) Merge violations into `tab.xmlErrors` from the save-path hook.** Simpler
+to write, but races Monaco's own debounced revalidation (500 ms on keystroke, 100 ms on `value` change),
+which fully replaces that array — a violation would flash and then vanish, unreliable as "the existing
+surface." Rejected once the `validateDita` call sites were read. **(B) One shared blocking modal for every
+write path, including Replace.** `HerettoReplaceModal` already has its own dedicated error display (a
+`Modal`); stacking a second overlay on top of it is visually redundant for no gain — a descriptive string
+through the existing display does the job. **(C) Severity tiers now, with "Save anyway" for soft
+violations.** Would mean inventing a distinction the content-model table does not encode today (P2-36 built
+it as a flat set, deliberately — see its own file header) rather than reading what the table actually says;
+revisit only if/when the table grows a soft tier for a real reason.

@@ -58,7 +58,7 @@
 //     instruction / one line of summary), confirmed by zero corpus evidence
 //     of a block child in either across all 52 fixtures. This table is
 //     intentionally STRICTER than the parser's own tolerance here — that gap
-//     is exactly what Session 5's pre-save validation (P2-37/FR-067) exists
+//     is exactly what Session 5's pre-save validation (FR-067, ADR-014) exists
 //     to close: a `<fig>` inside `<cmd>` parses today without error, and
 //     would very likely be rejected by Heretto's real schema on save.
 //   - <remedy> permits block prose (p, note, dl, table, simpletable, fig,

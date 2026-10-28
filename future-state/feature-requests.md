@@ -83,6 +83,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-064](#fr-064-sampled-real-topic-byte-stability-corpus)                                     | Sampled real-topic byte-stability corpus                                         | 2026-10-20 | Shipped v0.9.8 |
 | 🟢  | [FR-065](#fr-065-heretto-suggestion-pi-grammar-discovery-prerequisite-for-v0130)               | Heretto suggestion-PI grammar discovery (v0.13.0 prerequisite)                   | 2026-10-20 | Shipped v0.9.8 (first pass; 4 gaps open) |
 | 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
+| 🔴  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Open |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 
 ---
@@ -1033,6 +1034,35 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 3. The inserted variable shows as a resolved chip immediately.
 4. Blocked in Suggesting mode with the same toast as the inline-wrap block.
 5. Undo removes the insertion; redo restores it; both serialize to the matching state.
+
+---
+
+## FR-067: Pre-save content-model validation
+
+**Requested:** 2026-10-28 (the roadmap has listed it as "NEW — file as FR" since 2026-07-18)
+**Source:** Roadmap v0.12.0 (Validation); filed at the start of Execution Plan Session 5
+**Status:** Open
+**Priority:** P2
+**Impact:** High — Gate 2 ("the app never emits XML Heretto rejects") is currently unenforced for structural violations; a `<fig>` inside `<cmd>` parses and serializes cleanly today and is only caught when Heretto's own schema rejects the save
+**Model weight:** Sonnet (P2-36's content-model table already exists; this is a consumer of it plus a save-path gate and an API contract addition)
+
+**Problem:** A structurally invalid document — `<fig>` directly inside `<cmd>`, `<section>` inside `<step>`, a bare `<ol>` inside `<remedy>` — parses and round-trips through DITA Architect without error, because the parser's own body-split code paths are more tolerant than the real DITA 1.3 grammar (documented as deviations/tolerance gaps in `constants/dita-content-model.ts`'s header). The author only discovers the problem when Heretto's PUT rejects it — after the save attempt, as a DTD-validation error string with no indication of *where* in the document the problem is.
+**Signal:** P2-36 (Session 3) named this exact gap while building the content-model table ("that gap between 'the parser won't crash' and 'DITA/Heretto accepts it' is exactly what this table and Session 5's validator exist to surface"); the four constructs P2-36's I3 pinned (`<fig>` in `<cmd>`, `<section>` in `<step>`, bare `<ol>`/`<ul>` in `<remedy>`, `<steps>` in `<conbody>`) are concrete, known-real shapes the current parser tolerates silently.
+**Smallest slice:** On Save to Heretto and Replace in Heretto, walk the document being written against `isValidChild` (`constants/dita-content-model.ts`); if any parent→child edge is invalid, block the write before it reaches Heretto and name every violation (element, parent, line, column). `POST /api/tabs/:id/save` gets the same gate (`details: violations[]` on its 400 response) — an AI-drafted document must not reach Heretto invalid either.
+**Serves:** Gate 2 ("the app never emits XML Heretto rejects") — moves it from aspirational (relying on Heretto's own DTD) to executable (caught locally, with a location, before the network round-trip).
+
+### Design decisions (2026-10-28, Session 5 shaping — see ADR-014)
+
+- The content-model table is a flat parent→children set with no severity tiers, so every violation it reports is a hard block; "Save anyway" is never offered.
+- The check runs twice for different reasons: woven into `MonacoDitaEditor`'s existing `validateDita` (so it is always live in the error panel the author already has — no new tab field, no race with Monaco's own debounced revalidation, which would silently clear anything written into a separately-merged field); and again, synchronously, at the instant of Save/Replace/the API save (Monaco's validation is debounced and can be stale at the exact moment the author clicks Save).
+- `handleHerettoSaveNew` ("Save As" to a brand-new Heretto file) is the same risk and not in scope here — filed as debt rather than silently expanded into.
+
+### Acceptance criteria
+
+1. The four P2-36 I3 constructs each block a save with a message naming the element and its parent.
+2. The whole byte-stability corpus (`sampled/` included) validates clean — zero false positives.
+3. A blocked save leaves `xmlContent`, `savedXmlRef`, and every dirty flag untouched.
+4. `POST /api/tabs/:id/save` returns `{ success: false, httpStatus: 400, error, details: violations[] }` for the same invalid input.
 
 ---
 
