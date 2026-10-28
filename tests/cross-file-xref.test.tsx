@@ -8,6 +8,8 @@
 // validation is unchanged; local-file tabs are not checked.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, act } from '@testing-library/react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
@@ -129,6 +131,26 @@ describe('checkCrossFileHref', () => {
     expect((await checkCrossFileHref('other.dita#other-topic/absent', 'a')).status).toBe('unknown');
     serveHeretto(tenant());
     expect((await checkCrossFileHref('other.dita#other-topic/absent', 'a')).status).toBe('broken');
+  });
+});
+
+// ─── The underline is visible on a link (v0.11.0 smoke) ──────────────────────
+
+describe('the broken-xref style wins over the link style', () => {
+  // A source check, on purpose: jsdom does not expand the `text-decoration`
+  // shorthand into its longhands, so a computed-style test passes even when a
+  // browser shows a plain underline. The v0.11.0 smoke found exactly that —
+  // `.dita-editor-text-link { text-decoration: underline }` (P2-30) comes later
+  // than `.dita-validation-broken-xref` with the same specificity, so no broken
+  // link, same-document or cross-file, ever showed its wavy underline.
+  const css = readFileSync(join(__dirname, '..', 'index.css'), 'utf-8');
+
+  it('a rule more specific than the link rule draws the wavy underline, after the link rules', () => {
+    const rule = css.match(/\.dita-editor-text-link\.dita-validation-broken-xref[^{]*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/text-decoration:\s*underline wavy var\(--validation-broken-xref\)/);
+    expect(css.indexOf('.dita-editor-text-link.dita-validation-broken-xref')).toBeGreaterThan(css.indexOf('.dita-editor-text-link:hover'));
+    expect(rule![0]).toContain(':hover');
   });
 });
 

@@ -638,6 +638,17 @@ body {
   text-decoration: underline;
 }
 
+/* A broken link (same-document or cross-file, InlineValidationPlugin). The
+   link rules above set the `text-decoration` shorthand, which resets style
+   and colour, and they come later in this file than .dita-validation-broken-xref
+   with the same specificity — so on a link that rule never showed (found in
+   the v0.11.0 smoke). This one is more specific and covers hover too. */
+.dita-editor-text-link.dita-validation-broken-xref,
+.dita-editor-text-link.dita-validation-broken-xref:hover {
+  text-decoration: underline wavy var(--validation-broken-xref);
+  text-underline-offset: 2px;
+}
+
 /* P2-6: Broken xref indicator (empty or missing href) */
 .dita-xref-broken {
   text-decoration: underline wavy;
