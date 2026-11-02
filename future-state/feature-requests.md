@@ -67,7 +67,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Shipped v0.9.0 (`4b1ccc7`, 2026-07-17) |
 | 🟢  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Shipped v0.9.7            |
 | 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
-| 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | In progress — carrier slice (ADR-015, Session 6, 2026-11-02) |
+| 🟡  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Carrier slice shipped v0.13.0 (2026-11-02, ADR-015); format marks, block merges, residuals open |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
 | 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
@@ -671,7 +671,7 @@ Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
 
 **Requested:** 2026-07-17
 **Source:** FR-046 v1 scope decisions (Kiryl) — the deliberate exclusions, filed at ship time
-**Status:** In progress — slice (3), the DITA round-trip carrier, is being built as ADR-015 (Execution Plan Session 6, started 2026-11-02, Fable); slices (1), (2), and (4) stay open as the post-1.0 remainder
+**Status:** Slice (3), the DITA round-trip carrier, **shipped (v0.13.0, 2026-11-02)** as ADR-015 (Execution Plan Session 6, Fable): suggestions survive Save, Close and Reopen, and appear in Heretto's editor as its own inline suggestions; Heretto's suggestions open in DITA Architect as marks. Slices (1), (2), and (4) stay open as the post-1.0 remainder, and so do the Heretto shapes the carrier does not model (a format toggle's straddling pair, a whole-element insert) — listed in the change panel as unsupported, never dropped.
 **Priority:** P3
 **Impact:** Medium
 **Model weight:** Fable (the carrier touches the round-trip contract — Gate 1)

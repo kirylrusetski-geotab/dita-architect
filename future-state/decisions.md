@@ -1160,7 +1160,7 @@ revisit only if/when the table grows a soft tier for a real reason.
 
 ## ADR-015 — The review carrier: tracked marks are Heretto suggestion PIs, in both directions
 
-**Date:** 2026-11-02 · **Status:** Proposed (Execution Plan Session 6, FR-051 carrier slice → v0.13.0)
+**Date:** 2026-11-02 · **Status:** Accepted (shipped in v0.13.0, 2026-11-02 — Execution Plan Session 6, FR-051 carrier slice; see the implementation note at the end)
 
 **Context** — FR-046 (ADR-004) made tracked changes data on the model (`TrackedTextNode` carrying
 `{changeId, kind: insert|delete|split, author, date}`), but session-only: sync is suspended while a tab is

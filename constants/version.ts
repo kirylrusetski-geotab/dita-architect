@@ -21,6 +21,35 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.0',
+    date: '2026-11-02',
+    title: 'Suggestions now travel with the topic: they survive saving, closing, and reopening, and reach Heretto as Heretto\'s own suggestions.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'In Suggesting mode, what you suggest is part of the document the moment you make it: the XML pane shows each insertion, deletion, and paragraph split as Heretto\'s own review markup, the tab is marked unsaved, and Save to Heretto sends the suggestions along. Close the topic and reopen it later — the Tracked changes panel shows the same suggestions, with the same authors and times.',
+          'A topic that already carries suggestions — yours from an earlier session, or a reviewer\'s made in Heretto — opens straight into Suggesting mode with every suggestion listed. Accept or reject them here; Reject All gives the topic back exactly as it was before the suggestions, byte for byte, and Accept All leaves exactly what the same edits made directly would have.',
+          'Suggestions carry your Heretto account (the email in your Heretto settings) as the author, so Heretto shows who made them. A struck word keeps its element: deleting a `<uicontrol>` as a suggestion and rejecting it gives the `<uicontrol>` back, not plain text.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'Heretto\'s editor renders suggestions made here exactly like its own — struck text, underlined insertions — but its Review panel lists only suggestions made in Heretto itself (its cards come from a side index its editor writes, not from the document). Accept or reject yours in DITA Architect.',
+          'A few Heretto suggestion shapes are not shown as changes yet: a bold or italic toggle, a whole new paragraph inserted in Heretto, and a Heretto comment. They are kept exactly as written, and the first two are listed in the panel as "Unsupported suggestion" so nothing is hidden; resolve those in Heretto.',
+          'Pressing Enter in Suggesting mode splits a paragraph only where Heretto\'s split shape can be written — a plain body paragraph (inside a section too). In a table cell, a definition, a note, a list item, or the title the split is refused with a message, like formatting changes are.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'FR-051 carrier slice, ADR-015. The grammar was observed raw in Heretto first (FR-065, two passes, every gap closed with a captured sample), never inferred: `ct-ins`/`ct-del`/`ct-split` ↔ insert/delete/split; a replace is a `ct-ins` + `ct-del` pair sharing one changeId (two rows in the panel); a bold toggle is a pair straddling the element\'s start tag and Enter at a paragraph\'s end is a pair around a whole new `<p/>` (both unsupported, kept byte-exact). `lib/tracked-changes/pi-carrier.ts` is the pure mapping. The shared inline scanner gained one atom kind, so a carried suggestion is one unit for both the parser and the reconciler: unchanged, it is an anchor and its bytes never move; a struck formatted or stamped word is one text-only element inside the pair. The serializer writes a mark as a PI pair, places a split\'s start PI in the previous paragraph, and never leaves a PI it orphaned behind. SyncManager syncs Lexical → XML live in Suggesting mode (XML → Lexical stays suspended). A fresh-context adversarial review before release confirmed six defects — Accept All re-emitting the PIs it had just accepted, marks over formatted or stamped text not round-tripping, lost characters when splicing inside a `<b>`, splits in table cells becoming permanent structure, a half-listed replace, orphan PIs after a legacy rewrite — all fixed and pinned (`tests/sync/review-carrier-hardening.test.ts`), fixing BUG-49 and BUG-50 along the way. Suite: 88 files, 2,259 tests passing; edit fuzz 1,422 edits, 0 findings; byte-stability corpus unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-10-28',
     title: 'A structurally invalid topic is now caught before it reaches Heretto, with the exact line and element.',

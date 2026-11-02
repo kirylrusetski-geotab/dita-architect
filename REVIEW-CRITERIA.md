@@ -45,7 +45,7 @@ content, or drifting between the two run modes.
   edit byte for byte; Heretto's own raw samples open as the right marks). Any change to the parser,
   the serializer, or the inline reconciler also runs
   the opt-in edit fuzz (`npm run test:edit-fuzz`: a word appended to every text node of every corpus
-  fixture, 1,405 edits) with zero failures outside the causes it lists as filed — unedited
+  fixture, 1,422 edits) with zero failures outside the causes it lists as filed — unedited
   byte-stability cannot see a dropped edit (BUG-29 dropped 24 of 24 in one topic). The fuzz only
   extends existing text nodes, so an edit that creates a *new* node between unchanged elements (a
   differently formatted run, a link) needs a pinned test or the native smoke: BUG-42 passed the fuzz

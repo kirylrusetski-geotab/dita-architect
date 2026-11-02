@@ -228,7 +228,9 @@ curl -s -X POST http://localhost:3001/api/tabs/tab-1710612345678/save
 | 400 | The save to Heretto itself failed (the PUT, or verifying it afterward) — `error` names the reason; no `details` field |
 | 404 | Tab ID not found |
 
-**When to use this:** After the author accepts a proposal (from `PUT` or `insert-section`) and the content is live in the tab, call this to persist to Heretto. Do not call immediately after `PUT` — since v0.9.3, `PUT` stages a review rather than applying, so save will be refused until the author accepts.
+**When to use this:** After the author accepts a proposal (from `PUT` or `insert-section`) and the content is live in the tab, call this to persist to Heretto. Do not call immediately after `PUT` — since v0.9.3, `PUT` stages a review rather than applying, so save will be refused until the author accepts. Wait for the `PUT` response before calling `save` in any case: two calls in the same tick can read tab state one render stale (BUG-51), so a `save` fired in the same instant as the `PUT` can slip past the pending-review guard (it would send the document as it was before the proposal, not the proposal).
+
+**Suggesting mode (since v0.13.0, ADR-015):** a tab in Suggesting mode carries its unresolved suggestions inside `xmlContent` as Heretto's own review processing instructions (`<?ezd-review-start CHANGE_ID:ct-ins|ct-del|ct-split:AUTHOR:TIMESTAMP_MS?> … <?ezd-review-end CHANGE_ID?>`), so `GET /api/tabs/:id/content` returns them and this endpoint sends them; Heretto accepts them as its own pending suggestions. A document that already holds such PIs opens into Suggesting mode with them as tracked changes.
 
 **Example — content-model violation:**
 ```json
