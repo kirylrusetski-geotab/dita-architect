@@ -145,7 +145,7 @@ async function mount(documentMode: DocumentMode = 'editing') {
       <SyncManager xmlContent={XML} onLexicalChange={onLexicalChange} lastUpdatedBy="code" suspendSync={documentMode === 'suggesting'}>
         <InsertVariablePlugin />
         <SuggestionPlugin
-          tabId="t" documentMode={documentMode} masterXml={XML}
+          tabId="t" documentMode={documentMode}
           acceptAllTrigger={0} rejectAllTrigger={0}
           onAcceptAll={vi.fn()} onRejectAll={vi.fn()} onChangeCountChanged={vi.fn()}
         />

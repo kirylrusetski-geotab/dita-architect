@@ -68,7 +68,6 @@ async function mount(documentMode: DocumentMode = 'editing') {
         <SuggestionPlugin
           tabId="t"
           documentMode={documentMode}
-          masterXml={XML}
           acceptAllTrigger={0}
           rejectAllTrigger={0}
           onAcceptAll={vi.fn()}

@@ -22,7 +22,7 @@ import { EDITOR_NODES } from '../constants/editor-nodes';
 import { SyncManager } from '../components/SyncManager';
 import { SuggestionPlugin } from '../components/SuggestionPlugin';
 import { ChangeListPanel } from '../components/ChangeListPanel';
-import { $insertTrackedText } from '../lib/tracked-changes/edits';
+import { $insertTrackedText, $trackedParagraphSplit } from '../lib/tracked-changes/edits';
 import type { TrackedMark } from '../lib/tracked-changes/model';
 import type { DocumentMode } from '../types/tab';
 
@@ -44,7 +44,7 @@ const Capture = () => { const [e] = useLexicalComposerContext(); editorRef = e; 
 type OnLexicalChange = (serializedXml: string) => void;
 type OnCarriedMarks = (tabId: string, count: number) => void;
 
-function tree(props: { xml: string; mode: DocumentMode; lastUpdatedBy?: 'editor' | 'code' | 'api'; onLexicalChange: OnLexicalChange; onCarriedMarks: OnCarriedMarks }) {
+function tree(props: { xml: string; mode: DocumentMode; lastUpdatedBy?: 'editor' | 'code' | 'api'; acceptAllTrigger?: number; onAcceptAll?: (tabId: string) => void; onLexicalChange: OnLexicalChange; onCarriedMarks: OnCarriedMarks }) {
   return (
     <LexicalComposer initialConfig={{ namespace: 'carrier', nodes: EDITOR_NODES, onError: (e: Error) => { throw e; }, theme: {} }}>
       <RichTextPlugin contentEditable={<ContentEditable />} placeholder={null} ErrorBoundary={LexicalErrorBoundary} />
@@ -54,16 +54,15 @@ function tree(props: { xml: string; mode: DocumentMode; lastUpdatedBy?: 'editor'
         <SuggestionPlugin
           tabId="t"
           documentMode={props.mode}
-          masterXml={props.xml}
-          acceptAllTrigger={0}
+          acceptAllTrigger={props.acceptAllTrigger ?? 0}
           rejectAllTrigger={0}
-          onAcceptAll={vi.fn()}
+          onAcceptAll={props.onAcceptAll ?? vi.fn()}
           onRejectAll={vi.fn()}
           onChangeCountChanged={vi.fn()}
           onCarriedMarks={props.onCarriedMarks}
         />
+        <ChangeListPanel documentMode={props.mode} xmlContent={props.xml} />
       </SyncManager>
-      <ChangeListPanel documentMode={props.mode} xmlContent={props.xml} />
     </LexicalComposer>
   );
 }
@@ -121,6 +120,41 @@ describe('ADR-015 decision 5 — Suggesting mode syncs Lexical → XML live', ()
       await new Promise(r => setTimeout(r, 900));
     });
     expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toBe(withMark);
+  });
+});
+
+describe('review finding 1 — Accept All leaves the app with XML that has no review PI', () => {
+  it('a split and an insert, then Accept All: the final XML equals the direct edit and carries no PI', async () => {
+    const onLexicalChange = vi.fn<OnLexicalChange>();
+    const onCarriedMarks = vi.fn<OnCarriedMarks>();
+    const onAcceptAll = vi.fn<(tabId: string) => void>();
+    const TWO = PLAIN.replace('<p>One sentence body paragraph.</p>', '<p>One sentence body paragraph.</p><p>Second paragraph with steady content.</p>');
+    const { rerender } = render(tree({ xml: TWO, mode: 'suggesting', onLexicalChange, onCarriedMarks, onAcceptAll }));
+    await act(async () => { await new Promise(r => setTimeout(r, 250)); });
+    const editor = editorRef!;
+    await run(editor, () => {
+      const p = $getRoot().getChildren().filter(n => n.getType() === 'paragraph')[0] as ParagraphNode;
+      const t = p.getFirstChild() as TextNode;
+      $insertTrackedText(t.select(12, 12), ' extra', MARK);
+    });
+    await run(editor, () => {
+      const p = $getRoot().getChildren().filter(n => n.getType() === 'paragraph')[1] as ParagraphNode;
+      const t = p.getFirstChild() as TextNode;
+      t.select(17, 17);
+      $trackedParagraphSplit(t.select(17, 17));
+    });
+    expect(lastXml(onLexicalChange)).toContain('ct-split');
+    await act(async () => {
+      rerender(tree({ xml: lastXml(onLexicalChange)!, mode: 'suggesting', lastUpdatedBy: 'editor', acceptAllTrigger: 1, onLexicalChange, onCarriedMarks, onAcceptAll }));
+      await new Promise(r => setTimeout(r, 300));
+    });
+    expect(onAcceptAll).toHaveBeenCalledWith('t');
+    const final = lastXml(onLexicalChange)!;
+    expect(final).not.toContain('ezd-review');
+    expect(final).toBe(TWO.replace(
+      '<p>One sentence body paragraph.</p><p>Second paragraph with steady content.</p>',
+      '<p>One sentence extra body paragraph.</p><p>Second paragraph </p><p>with steady content.</p>',
+    ));
   });
 });
 

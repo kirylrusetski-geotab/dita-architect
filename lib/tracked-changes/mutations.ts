@@ -21,6 +21,7 @@ import {
   type LexicalNode,
 } from 'lexical';
 import { $isTrackedTextNode, TrackedTextNode } from '../../components/TrackedTextNode';
+import type { NodeOriginMapType } from '../../sync/nodeOriginMap';
 
 /** Collect every TrackedTextNode carrying the given changeId, in document order. */
 function $nodesWithChangeId(changeId: string): TrackedTextNode[] {
@@ -38,11 +39,19 @@ function $nodesWithChangeId(changeId: string): TrackedTextNode[] {
   return found;
 }
 
-/** Replace a mark node with a plain TextNode carrying the same text + format. */
-function $stripMark(node: TrackedTextNode): void {
+/** Replace a mark node with a plain TextNode carrying the same text + format.
+ *  ADR-015 / BUG-50: a mark over a stamped token (`<uicontrol>`) carries that
+ *  stamp in the origin map; the plain node inherits it, so Reject gives the
+ *  element back, not bare text. Token mode goes with the stamp. */
+function $stripMark(node: TrackedTextNode, originMap?: NodeOriginMapType): void {
   const plain = $createTextNode(node.getTextContent());
   plain.setFormat(node.getFormat());
   plain.setStyle(node.getStyle());
+  const origin = originMap?.get(node.getKey());
+  if (origin?.inlineTag) {
+    plain.setMode('token');
+    originMap!.set(plain.getKey(), origin);
+  }
   node.replace(plain);
 }
 
@@ -59,11 +68,11 @@ function $unsplitAt(marker: TrackedTextNode): void {
   block.remove();
 }
 
-export function $acceptChange(changeId: string): void {
+export function $acceptChange(changeId: string, originMap?: NodeOriginMapType): void {
   for (const node of $nodesWithChangeId(changeId)) {
     const kind = node.getMark().kind;
     if (kind === 'insert') {
-      $stripMark(node);
+      $stripMark(node, originMap);
     } else {
       // delete: struck text goes away for good; split: marker removed, split stays
       node.remove();
@@ -71,13 +80,13 @@ export function $acceptChange(changeId: string): void {
   }
 }
 
-export function $rejectChange(changeId: string): void {
+export function $rejectChange(changeId: string, originMap?: NodeOriginMapType): void {
   for (const node of $nodesWithChangeId(changeId)) {
     const kind = node.getMark().kind;
     if (kind === 'insert') {
       node.remove();
     } else if (kind === 'delete') {
-      $stripMark(node); // resurrect
+      $stripMark(node, originMap); // resurrect
     } else {
       $unsplitAt(node);
     }
@@ -105,10 +114,10 @@ function $allChangeIds(): string[] {
   return ids;
 }
 
-export function $acceptAllChanges(): void {
-  for (const id of $allChangeIds()) $acceptChange(id);
+export function $acceptAllChanges(originMap?: NodeOriginMapType): void {
+  for (const id of $allChangeIds()) $acceptChange(id, originMap);
 }
 
-export function $rejectAllChanges(): void {
-  for (const id of $allChangeIds()) $rejectChange(id);
+export function $rejectAllChanges(originMap?: NodeOriginMapType): void {
+  for (const id of $allChangeIds()) $rejectChange(id, originMap);
 }

@@ -16,7 +16,8 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { Check, X, ChevronDown, ChevronUp, Plus, Minus, Pilcrow, HelpCircle } from 'lucide-react';
 import { $scanTrackedChanges } from '../lib/tracked-changes/scan';
 import { $acceptChange, $rejectChange } from '../lib/tracked-changes/mutations';
-import { listUnsupportedSuggestions } from '../lib/tracked-changes/pi-carrier';
+import { listUnsupportedSuggestions, mappedKeys } from '../lib/tracked-changes/pi-carrier';
+import { originMapForEditor } from '../sync';
 import type { Change } from '../lib/tracked-changes/model';
 import type { DocumentMode } from '../types/tab';
 
@@ -71,7 +72,7 @@ export const ChangeListPanel = ({ documentMode, xmlContent }: ChangeListPanelPro
   }, [editor, documentMode]);
 
   const unsupported = useMemo(
-    () => (documentMode === 'suggesting' ? listUnsupportedSuggestions(xmlContent, new Set(changes.map(c => c.changeId))) : []),
+    () => (documentMode === 'suggesting' ? listUnsupportedSuggestions(xmlContent, mappedKeys(changes)) : []),
     [documentMode, xmlContent, changes],
   );
 
@@ -83,12 +84,13 @@ export const ChangeListPanel = ({ documentMode, xmlContent }: ChangeListPanelPro
     dom?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  // The origin map keeps a struck <uicontrol>'s element across the mutation (BUG-50).
   const accept = (change: Change) => {
-    editor.update(() => $acceptChange(change.changeId), { discrete: true });
+    editor.update(() => $acceptChange(change.changeId, originMapForEditor(editor)), { discrete: true });
   };
 
   const reject = (change: Change) => {
-    editor.update(() => $rejectChange(change.changeId), { discrete: true });
+    editor.update(() => $rejectChange(change.changeId, originMapForEditor(editor)), { discrete: true });
   };
 
   return (

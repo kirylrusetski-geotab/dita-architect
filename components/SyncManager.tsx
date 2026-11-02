@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
-import { parseXmlToLexical, serializeLexicalToXml, createNodeOriginMap, createXmlMetaCache, SyncContext, warnOnStructureMismatch } from '../sync';
+import { parseXmlToLexical, serializeLexicalToXml, createNodeOriginMap, createXmlMetaCache, SyncContext, warnOnStructureMismatch, registerEditorOriginMap } from '../sync';
 
 interface SyncManagerProps {
   xmlContent: string;
@@ -29,6 +29,11 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   const nodeOriginMap = useMemo(() => createNodeOriginMap(), []);
   const xmlMetaCache = useMemo(() => createXmlMetaCache(), []);
   const syncContextValue = useMemo(() => ({ nodeOriginMap, xmlMetaCache }), [nodeOriginMap, xmlMetaCache]);
+  // ADR-015: ChangeListPanel renders outside this provider (it is positioned
+  // against the editor container, not the page), so it reads the map here.
+  useEffect(() => {
+    registerEditorOriginMap(editor, nodeOriginMap);
+  }, [editor, nodeOriginMap]);
 
   // Clear the syncing flag after Lexical commits the update.
   // Uses registerUpdateListener instead of setTimeout to avoid race conditions.

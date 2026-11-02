@@ -1250,12 +1250,12 @@ export default function ProfessionalDitaEditor() {
                     <SuggestionPlugin
                       tabId={tab.id}
                       documentMode={tab.documentMode}
-                      masterXml={tab.xmlContent}
                       acceptAllTrigger={tab.acceptAllTrigger}
                       rejectAllTrigger={tab.rejectAllTrigger}
-                      onAcceptAll={(tabId, xml) => {
+                      onAcceptAll={(tabId) => {
+                        // The resolved XML arrives via SyncManager's onLexicalChange (ADR-015).
                         const target = exitSuggestingConfirm?.tabId === tabId ? exitSuggestingConfirm.targetMode : 'editing';
-                        updateTab(tabId, { documentMode: target, xmlContent: xml, lastUpdatedBy: 'editor' });
+                        updateTab(tabId, { documentMode: target });
                         setExitSuggestingConfirm(null);
                       }}
                       onRejectAll={(tabId) => {

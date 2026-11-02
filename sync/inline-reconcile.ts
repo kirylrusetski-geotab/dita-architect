@@ -40,7 +40,9 @@ export interface ReconcileReport {
 /** The serializer hands in its own per-node emitters so this module does not
  *  import serializeLexicalToXml (which imports this module). */
 export interface ReconcileDeps {
-  serializeChild: (lexicalChild: any) => Node[];
+  /** `stripFmt`: formats the splice level already provides (ADR-015), so a
+   *  tracked run written inside a <b> is not wrapped in a second <b>. */
+  serializeChild: (lexicalChild: any, stripFmt?: number) => Node[];
   serializeTextRun: (text: string, fmt: number) => Node;
 }
 
@@ -87,6 +89,10 @@ interface DTextUnit { kind: 'text'; sig: string; fmt: number; text: string; piec
  *  `nodes` (ADR-015): a tracked suggestion spans several sibling nodes (start
  *  PI, text, end PI); a splice must take all of them. `node` is the first. */
 interface DAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: Element | ProcessingInstruction; owner: Element | null; nodes?: Node[] }
+/** The format a tracked unit's text carries — what decides whether splicing
+ *  it into a <b>/<i>/<codeph> changes that element's formatting (it does not
+ *  when the mark has the format too). */
+type TrackedFmt = { trackedFmt?: number };
 interface DFixedUnit { kind: 'fixed'; node: Node | null; owner: Element | null }
 type DUnit = DTextUnit | DAtomicUnit | DFixedUnit;
 
@@ -103,9 +109,10 @@ const linkIdSig = (href: string, attrs: Record<string, string> | null) => `l|${h
 // and <ph conkeyref="x"/> are different elements.
 const chipSig = (refTag: string, refType: string, refValue: string, text: string) => `c|${refTag}|${refType}|${refValue}|${text}`;
 // ADR-015: a suggestion is identified by everything its PIs carry plus its
-// text; the same mark unchanged on both sides is an anchor.
-const trackedSig = (mark: TrackedMark, fmt: number, text: string) =>
-  `k|${mark.changeId}|${mark.kind}|${mark.author}|${mark.date}|${fmt}|${text}`;
+// text (and the stamped element it keeps, BUG-50); the same mark unchanged on
+// both sides is an anchor.
+const trackedSig = (mark: TrackedMark, fmt: number, text: string, tag?: string, attrs?: Record<string, string>) =>
+  `k|${mark.changeId}|${mark.kind}|${mark.author}|${mark.date}|${fmt}|${tag ?? ''}|${sortedAttrs(attrs)}|${text}`;
 
 /** Collapse a raw text node the way the parser does, keeping a normalized→raw offset map. */
 const collapse = (raw: string): { norm: string; map: number[] } => {
@@ -200,7 +207,7 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
       const sig = stampedSig(atom.tag, atom.attrs, atom.fmt, atom.text);
       units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner });
     } else if (atom.kind === 'tracked') {
-      const sig = trackedSig(atom.mark, atom.fmt, atom.text);
+      const sig = trackedSig(atom.mark, atom.fmt, atom.text, atom.tag, atom.attrs);
       units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner, nodes: atom.nodes });
     } else if (atom.kind === 'link') {
       const inner = domUnitsFromAtoms(atom.children);
@@ -249,7 +256,7 @@ const scanForMode = (domNodes: Node[], mode: ReconcileMode): Atom[] => {
 // ─── Lexical-side units ──────────────────────────────────────────────────────
 
 interface LTextUnit { kind: 'text'; sig: string; fmt: number; text: string }
-interface LAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: any }
+interface LAtomicUnit extends TrackedFmt { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: any }
 type LUnit = LTextUnit | LAtomicUnit;
 
 const lexFmt = (n: any): number =>
@@ -264,8 +271,10 @@ const lexUnits = (lexicalNode: any, originMap?: NodeOriginMapType): LUnit[] | nu
     if (type === 'dita-info-preview' || type === 'dita-container-boundary') continue;
     if (type === 'tracked-text') {
       // ADR-015: a mark is one atomic unit, split markers (empty text) included.
-      const sig = trackedSig(child.getMark(), lexFmt(child), child.getTextContent());
-      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child });
+      const fmt = lexFmt(child);
+      const origin = originMap?.get(child.getKey());
+      const sig = trackedSig(child.getMark(), fmt, child.getTextContent(), origin?.inlineTag, origin?.inlineAttrs);
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child, trackedFmt: fmt });
       continue;
     }
     if (type === 'text') {
@@ -310,7 +319,7 @@ type DItem =
   | { k: 'f'; node: Node | null; owner: Element | null };
 type LItem =
   | { k: 'c'; ch: string; fmt: number }
-  | { k: 'a'; sig: string; node: any };
+  | ({ k: 'a'; sig: string; node: any } & TrackedFmt);
 
 const dItemsOf = (unit: DUnit): DItem[] => {
   if (unit.kind === 'fixed') return [{ k: 'f', node: unit.node, owner: unit.owner }];
@@ -328,7 +337,7 @@ const dItemsOf = (unit: DUnit): DItem[] => {
 };
 
 const lItemsOf = (unit: LUnit): LItem[] => {
-  if (unit.kind === 'atomic') return [{ k: 'a', sig: unit.sig, node: unit.node }];
+  if (unit.kind === 'atomic') return [{ k: 'a', sig: unit.sig, node: unit.node, trackedFmt: unit.trackedFmt }];
   const items: LItem[] = [];
   for (const ch of unit.text) items.push({ k: 'c', ch, fmt: unit.fmt });
   return items;
@@ -492,7 +501,11 @@ const planGap = (D: DItem[], L: LItem[], rootEl: Element): GapPlan | { bail: Bai
   for (let guard = 0; guard < D.length + 2; guard++) {
     let changed = false;
     if (i < ei) {
-      const level = spliceLevel(D, i, ei, rootEl);
+      // The level applyGap will splice at — after any format promotion — so a
+      // group the promotion lifts the splice out of is taken whole, and its
+      // unchanged characters are re-emitted rather than lost (ADR-015 review
+      // finding 3: deleting "hi" inside <b>this</b> dropped the t and the s).
+      const level = promoteForFormat(spliceLevel(D, i, ei, rootEl), rootEl, L, j, ej);
       for (const [g, idxs] of groupIndex) {
         const inside = idxs.filter(x => x >= i && x < ei).length;
         if (inside === 0 || inside === idxs.length) continue;
@@ -559,7 +572,15 @@ const formatChangesInside = (level: Node, rootEl: Element, L: LItem[], j: number
   if (want === 0) return false;
   for (let k = j; k < ej; k++) {
     const item = L[k];
-    if (item.k !== 'c' || (item.fmt & want) !== want) return true;
+    if (item.k === 'a') {
+      // A tracked run that carries the level's format belongs inside it
+      // (ADR-015): the splice stays in the <b>, the run is written without
+      // re-wrapping. Any other atomic unit (a link, a chip, a stamped token)
+      // still forces the element to be replaced, as before.
+      if (item.trackedFmt !== undefined && (item.trackedFmt & want) === want) continue;
+      return true;
+    }
+    if ((item.fmt & want) !== want) return true;
   }
   return false;
 };
@@ -589,7 +610,7 @@ const serializeLexMiddle = (L: LItem[], j: number, ej: number, deps: ReconcileDe
       run += item.ch;
     } else {
       flush();
-      out.push(...deps.serializeChild(item.node));
+      out.push(...deps.serializeChild(item.node, stripFmt));
     }
   }
   flush();

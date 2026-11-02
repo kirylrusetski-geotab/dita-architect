@@ -1279,3 +1279,62 @@ the element-wrapping pair) — rejected: both are FR-051's named remainder, each
 semantics in the tree, and the plan says to exclude honestly rather than approximate; decision 3 keeps them
 byte-exact and visible until then. **(D) Keep `'You'` as the author** — rejected: Heretto displays the
 author field verbatim, and own-ness after a reopen depends on a stable identity.
+
+**Implementation note (2026-11-02, after the adversarial review — Build discipline rule 7).** A
+fresh-context reviewer that had not written the carrier probed commit `eb82f50` and confirmed six defects
+with throwaway tests; each is pinned in `tests/sync/review-carrier-hardening.test.ts` and fixed in the
+follow-up commit, changing these decisions as follows:
+
+1. **Accept All re-emitted the PIs of the split it had just accepted** (confirmed through the app's own
+   wiring). `SuggestionPlugin` serialized against `masterXml={tab.xmlContent}` — the live carrier XML,
+   not the load-time master the `originMap` was stamped from — and its `updateTab` ran after
+   `SyncManager`'s correct one and won. Decision 5 now covers Accept All too: the plugin resolves the
+   marks and the resolved document reaches the app only through `SyncManager`'s Lexical → XML sync; the
+   plugin's `masterXml` prop and its own serialize are gone.
+2. **A mark over formatted or stamped text did not round-trip** (confirmed): the serializer wrote
+   `<?…ct-del…?><b>hi</b><?…?>` but the scanner accepted text nodes only, so a reopen showed live bold
+   text and no mark; and a struck `<uicontrol>` was written as `<b>` (BUG-50), so Heretto's Reject restored
+   the wrong element. Decision 2 now also models **one text-only element** between the PIs — a `<b>`/`<i>`/
+   `<codeph>` (format) or a stamped leaf such as `<uicontrol>` (tag + attributes, the stamp written into the
+   `originMap` for the mark node) — and the delete-mark creation (`$convertToDeleteMark`), accept/reject
+   (`$stripMark`), and the panel carry the `originMap` so the stamp survives every step (**BUG-50 fixed**).
+3. **Splicing a tracked run inside a `<b>` lost the unchanged characters** (confirmed: deleting "hi" in
+   `<b>this</b>` dropped the t and the s): `promoteForFormat` lifted the splice above the `<b>` because the
+   middle held an atomic unit, and the whole `<b>` was replaced by the run alone. Two changes in the
+   reconciler: a tracked run that carries the level's format is not a format change (the splice stays
+   inside the `<b>`, the run is written with that format stripped — `serializeChild(child, stripFmt)`), and
+   `planGap`'s clamp now works from the *promoted* level, so when a promotion does lift the splice out of
+   an element the element is taken whole and its unchanged characters re-emitted. The write shape for a
+   struck bold word is therefore `<b><?…ct-del…?>this<?…?></b>` (the pair inside the element), not a pair
+   around it.
+4. **A split in a table cell, `<dd>`, `<note>`, or list item silently became a permanent structural edit**
+   (confirmed). The plan's rule applies — exclude honestly rather than approximate: `$trackedParagraphSplit`
+   refuses (`blocked-split`, a toast like the other blocked gestures) unless the paragraph is a plain
+   body-level `<p>` (a direct child of the root, origin `p`, inside a section too); `$canCarrySplit` is
+   checked before a range is struck, so a refused Enter changes nothing.
+5. **A replace pair with one unmodelled half was half-listed** (confirmed): the unsupported list filtered by
+   changeId alone. It is keyed by changeId + kind (`mappedKeys`), as decision 8 already keyed the rows.
+6. **Orphan PIs** (mechanism confirmed): the legacy full-rewrite path dropped every `ezd-review-end`
+   unconditionally while keeping a `comment` start, and a rewrite of the element holding one half of a
+   straddling pair could leave the other half. `isCarriedReviewPi` now looks up an end PI's kind; the
+   post-pass (`reconcileReviewPis`) removes any carried-kind start or end whose partner this serialize
+   removed — but **never an orphan the source already had** (an unedited save still sends the source's
+   bytes, Gate 1). The straddling case itself no longer arises on an ordinary edit: a `<b>`/`<i>`/`<codeph>`
+   with PI children is scanned child by child, the PI a fixed point and the text spliceable in place —
+   which is **BUG-49 fixed** (both of its symptoms; the edit fuzz's two findings on the new fixtures went
+   to zero).
+7. **Author timing** (plausible, not fixed): a mark minted before `/heretto-credentials` resolves carries
+   `You`. In practice the credentials load on mount, long before a suggestion can be typed; a `You` author
+   would be written to Heretto verbatim and would stop being "own" once the email loads. Recorded as a known
+   limit, not engineered around.
+
+**Smoke (2026-11-02, dev server in Chrome + Heretto's web editor + REST).** Heretto → DA: loading the
+sandbox topic (carrying Heretto's own `ct-ins`) flipped the tab to Suggesting, showed the insertion green in
+the editor, listed it in the panel with the account email, and the XML pane showed the PIs. DA → Heretto: a
+typed insertion and a struck word appeared live in the XML pane as `ct-ins`/`ct-del` pairs under the account
+email with Heretto's original pair byte-intact; the tab went dirty and offered Save; Save sent them and
+Heretto answered `is-valid: true`. Heretto's editor then **rendered both correctly inline** (strikethrough,
+underline) — but its **Review panel listed only the suggestion made in Heretto itself**: Heretto's cards
+come from a side index its editor writes, not from the PIs, so a DA suggestion is visible and resolvable in
+DA, and visible but not card-resolvable in Heretto (recorded in the grammar doc). The sandbox was restored
+byte for byte afterwards.

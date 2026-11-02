@@ -71,50 +71,105 @@ let pendingSplitStarts = new Map<string, TrackedMark>();
 const isReviewPi = (n: Node, target: string): n is ProcessingInstruction =>
   n.nodeType === Node.PROCESSING_INSTRUCTION_NODE && (n as ProcessingInstruction).target === target;
 
+/** The kind code of the start PI with this changeId anywhere in the document. */
+const reviewKindOf = (doc: Document, changeId: string): string | null => {
+  const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_PROCESSING_INSTRUCTION);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const pi = n as ProcessingInstruction;
+    if (pi.target !== REVIEW_START) continue;
+    const start = parseReviewStart(pi.data);
+    if (start && start.changeId === changeId) return start.kind;
+  }
+  return null;
+};
+
 /** The review PIs the Lexical side owns: every start/end of a kind the carrier
- *  models. Comments and unmapped kinds are left to the DOM, as always. */
+ *  models (a pending mark re-emits its own pair; a resolved one has none). A
+ *  comment pair, or an unknown kind, is left to the DOM, as always. */
 const isCarriedReviewPi = (n: Node): boolean => {
   if (isReviewPi(n, REVIEW_START)) {
     const start = parseReviewStart(n.data);
     return !!start && kindForCode(start.kind) !== null;
   }
-  return isReviewPi(n, REVIEW_END);
+  if (isReviewPi(n, REVIEW_END)) {
+    const id = parseReviewEnd(n.data);
+    const kind = id && n.ownerDocument ? reviewKindOf(n.ownerDocument, id) : null;
+    return kind === null || kindForCode(kind) !== null;
+  }
+  return false;
 };
 
 /**
- * After the body walk: give every new split marker its start PI (last child of
- * the previous element sibling), and remove a split start PI whose end PI is
- * gone (the split was accepted or rejected). An end PI with nowhere to put its
- * start (first block of the body) is removed too, never left orphaned.
+ * After the body walk (ADR-015):
+ *  - give every new split marker its start PI, the last child of the previous
+ *    element sibling; an end PI with nowhere to put it (first block of the
+ *    body) is removed rather than left orphaned;
+ *  - remove a split start PI whose end PI is gone (the split was resolved);
+ *  - remove any start or end PI of a carried kind whose partner no longer
+ *    exists anywhere in the document (review finding 6: a rewrite of the
+ *    element that held one half of a straddling pair must not leave the other
+ *    half behind). Comments and unknown kinds are never touched.
  */
-const placeSplitStartPis = (doc: Document): void => {
+const collectReviewPis = (doc: Document) => {
   const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_PROCESSING_INSTRUCTION);
-  const starts = new Map<string, ProcessingInstruction>();
-  const ends = new Map<string, ProcessingInstruction>();
+  const starts = new Map<string, { pi: ProcessingInstruction; kind: string }[]>();
+  const ends = new Map<string, ProcessingInstruction[]>();
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const pi = n as ProcessingInstruction;
     if (pi.target === REVIEW_START) {
       const start = parseReviewStart(pi.data);
-      if (start && start.kind === 'ct-split') starts.set(start.changeId, pi);
+      if (start) {
+        const list = starts.get(start.changeId) ?? [];
+        list.push({ pi, kind: start.kind });
+        starts.set(start.changeId, list);
+      }
     } else if (pi.target === REVIEW_END) {
       const id = parseReviewEnd(pi.data);
-      if (id) ends.set(id, pi);
+      if (id) {
+        const list = ends.get(id) ?? [];
+        list.push(pi);
+        ends.set(id, list);
+      }
     }
+  }
+  return { starts, ends };
+};
+
+const reconcileReviewPis = (doc: Document, originalDoc: Document): void => {
+  const { starts, ends } = collectReviewPis(doc);
+  // An orphan the source already had is Heretto's data, not this serialize's
+  // doing: an unedited save must send the source's bytes (Gate 1), and an edit
+  // elsewhere must not reach into it. Only orphans created here are removed.
+  const sourceOrphans = new Set<string>();
+  {
+    const src = collectReviewPis(originalDoc);
+    for (const id of src.starts.keys()) if (!src.ends.has(id)) sourceOrphans.add(id);
+    for (const id of src.ends.keys()) if (!src.starts.has(id)) sourceOrphans.add(id);
   }
   for (const [changeId, mark] of pendingSplitStarts) {
     if (starts.has(changeId)) continue;
-    const end = ends.get(changeId);
+    const end = ends.get(changeId)?.[0];
     if (!end) continue;
     const prev = (end.parentNode as Element | null)?.previousElementSibling;
     if (!prev) {
       console.warn(`[ADR-015] A paragraph split (${changeId}) has no previous block to carry its start PI; the marker was dropped.`);
       end.parentNode?.removeChild(end);
+      ends.delete(changeId);
       continue;
     }
-    prev.appendChild(doc.createProcessingInstruction(REVIEW_START, reviewStartData(mark)));
+    const startPi = doc.createProcessingInstruction(REVIEW_START, reviewStartData(mark));
+    prev.appendChild(startPi);
+    starts.set(changeId, [{ pi: startPi, kind: 'ct-split' }]);
   }
-  for (const [changeId, start] of starts) {
-    if (!ends.has(changeId)) start.parentNode?.removeChild(start);
+  for (const [changeId, list] of starts) {
+    if (ends.has(changeId) || sourceOrphans.has(changeId)) continue;
+    for (const { pi, kind } of list) {
+      if (kindForCode(kind) !== null) pi.parentNode?.removeChild(pi);
+    }
+  }
+  for (const [changeId, list] of ends) {
+    if (starts.has(changeId) || sourceOrphans.has(changeId)) continue;
+    for (const pi of list) pi.parentNode?.removeChild(pi);
   }
 };
 
@@ -193,8 +248,9 @@ const lexicalFmt = (child: any): number =>
   (child.hasFormat('bold') ? RUN_BOLD : 0) | (child.hasFormat('italic') ? RUN_ITALIC : 0) | (child.hasFormat('code') ? RUN_CODE : 0);
 
 /** A text-carrying Lexical node as DITA: its stamped inline element when the
- *  origin map has one, else a formatted text run. */
-const serializeTextChild = (child: any, doc: Document, originMap?: NodeOriginMapType): Node => {
+ *  origin map has one, else a formatted text run. `stripFmt`: formats the
+ *  element being spliced into already provides (ADR-015). */
+const serializeTextChild = (child: any, doc: Document, originMap?: NodeOriginMapType, stripFmt = 0): Node => {
   const text = child.getTextContent();
   const origin = originMap?.get(child.getKey());
   if (origin?.inlineTag) {
@@ -205,7 +261,7 @@ const serializeTextChild = (child: any, doc: Document, originMap?: NodeOriginMap
     el.appendChild(doc.createTextNode(text));
     return el;
   }
-  return serializeTextRun(text, lexicalFmt(child), doc);
+  return serializeTextRun(text, lexicalFmt(child) & ~stripFmt, doc);
 };
 
 /**
@@ -213,7 +269,7 @@ const serializeTextChild = (child: any, doc: Document, originMap?: NodeOriginMap
  * here once; serializeInlineContent walks a node's children with them and the
  * reconciler emits only the changed run with them.
  */
-const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginMapType): Node[] => {
+const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginMapType, stripFmt = 0): Node[] => {
   const type = child.getType();
   // Read-only <info> preview (P2-26 Phase 2): visual-only, never serialized.
   // The original <info> DOM is left byte-stable by the patch path.
@@ -231,7 +287,7 @@ const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginM
     }
     const start = doc.createProcessingInstruction(REVIEW_START, reviewStartData(mark));
     const end = doc.createProcessingInstruction(REVIEW_END, mark.changeId);
-    return [start, serializeTextChild(child, doc, originMap), end];
+    return [start, serializeTextChild(child, doc, originMap, stripFmt), end];
   }
   if (type === 'text') {
     return [serializeTextChild(child, doc, originMap)];
@@ -288,7 +344,7 @@ const serializeInlineContent = (lexicalNode: any, doc: Document, originMap?: Nod
 
 /** ADR-010: the reconciler's emitters, bound to a document. */
 const reconcileDeps = (doc: Document, originMap?: NodeOriginMapType): ReconcileDeps => ({
-  serializeChild: (child: any) => serializeInlineChild(child, doc, originMap),
+  serializeChild: (child: any, stripFmt?: number) => serializeInlineChild(child, doc, originMap, stripFmt),
   serializeTextRun: (text: string, fmt: number) => serializeTextRun(text, fmt, doc),
 });
 
@@ -1776,8 +1832,9 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
     }
   });
 
-  // ADR-015: split markers get their start PIs; resolved splits lose them.
-  placeSplitStartPis(clonedDoc);
+  // ADR-015: split markers get their start PIs; resolved splits lose them; no
+  // carried-kind PI this serialize orphaned leaves without its partner.
+  reconcileReviewPis(clonedDoc, originalDoc);
 
   // Serialize the cloned document
   const serializer = new XMLSerializer();

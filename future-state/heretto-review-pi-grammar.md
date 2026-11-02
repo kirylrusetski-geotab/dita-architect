@@ -222,7 +222,24 @@ Accept of a text `ct-ins` was observed in the first pass (Accept All →
 plain text). Reject is exactly the inverse of Accept for every kind
 observed, and both are clean: no PI, marker, or attribute is left behind.
 
-### Still open after the second pass
+### Suggestions written by the REST API: rendered inline, not indexed as cards (Session 6 smoke, 2026-11-02)
+
+After DITA Architect saved a topic carrying two of its own suggestions
+(`ct-del` "sentence", `ct-ins` " plus more", author = the account email) over
+`PUT /rest/all-files/<uuid>/content`, Heretto's editor **rendered both
+correctly inline** — the struck word in red strikethrough, the insertion
+underlined, exactly like its own — and `is-valid` stayed `true`. But its
+**Review panel did not list them**: it showed only the card for the
+suggestion made in Heretto's own editor, plus the greyed "Not in content"
+ghost; the resource metadata's `num-open-comments` did not change; clicking
+the struck word placed a caret and opened nothing; switching the editor to
+Suggesting mode changed nothing. Heretto's cards come from a side index that
+its editor writes when a suggestion is made there, not from the PIs in the
+file. So a suggestion made in DITA Architect is *visible* in Heretto and
+survives there, and can be accepted or rejected in DITA Architect, but
+Heretto's own Accept/Reject buttons are not offered for it (no card).
+Whether Heretto re-indexes on some later event (an edit in its editor, a
+publish, a reopen hours later) was not observed.
 
 - **Nested/overlapping suggestions from two authors** — needs a second
   Heretto account; not tested. One author never produced overlapping pairs

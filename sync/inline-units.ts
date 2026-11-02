@@ -127,6 +127,10 @@ export interface TrackedAtom extends AtomBase {
   mark: TrackedMark;
   text: string;
   fmt: number;
+  /** When the run is one stamped leaf element (`<uicontrol>`), its tag and
+   *  attributes — the mark keeps the element (BUG-50). */
+  tag?: string;
+  attrs?: Record<string, string>;
 }
 
 export type Atom = TextAtom | StampedAtom | LinkAtom | ChipAtom | FixedAtom | TrackedAtom;
@@ -168,17 +172,42 @@ const trackedRunAt = (childNodes: Node[], i: number, owner: Element | null): { a
     // of the second, is where the marker lives (below).
     if (!mark || mark.kind === 'split') return null;
     let j = i + 1;
-    let raw = '';
-    while (j < childNodes.length && childNodes[j].nodeType === Node.TEXT_NODE) {
-      raw += childNodes[j].textContent ?? '';
+    let text = '';
+    let fmt = 0;
+    let tag: string | undefined;
+    let attrs: Record<string, string> | undefined;
+    if (j < childNodes.length && childNodes[j].nodeType === Node.ELEMENT_NODE) {
+      // One text-only element: a formatted run (`<b>x</b>`) or a stamped leaf
+      // (`<uicontrol>x</uicontrol>`) — what the serializer writes for a mark
+      // over such text. Anything richer stays unmapped (decision 3).
+      const el = childNodes[j] as Element;
+      const t = el.tagName.toLowerCase();
+      const textOnly = el.childNodes.length > 0 && Array.from(el.childNodes).every(c => c.nodeType === Node.TEXT_NODE);
+      const hasRef = !!(el.getAttribute('conkeyref') || el.getAttribute('keyref') || el.getAttribute('conref'));
+      if (!textOnly || hasRef || t === 'xref' || t === 'image') return null;
+      const ownFmt = t === 'codeph' ? FMT_CODE : t === 'b' || t === 'strong' ? FMT_BOLD : t === 'i' || t === 'em' ? FMT_ITALIC : 0;
+      if (ownFmt) {
+        fmt = ownFmt;
+      } else {
+        tag = t;
+        attrs = attrsOf(el);
+        fmt = t === 'uicontrol' ? FMT_BOLD : t === 'wintitle' ? FMT_ITALIC : 0;
+      }
+      text = el.textContent ?? '';
       j++;
+    } else {
+      let raw = '';
+      while (j < childNodes.length && childNodes[j].nodeType === Node.TEXT_NODE) {
+        raw += childNodes[j].textContent ?? '';
+        j++;
+      }
+      text = raw.replace(WS_RUN, ' ');
     }
     const end = childNodes[j];
     if (!isPi(end, REVIEW_END) || parseReviewEnd(end.data) !== mark.changeId) return null;
-    const text = raw.replace(WS_RUN, ' ');
     if (!text) return null;
     return {
-      atom: { kind: 'tracked', node: pi, nodes: childNodes.slice(i, j + 1), mark, text, fmt: 0, owner },
+      atom: { kind: 'tracked', node: pi, nodes: childNodes.slice(i, j + 1), mark, text, fmt, owner, ...(tag ? { tag, attrs } : null) },
       consumed: j + 1 - i,
     };
   }
@@ -245,9 +274,16 @@ export const scanInlineElement = (el: Element, owner: Element | null): Atom[] =>
     : tag === 'i' || tag === 'em' ? FMT_ITALIC
     : 0;
   const hasElementChild = Array.from(el.childNodes).some(c => c.nodeType === Node.ELEMENT_NODE);
+  // BUG-49 / ADR-015: a review PI inside a <b>/<i>/<codeph> has to become an
+  // atom (a fixed point, or a tracked run) rather than vanish into the
+  // element's textContent, or an edit to that text drops it.
+  const hasPiChild = Array.from(el.childNodes).some(c => c.nodeType === Node.PROCESSING_INSTRUCTION_NODE);
   if (ownFmt) {
-    if (!hasElementChild) return [elementText(ownFmt)];
-    return withFormat(scanInlineChildren(Array.from(el.childNodes), 'keep', owner ?? el), ownFmt);
+    if (!hasElementChild && !hasPiChild) return [elementText(ownFmt)];
+    // Element children make the <b> a container (BUG-44: a change to any
+    // atom rewrites it whole). A PI alone does not: it is a fixed point like
+    // a PI in a <p>, and the text beside it stays spliceable in place.
+    return withFormat(scanInlineChildren(Array.from(el.childNodes), 'keep', hasElementChild ? (owner ?? el) : owner), ownFmt);
   }
 
   if (hasElementChild) {
@@ -419,6 +455,16 @@ export const atomsToLexical = (atoms: Atom[], originMap?: NodeOriginMapType): an
         if (atom.fmt & FMT_CODE) n.toggleFormat('code');
         if (atom.fmt & FMT_BOLD) n.toggleFormat('bold');
         if (atom.fmt & FMT_ITALIC) n.toggleFormat('italic');
+        if (atom.tag) {
+          // A mark over a stamped token keeps the element (BUG-50).
+          n.setMode('token');
+          originMap?.set(n.getKey(), {
+            tag: atom.tag,
+            bodyIndex: -1,
+            inlineTag: atom.tag,
+            ...(atom.attrs && Object.keys(atom.attrs).length > 0 ? { inlineAttrs: atom.attrs } : null),
+          });
+        }
         nodes.push(n);
         break;
       }

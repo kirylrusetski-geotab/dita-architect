@@ -29,6 +29,7 @@ import {
   $isTrackedTextNode,
   TrackedTextNode,
 } from '../../components/TrackedTextNode';
+import type { NodeOriginMapType } from '../../sync/nodeOriginMap';
 import { newMark, sessionAuthor, type TrackedMark } from './model';
 
 export type EditResult =
@@ -36,6 +37,7 @@ export type EditResult =
   | { status: 'hopped' } // caret moved past an existing delete mark, no mutation
   | { status: 'blocked-boundary' } // block merge between original blocks — not tracked in v1
   | { status: 'blocked-decorator' } // embedded element (image, ref chip, …) — not tracked in v1
+  | { status: 'blocked-split' } // ADR-015: a split the carrier cannot write as Heretto's shape
   | { status: 'reject-split'; changeId: string }; // backspace onto an own split marker
 
 // ── caret helpers ────────────────────────────────────────────────────────────
@@ -90,11 +92,16 @@ function $isolateRange(node: TextNode, start: number, end: number): TextNode {
   return node.splitText(start, end)[1];
 }
 
-/** Convert a plain text node (or isolated part) into a delete mark, format preserved. */
-function $convertToDeleteMark(part: TextNode, mark: TrackedMark): TrackedTextNode {
+/** Convert a plain text node (or isolated part) into a delete mark, format
+ *  preserved. ADR-015 / BUG-50: a stamped token (`<uicontrol>`) keeps its
+ *  stamp — the mark node takes over the origin-map entry, so the serializer
+ *  writes `<uicontrol>` inside the PIs and Reject gives the element back. */
+function $convertToDeleteMark(part: TextNode, mark: TrackedMark, originMap?: NodeOriginMapType): TrackedTextNode {
   const dm = $createTrackedTextNode(part.getTextContent(), mark);
   dm.setFormat(part.getFormat());
   dm.setStyle(part.getStyle());
+  const origin = originMap?.get(part.getKey());
+  if (origin?.inlineTag) originMap!.set(dm.getKey(), origin);
   part.replace(dm);
   return dm;
 }
@@ -330,6 +337,7 @@ function $resolveCollapsedTarget(
 export function $markCollapsedDeletion(
   selection: RangeSelection,
   isBackward: boolean,
+  originMap?: NodeOriginMapType,
 ): EditResult {
   const resolved = $resolveCollapsedTarget(selection, isBackward);
   if (!('node' in resolved)) return resolved;
@@ -371,7 +379,7 @@ export function $markCollapsedDeletion(
     return { status: 'ok' };
   }
 
-  const dm = $convertToDeleteMark(char, newMark('delete'));
+  const dm = $convertToDeleteMark(char, newMark('delete'), originMap);
   if (isBackward) $selectBeforeNode(dm);
   else $selectAfterNode(dm);
   return { status: 'ok' };
@@ -388,6 +396,7 @@ export function $markCollapsedDeletion(
 export function $markRangeAsDeleted(
   selection: RangeSelection,
   mark?: TrackedMark,
+  originMap?: NodeOriginMapType,
 ): { result: EditResult; gestureMark: TrackedMark; sawDecorator: boolean; lastMarkNode: TrackedTextNode | null } {
   const gestureMark = mark ?? newMark('delete');
   let sawDecorator = false;
@@ -429,7 +438,7 @@ export function $markRangeAsDeleted(
     }
 
     const part = $isolateRange(node, start, end);
-    lastMarkNode = $convertToDeleteMark(part, gestureMark);
+    lastMarkNode = $convertToDeleteMark(part, gestureMark, originMap);
   }
 
   if (lastMarkNode) {
@@ -451,11 +460,39 @@ export function $markRangeAsDeleted(
 // ── paragraph split ──────────────────────────────────────────────────────────
 
 /**
+ * ADR-015: Heretto's split shape is a start PI closing the first half and an
+ * end PI opening the second, two sibling paragraphs. The serializer can write
+ * that only for a plain body-level paragraph (a direct child of the root,
+ * origin `p` — inside a section too). A paragraph that the parser flattened
+ * out of something else (a table cell, a <dd>, a <note>, a list item, a <p>
+ * wrapping blocks, the title, a task section's direct text) would come back
+ * as a different structure, so the split is refused rather than approximated.
+ */
+function $splitIsCarriable(block: ElementNode, originMap?: NodeOriginMapType): boolean {
+  if (block.getType() !== 'paragraph') return false;
+  if (block.getParent()?.getType() !== 'root') return false;
+  const origin = originMap?.get(block.getKey());
+  if (!origin) return true; // an author-created body paragraph
+  if (origin.tag !== 'p' && origin.tag !== 'paragraph') return false;
+  if (origin.dlEntryIndex !== undefined || origin.pWrapperId !== undefined) return false;
+  return true;
+}
+
+/** Whether Enter at this selection can be recorded as a carried split. Read-only. */
+export function $canCarrySplit(selection: RangeSelection, originMap?: NodeOriginMapType): boolean {
+  const anchor = selection.anchor.getNode();
+  const block: ElementNode | null = $isElementNode(anchor) ? anchor : anchor.getParent();
+  return !!block && $splitIsCarriable(block, originMap);
+}
+
+/**
  * Enter in suggesting mode: perform the real split, then record it by
  * prepending a zero-width split marker at the head of the new block.
  * Reject = merge back (mutations.$unsplitAt); accept = drop the marker.
  */
-export function $trackedParagraphSplit(selection: RangeSelection): EditResult {
+export function $trackedParagraphSplit(selection: RangeSelection, originMap?: NodeOriginMapType): EditResult {
+  if (!$canCarrySplit(selection, originMap)) return { status: 'blocked-split' };
+
   selection.insertParagraph();
 
   const after = $getSelection();

@@ -77,6 +77,14 @@ export const listReviewSuggestions = (xml: string): ReviewStart[] => {
   return out;
 };
 
+/** The key a mapped mark is listed under: changeId + Heretto kind code. One
+ *  changeId can carry two kinds (a replace), and the carrier may model one
+ *  half and not the other, so the kind is part of the identity. */
+export const mappedKey = (changeId: string, kind: TrackedKind): string => `${changeId}\u0000${kindCodeFor(kind)}`;
+
+export const mappedKeys = (changes: ReadonlyArray<{ changeId: string; kind: TrackedKind }>): Set<string> =>
+  new Set(changes.map(c => mappedKey(c.changeId, c.kind)));
+
 /** The suggestions in `xml` that the editor did not turn into marks (ADR-015 decision 3). */
-export const listUnsupportedSuggestions = (xml: string, mappedChangeIds: ReadonlySet<string>): ReviewStart[] =>
-  listReviewSuggestions(xml).filter(s => !mappedChangeIds.has(s.changeId));
+export const listUnsupportedSuggestions = (xml: string, mapped: ReadonlySet<string>): ReviewStart[] =>
+  listReviewSuggestions(xml).filter(s => !mapped.has(`${s.changeId}\u0000${s.kind}`));

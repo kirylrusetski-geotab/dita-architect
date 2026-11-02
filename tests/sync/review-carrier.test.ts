@@ -28,7 +28,7 @@ import { $acceptAllChanges, $acceptChange, $rejectAllChanges, $rejectChange } fr
 import { $insertTrackedText, $markRangeAsDeleted, $trackedParagraphSplit } from '../../lib/tracked-changes/edits';
 import { setSessionAuthor, type TrackedMark } from '../../lib/tracked-changes/model';
 import { $isTrackedTextNode, type TrackedTextNode } from '../../components/TrackedTextNode';
-import { listUnsupportedSuggestions } from '../../lib/tracked-changes/pi-carrier';
+import { listUnsupportedSuggestions, mappedKeys } from '../../lib/tracked-changes/pi-carrier';
 
 const FIXTURES_DIR = join(__dirname, 'fixtures');
 const CARRIER_DIR = join(FIXTURES_DIR, 'review-carrier');
@@ -137,7 +137,10 @@ describe('ADR-015 decision 4 — marks serialize as Heretto suggestion PIs', () 
     ));
   });
 
-  it('a bold delete keeps its <b> inside the pair, as any text run would', () => {
+  it('a bold delete puts the pair inside the <b>, around the struck text (the element stays whole)', () => {
+    // Review finding 3: the splice stays inside the formatting element when
+    // the mark carries that element's format, so no neighbouring character
+    // is lost and the reopen sees a bold delete mark (review-carrier-hardening).
     const xml = DOC('<p>Keep <b>this</b> text.</p>');
     const { update, serialize } = open(xml);
     update(() => {
@@ -147,7 +150,7 @@ describe('ADR-015 decision 4 — marks serialize as Heretto suggestion PIs', () 
     });
     expect(serialize()).toBe(xml.replace(
       '<b>this</b>',
-      `<?ezd-review-start 33333333-3333-4333-8333-333333333333:ct-del:${AUTHOR}:${DATE_MS}?><b>this</b><?ezd-review-end 33333333-3333-4333-8333-333333333333?>`,
+      `<b><?ezd-review-start 33333333-3333-4333-8333-333333333333:ct-del:${AUTHOR}:${DATE_MS}?>this<?ezd-review-end 33333333-3333-4333-8333-333333333333?></b>`,
     ));
   });
 
@@ -289,7 +292,7 @@ describe('ADR-015 I5 — suggestions made in Heretto open as marks of the right 
       `29518720-0774-4c3e-aff3-faa08db47921|insert|${AUTHOR}|${new Date(1792524402429).toISOString()}| over here`,
       `d313682d-1ade-4fa5-8e86-2d9514f2e44e|delete|${AUTHOR}|${new Date(1793636289210).toISOString()}|existing`,
     ]);
-    expect(listUnsupportedSuggestions(xml, new Set(changes.map(c => c.changeId)))).toEqual([]);
+    expect(listUnsupportedSuggestions(xml, mappedKeys(changes))).toEqual([]);
   });
 
   it('the replace pair: an insert and a delete sharing one changeId, two rows, resolved together', () => {
@@ -352,7 +355,7 @@ describe('ADR-015 I5 — suggestions made in Heretto open as marks of the right 
     const xml = carrier('heretto-bold-wrap.dita');
     const changes = open(xml).scan();
     expect(changes.map(c => `${c.kind}:${c.text}`)).toEqual(['insert: over here', 'delete:existing']);
-    expect(listUnsupportedSuggestions(xml, new Set(changes.map(c => c.changeId)))).toEqual([
+    expect(listUnsupportedSuggestions(xml, mappedKeys(changes))).toEqual([
       { changeId: '99902364-a1c2-41ed-a33f-fe0abbe0031f', kind: 'ct-ins', author: AUTHOR, dateMs: 1793636530061 },
     ]);
   });
@@ -368,7 +371,7 @@ describe('ADR-015 I5 — suggestions made in Heretto open as marks of the right 
       'delete:.',
       'insert:Brand new paragraph',
     ]);
-    expect(listUnsupportedSuggestions(xml, new Set(changes.map(c => c.changeId)))).toEqual([
+    expect(listUnsupportedSuggestions(xml, mappedKeys(changes))).toEqual([
       { changeId: '99902364-a1c2-41ed-a33f-fe0abbe0031f', kind: 'ct-ins', author: AUTHOR, dateMs: 1793636530061 },
       { changeId: '5e5c46ca-8157-4b86-8cb1-d741b6038a2e', kind: 'ct-ins', author: AUTHOR, dateMs: 1793637142239 },
     ]);

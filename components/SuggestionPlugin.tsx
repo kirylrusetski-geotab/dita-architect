@@ -37,11 +37,13 @@ import {
   type RangeSelection,
 } from 'lexical';
 import { toast } from 'sonner';
-import { serializeLexicalToXml, useSyncContext, warnOnStructureMismatch } from '../sync';
+import { useSyncContext } from '../sync';
+import type { NodeOriginMapType } from '../sync/nodeOriginMap';
 import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND } from './InlineWrapPlugin';
 import { INSERT_VARIABLE_COMMAND } from './InsertVariablePlugin';
 import { $isTrackedTextNode, TrackedTextNode } from './TrackedTextNode';
 import {
+  $canCarrySplit,
   $insertTrackedText,
   $markCollapsedDeletion,
   $markRangeAsDeleted,
@@ -60,10 +62,12 @@ import type { DocumentMode } from '../types/tab';
 interface SuggestionPluginProps {
   tabId: string;
   documentMode: DocumentMode;
-  masterXml: string;
   acceptAllTrigger: number;
   rejectAllTrigger: number;
-  onAcceptAll: (tabId: string, xml: string) => void;
+  /** ADR-015: the resolved document reaches the app through SyncManager's
+   *  own Lexical → XML sync (patched against the load-time master), not a
+   *  second serialize here. */
+  onAcceptAll: (tabId: string) => void;
   onRejectAll: (tabId: string) => void;
   onChangeCountChanged: (tabId: string, count: number) => void;
   /** ADR-015 decision 6: marks arrived from a parse (a topic saved with
@@ -81,7 +85,7 @@ const toastThrottled = (category: string, message: string): void => {
   toast(message);
 };
 
-const handleEditResult = (result: EditResult): void => {
+const handleEditResult = (result: EditResult, originMap: NodeOriginMapType): void => {
   switch (result.status) {
     case 'blocked-boundary':
       toastThrottled('boundary', "Merging paragraphs isn't tracked yet — switch to Editing mode");
@@ -89,8 +93,12 @@ const handleEditResult = (result: EditResult): void => {
     case 'blocked-decorator':
       toastThrottled('decorator', "Embedded elements can't be tracked — switch to Editing mode");
       break;
+    case 'blocked-split':
+      // ADR-015: only a plain body paragraph splits into Heretto's shape.
+      toastThrottled('split', "Splitting this paragraph isn't tracked yet — switch to Editing mode");
+      break;
     case 'reject-split':
-      $rejectChange(result.changeId);
+      $rejectChange(result.changeId, originMap);
       break;
     default:
       break;
@@ -100,7 +108,6 @@ const handleEditResult = (result: EditResult): void => {
 export const SuggestionPlugin = ({
   tabId,
   documentMode,
-  masterXml,
   acceptAllTrigger,
   rejectAllTrigger,
   onAcceptAll,
@@ -109,7 +116,7 @@ export const SuggestionPlugin = ({
   onCarriedMarks,
 }: SuggestionPluginProps) => {
   const [editor] = useLexicalComposerContext();
-  const { nodeOriginMap, xmlMetaCache } = useSyncContext();
+  const { nodeOriginMap } = useSyncContext();
   const lastCountRef = useRef(0);
   const carriedReportedRef = useRef(false);
 
@@ -190,12 +197,12 @@ export const SuggestionPlugin = ({
           const sel = getRangeSelection();
           if (!sel) return true;
           if (sel.isCollapsed()) {
-            handleEditResult($insertTrackedText(sel, text));
+            handleEditResult($insertTrackedText(sel, text), nodeOriginMap);
           } else {
             // Replace-typing: strike the range, then insert after the marks.
-            const { lastMarkNode } = $markRangeAsDeleted(sel);
+            const { lastMarkNode } = $markRangeAsDeleted(sel, undefined, nodeOriginMap);
             const after = getRangeSelection();
-            if (after) handleEditResult($insertTrackedText(after, text));
+            if (after) handleEditResult($insertTrackedText(after, text), nodeOriginMap);
             void lastMarkNode;
           }
           return true;
@@ -208,9 +215,9 @@ export const SuggestionPlugin = ({
           const sel = getRangeSelection();
           if (!sel) return true;
           if (sel.isCollapsed()) {
-            handleEditResult($markCollapsedDeletion(sel, isBackward));
+            handleEditResult($markCollapsedDeletion(sel, isBackward, nodeOriginMap), nodeOriginMap);
           } else {
-            const { sawDecorator } = $markRangeAsDeleted(sel);
+            const { sawDecorator } = $markRangeAsDeleted(sel, undefined, nodeOriginMap);
             if (sawDecorator) {
               toastThrottled('decorator', 'Embedded elements were left in place — they can\'t be tracked');
             }
@@ -226,7 +233,7 @@ export const SuggestionPlugin = ({
           if (!sel) return true;
           if (sel.isCollapsed()) sel.modify('extend', isBackward, 'word');
           const extended = getRangeSelection();
-          if (extended && !extended.isCollapsed()) $markRangeAsDeleted(extended);
+          if (extended && !extended.isCollapsed()) $markRangeAsDeleted(extended, undefined, nodeOriginMap);
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -238,7 +245,7 @@ export const SuggestionPlugin = ({
           if (!sel) return true;
           if (sel.isCollapsed()) sel.modify('extend', isBackward, 'lineboundary');
           const extended = getRangeSelection();
-          if (extended && !extended.isCollapsed()) $markRangeAsDeleted(extended);
+          if (extended && !extended.isCollapsed()) $markRangeAsDeleted(extended, undefined, nodeOriginMap);
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -255,11 +262,11 @@ export const SuggestionPlugin = ({
           if (!sel) return true;
           const mark = newMark('insert'); // one changeId for the whole paste
           if (!sel.isCollapsed()) {
-            $markRangeAsDeleted(sel);
+            $markRangeAsDeleted(sel, undefined, nodeOriginMap);
             const after = getRangeSelection();
-            if (after) handleEditResult($insertTrackedText(after, text, mark));
+            if (after) handleEditResult($insertTrackedText(after, text, mark), nodeOriginMap);
           } else {
-            handleEditResult($insertTrackedText(sel, text, mark));
+            handleEditResult($insertTrackedText(sel, text, mark), nodeOriginMap);
           }
           return true;
         },
@@ -273,7 +280,7 @@ export const SuggestionPlugin = ({
           if (!sel || sel.isCollapsed()) return true;
           const text = sel.getTextContent();
           void navigator.clipboard?.writeText(text).catch(() => {});
-          const { sawDecorator } = $markRangeAsDeleted(sel);
+          const { sawDecorator } = $markRangeAsDeleted(sel, undefined, nodeOriginMap);
           if (sawDecorator) {
             toastThrottled('decorator', 'Embedded elements were left in place — they can\'t be tracked');
           }
@@ -287,12 +294,17 @@ export const SuggestionPlugin = ({
           const sel = getRangeSelection();
           if (!sel) return true;
           if (!sel.isCollapsed()) {
-            $markRangeAsDeleted(sel);
+            // Refuse before striking anything if the split itself cannot be carried.
+            if (!$canCarrySplit(sel, nodeOriginMap)) {
+              handleEditResult({ status: 'blocked-split' }, nodeOriginMap);
+              return true;
+            }
+            $markRangeAsDeleted(sel, undefined, nodeOriginMap);
             const after = getRangeSelection();
-            if (after) handleEditResult($trackedParagraphSplit(after));
+            if (after) handleEditResult($trackedParagraphSplit(after, nodeOriginMap), nodeOriginMap);
             return true;
           }
-          handleEditResult($trackedParagraphSplit(sel));
+          handleEditResult($trackedParagraphSplit(sel, nodeOriginMap), nodeOriginMap);
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -352,7 +364,7 @@ export const SuggestionPlugin = ({
       ),
     );
     return unregister;
-  }, [editor, documentMode]);
+  }, [editor, documentMode, nodeOriginMap]);
 
   // Capture-phase beforeinput: close the typing fast path (see file header).
   useEffect(() => {
@@ -401,22 +413,22 @@ export const SuggestionPlugin = ({
     };
   }, [editor, documentMode]);
 
-  // Accept All: resolve every mark, then serialize-and-commit — the same
-  // path the old EditModePlugin accept used, valid because after accept-all
-  // the tree contains only plain TextNodes.
+  // Accept All: resolve every mark. The resulting document reaches the app
+  // through SyncManager's Lexical → XML sync, which patches the load-time
+  // master with the origin map stamped from it (ADR-015 review finding 1: a
+  // serialize here against the live carrier XML re-emitted the PIs of the
+  // split it had just accepted).
   useEffect(() => {
     if (acceptAllTrigger === 0) return;
     editor.update(
       () => {
-        $acceptAllChanges();
+        $acceptAllChanges(nodeOriginMap);
       },
       { discrete: true },
     );
-    const xml = serializeLexicalToXml(editor.getEditorState(), masterXml, nodeOriginMap, xmlMetaCache);
     editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
-    onAcceptAll(tabId, xml);
+    onAcceptAll(tabId);
     toast.success('All tracked changes accepted');
-    warnOnStructureMismatch(editor.getEditorState(), xml, nodeOriginMap); // FR-063, advisory
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptAllTrigger]);
 
@@ -425,7 +437,7 @@ export const SuggestionPlugin = ({
     if (rejectAllTrigger === 0) return;
     editor.update(
       () => {
-        $rejectAllChanges();
+        $rejectAllChanges(nodeOriginMap);
       },
       { discrete: true },
     );
