@@ -15,6 +15,15 @@
 import { $createTextNode } from 'lexical';
 import { $createLinkNode } from '@lexical/link';
 import { $createDitaPhRefNode } from '../components/DitaPhRefNode';
+import { $createTrackedTextNode } from '../components/TrackedTextNode';
+import type { TrackedMark } from '../lib/tracked-changes/model';
+import {
+  REVIEW_START,
+  REVIEW_END,
+  parseReviewStart,
+  parseReviewEnd,
+  markFromReviewStart,
+} from '../lib/tracked-changes/pi-carrier';
 import type { NodeOriginMapType } from './nodeOriginMap';
 
 export const FMT_BOLD = 1;
@@ -105,7 +114,22 @@ export interface FixedAtom extends AtomBase {
   kind: 'fixed';
 }
 
-export type Atom = TextAtom | StampedAtom | LinkAtom | ChipAtom | FixedAtom;
+/** A Heretto suggestion the carrier models (ADR-015 decision 2): a
+ *  `ct-ins`/`ct-del` start PI, text nodes only, its own end PI — one
+ *  TrackedTextNode; or a `ct-split` end PI at the head of a block whose start
+ *  PI closes the previous element — a zero-width split marker. `nodes` is
+ *  every DOM node of the run, in order, so a splice removes or keeps all of
+ *  it; `node` is the first. Any other review PI stays a fixed atom. */
+export interface TrackedAtom extends AtomBase {
+  kind: 'tracked';
+  node: ProcessingInstruction;
+  nodes: Node[];
+  mark: TrackedMark;
+  text: string;
+  fmt: number;
+}
+
+export type Atom = TextAtom | StampedAtom | LinkAtom | ChipAtom | FixedAtom | TrackedAtom;
 
 const fixed = (node: Node | null, owner: Element | null): FixedAtom => ({ kind: 'fixed', node, owner });
 
@@ -122,10 +146,58 @@ const attrsOf = (el: Element, skip?: string): Record<string, string> => {
  *  chip has no format to carry. */
 const withFormat = (atoms: Atom[], fmt: number): Atom[] =>
   atoms.map(a => {
-    if (a.kind === 'text' || a.kind === 'stamped') return { ...a, fmt: a.fmt | fmt };
+    if (a.kind === 'text' || a.kind === 'stamped' || a.kind === 'tracked') return { ...a, fmt: a.fmt | fmt };
     if (a.kind === 'link') return { ...a, children: withFormat(a.children, fmt) };
     return a;
   });
+
+const isPi = (n: Node | null | undefined, target: string): n is ProcessingInstruction =>
+  !!n && n.nodeType === Node.PROCESSING_INSTRUCTION_NODE && (n as ProcessingInstruction).target === target;
+
+/**
+ * The suggestion run starting at `childNodes[i]`, if the PI there opens one
+ * the carrier models; null leaves the PI a fixed atom (ADR-015 decision 3).
+ * Returns the atom and how many child nodes it consumed.
+ */
+const trackedRunAt = (childNodes: Node[], i: number, owner: Element | null): { atom: TrackedAtom; consumed: number } | null => {
+  const pi = childNodes[i];
+  if (isPi(pi, REVIEW_START)) {
+    const start = parseReviewStart(pi.data);
+    const mark = start && markFromReviewStart(start);
+    // A split's start PI closes the first paragraph; its end PI, at the head
+    // of the second, is where the marker lives (below).
+    if (!mark || mark.kind === 'split') return null;
+    let j = i + 1;
+    let raw = '';
+    while (j < childNodes.length && childNodes[j].nodeType === Node.TEXT_NODE) {
+      raw += childNodes[j].textContent ?? '';
+      j++;
+    }
+    const end = childNodes[j];
+    if (!isPi(end, REVIEW_END) || parseReviewEnd(end.data) !== mark.changeId) return null;
+    const text = raw.replace(WS_RUN, ' ');
+    if (!text) return null;
+    return {
+      atom: { kind: 'tracked', node: pi, nodes: childNodes.slice(i, j + 1), mark, text, fmt: 0, owner },
+      consumed: j + 1 - i,
+    };
+  }
+  if (isPi(pi, REVIEW_END)) {
+    // Heretto's split: the end PI is the first child of its block and the
+    // start PI is the last child of the previous element sibling.
+    const changeId = parseReviewEnd(pi.data);
+    const block = pi.parentNode;
+    if (!changeId || !block || block.firstChild !== pi) return null;
+    const prev = (block as Element).previousElementSibling;
+    const startPi = prev?.lastChild;
+    if (!isPi(startPi, REVIEW_START)) return null;
+    const start = parseReviewStart(startPi.data);
+    const mark = start && markFromReviewStart(start);
+    if (!mark || mark.kind !== 'split' || mark.changeId !== changeId) return null;
+    return { atom: { kind: 'tracked', node: pi, nodes: [pi], mark, text: '', fmt: 0, owner }, consumed: 1 };
+  }
+  return null;
+};
 
 /**
  * Scan one inline element the way `parseInlineElement` did. Branch order is
@@ -199,10 +271,11 @@ export const scanInlineElement = (el: Element, owner: Element | null): Atom[] =>
 export const scanInlineChildren = (childNodes: Node[], mode: ScanMode, owner: Element | null): Atom[] => {
   const atoms: Atom[] = [];
 
-  childNodes.forEach((child, index) => {
+  for (let index = 0; index < childNodes.length; index++) {
+    const child = childNodes[index];
     if (child.nodeType === Node.TEXT_NODE) {
       const raw = child.textContent;
-      if (!raw) { atoms.push(fixed(child, owner)); return; }
+      if (!raw) { atoms.push(fixed(child, owner)); continue; }
       if (mode === 'trim' && /^\s+$/.test(raw)) {
         const prev = index > 0 ? childNodes[index - 1] : null;
         const next = index < childNodes.length - 1 ? childNodes[index + 1] : null;
@@ -211,19 +284,29 @@ export const scanInlineChildren = (childNodes: Node[], mode: ScanMode, owner: El
           (next && next.nodeType === Node.PROCESSING_INSTRUCTION_NODE)
         ) {
           atoms.push(fixed(child, owner));
-          return;
+          continue;
         }
       }
       const text = raw.replace(WS_RUN, ' ');
-      if (mode === 'segment' && !text.trim()) { atoms.push(fixed(child, owner)); return; }
+      if (mode === 'segment' && !text.trim()) { atoms.push(fixed(child, owner)); continue; }
       atoms.push({ kind: 'text', node: child, owner, fmt: 0, text, source: 'textnode', lead: 0, trail: 0 });
     } else if (child.nodeType === Node.ELEMENT_NODE) {
       scanInlineElement(child as Element, owner).forEach(a => atoms.push(a));
+    } else if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+      // ADR-015: a suggestion the carrier models is one tracked atom; any
+      // other PI (a comment, an unmapped shape) has no Lexical node.
+      const run = trackedRunAt(childNodes, index, owner);
+      if (run) {
+        atoms.push(run.atom);
+        index += run.consumed - 1;
+      } else {
+        atoms.push(fixed(child, owner));
+      }
     } else {
-      // Processing instruction, comment, CDATA — no Lexical node.
+      // Comment, CDATA — no Lexical node.
       atoms.push(fixed(child, owner));
     }
-  });
+  }
 
   if (mode === 'trim') edgeTrim(atoms);
   return atoms;
@@ -329,6 +412,16 @@ export const atomsToLexical = (atoms: Atom[], originMap?: NodeOriginMapType): an
       case 'chip':
         nodes.push($createDitaPhRefNode(atom.refType, atom.refValue, atom.text, atom.refTag));
         break;
+      case 'tracked': {
+        // ADR-015: a carried suggestion is the same node FR-046 creates for a
+        // live one (delete and split marks are token-mode, by the factory).
+        const n = $createTrackedTextNode(atom.text, atom.mark);
+        if (atom.fmt & FMT_CODE) n.toggleFormat('code');
+        if (atom.fmt & FMT_BOLD) n.toggleFormat('bold');
+        if (atom.fmt & FMT_ITALIC) n.toggleFormat('italic');
+        nodes.push(n);
+        break;
+      }
       case 'fixed':
         break;
     }

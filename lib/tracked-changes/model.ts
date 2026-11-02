@@ -26,13 +26,21 @@ export interface Change {
   firstNodeKey: string;
 }
 
-/**
- * The session author. Single-maintainer app with no auth — a constant is
- * honest. The TrackedMark shape (author/date/changeId) is already what the
- * future ezd-review PI carrier would serialize, so multi-author support is a
- * data question, not a model change.
- */
-export const SESSION_AUTHOR = 'You';
+// ADR-015 decision 7: the author written into Heretto's suggestion PIs is
+// the Heretto account email, set when the credentials load. 'You' is the
+// fallback for a session that never connected (a save then cannot reach
+// Heretto anyway). Own-ness (merging into / retracting an own suggestion)
+// compares against the same value, so a suggestion carried back from Heretto
+// by the same account is still yours after a reopen.
+let currentAuthor = 'You';
+
+export function sessionAuthor(): string {
+  return currentAuthor;
+}
+
+export function setSessionAuthor(author: string): void {
+  currentAuthor = author.trim() || 'You';
+}
 
 export function newChangeId(): string {
   return crypto.randomUUID();
@@ -47,7 +55,7 @@ export function newMark(kind: TrackedKind): TrackedMark {
   return {
     changeId: newChangeId(),
     kind,
-    author: SESSION_AUTHOR,
+    author: sessionAuthor(),
     date: new Date().toISOString(),
   };
 }

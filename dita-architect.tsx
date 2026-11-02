@@ -1264,6 +1264,11 @@ export default function ProfessionalDitaEditor() {
                         setExitSuggestingConfirm(null);
                       }}
                       onChangeCountChanged={(tabId, count) => updateTab(tabId, { trackedChangeCount: count })}
+                      onCarriedMarks={(tabId, count) => {
+                        // ADR-015 decision 6: a topic saved with suggestions opens in Suggesting mode.
+                        setTabs(prev => prev.map(t => t.id === tabId && t.documentMode === 'editing' ? { ...t, documentMode: 'suggesting' } : t));
+                        toast(`${count} suggestion${count === 1 ? '' : 's'} carried from Heretto — opened in Suggesting mode`);
+                      }}
                     />
                     {/* Inside SyncManager so it can read an xref's scope/format (ADR-013 decision 8). */}
                     <InlineValidationPlugin
@@ -1277,7 +1282,7 @@ export default function ProfessionalDitaEditor() {
                   <TableColumnSizer />
                   <TableActionMenuPlugin />
                 </div>
-                <ChangeListPanel documentMode={tab.documentMode} />
+                <ChangeListPanel documentMode={tab.documentMode} xmlContent={tab.xmlContent} />
                 <BottomToolbar />
               </div>
             </LexicalComposer>

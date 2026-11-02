@@ -264,7 +264,10 @@ describe('ADR-010 — bail cases fall to the legacy path and are reported', () =
   afterEach(() => setReconcileObserver(null));
 
   it('a deletion that spans a processing instruction bails (never silently drops the PI)', () => {
-    const xml = DOC('<p>Alpha <?ezd-review-start 1:ct-ins:a@example.com:1?>beta<?ezd-review-end 1?> gamma.</p>');
+    // A Heretto comment: a review PI the carrier does not model (ADR-015),
+    // so it is still a fixed point. (A ct-ins pair here would now parse to a
+    // tracked mark — see tests/sync/review-carrier.test.ts.)
+    const xml = DOC('<p>Alpha <?ezd-review-start 1:comment:a@example.com:1?>beta<?ezd-review-end 1?> gamma.</p>');
     editAndSerialize(xml, () => {
       const t = findText($getRoot(), 'beta');
       if (!t) throw new Error('no beta');

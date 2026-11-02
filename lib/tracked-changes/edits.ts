@@ -29,7 +29,7 @@ import {
   $isTrackedTextNode,
   TrackedTextNode,
 } from '../../components/TrackedTextNode';
-import { newMark, SESSION_AUTHOR, type TrackedMark } from './model';
+import { newMark, sessionAuthor, type TrackedMark } from './model';
 
 export type EditResult =
   | { status: 'ok' }
@@ -69,7 +69,7 @@ function isOwnInsertMark(node: LexicalNode | null | undefined): node is TrackedT
   return (
     $isTrackedTextNode(node) &&
     node.getMark().kind === 'insert' &&
-    node.getMark().author === SESSION_AUTHOR
+    node.getMark().author === sessionAuthor()
   );
 }
 
@@ -143,7 +143,7 @@ export function $insertTrackedText(
 
     if ($isTrackedTextNode(node)) {
       const nodeMark = node.getMark();
-      if (nodeMark.kind === 'insert' && nodeMark.author === SESSION_AUTHOR) {
+      if (nodeMark.kind === 'insert' && nodeMark.author === sessionAuthor()) {
         node.spliceText(offset, 0, text, true);
         return { status: 'ok' };
       }
@@ -338,7 +338,7 @@ export function $markCollapsedDeletion(
 
   if ($isTrackedTextNode(node)) {
     const mark = node.getMark();
-    if (mark.kind === 'insert' && mark.author === SESSION_AUTHOR) {
+    if (mark.kind === 'insert' && mark.author === sessionAuthor()) {
       node.spliceText(index, 1, '', true);
       if (node.getTextContentSize() === 0) {
         const parent = node.getParentOrThrow();
@@ -359,7 +359,7 @@ export function $markCollapsedDeletion(
 
   // Merge into an adjacent same-author delete run before creating a new one.
   const mergeTarget = isBackward ? char.getNextSibling() : char.getPreviousSibling();
-  if (isDeleteMark(mergeTarget) && mergeTarget.getMark().author === SESSION_AUTHOR) {
+  if (isDeleteMark(mergeTarget) && mergeTarget.getMark().author === sessionAuthor()) {
     if (isBackward) {
       mergeTarget.spliceText(0, 0, char.getTextContent(), false);
     } else {
@@ -419,7 +419,7 @@ export function $markRangeAsDeleted(
       const nodeMark = node.getMark();
       if (nodeMark.kind === 'delete') continue; // already struck
       if (nodeMark.kind === 'split') continue; // markers untouched by range deletes
-      if (nodeMark.kind === 'insert' && nodeMark.author === SESSION_AUTHOR) {
+      if (nodeMark.kind === 'insert' && nodeMark.author === sessionAuthor()) {
         // Retract (part of) your own suggestion — real removal.
         const part = $isolateRange(node, start, end);
         part.remove();

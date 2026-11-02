@@ -28,6 +28,13 @@
 // After BUG-46 (ADR-013, 2026-10-27): still 1407 edits, 0 findings. The 37
 // text-less <keyword conkeyref/> elements that became chips were empty text
 // nodes before, which this fuzz never edited (it skips blank text nodes).
+// After ADR-015 (2026-11-02): 1422 edits — the five review-carrier fixtures
+// (real Heretto output) joined the corpus. Carried suggestions are tracked
+// nodes, which this fuzz does not edit (it extends plain text nodes only);
+// 2 findings, both BUG-49: appending to "One" inside the <b> that holds a
+// format toggle's straddling end PI yields <b>One</b><b> word</b> — a <b> with
+// a PI child is an atomic element piece the reconciler cannot splice into, so
+// the appended run lands beside it. Text intact, no bail; listed below.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, sep } from 'path';
@@ -46,7 +53,12 @@ const tree = (xml: string): string =>
 const FIXTURES = join(__dirname, 'fixtures');
 
 /** Fixtures whose edits are known to fail, and the bug that owns the failure. */
-const KNOWN_FIXTURES: Record<string, string> = {};
+const KNOWN_FIXTURES: Record<string, string> = {
+  // A <b> whose first child is a review PI (Heretto's bold-toggle shape)
+  // cannot be spliced into; the appended word becomes a second <b>.
+  'review-carrier/heretto-bold-wrap.dita': 'BUG-49',
+  'review-carrier/heretto-kitchen-sink.dita': 'BUG-49',
+};
 
 const WORD = 'ZQXFUZZ';
 

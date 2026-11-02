@@ -27,6 +27,11 @@ content, or drifting between the two run modes.
   change keeps its source spelling too.
 - Inline elements (`ph`, `uicontrol`, `xref`, `term`, `codeph`, conkeyref/keyref chips) and block
   elements survive editing — no silent dropping of siblings on block-split, no flattening.
+- Heretto review PIs are part of the contract (ADR-015): a suggestion the carrier models
+  (`ct-ins`/`ct-del` around text, `ct-split` between paragraphs) is a tracked mark on both sides and an
+  anchor when unchanged — its bytes never move; every other review PI (`comment`, a format toggle's
+  straddling pair, a whole-element insert) is a fixed atom, byte-exact as before. A document without
+  suggestions must round-trip exactly as it did before the carrier existed.
 - This is the **top acceptance criterion** — WYSIWYG/DITA parity outranks every other consideration.
 - **Review check:** `tests/sync/round-trip.test.ts` green; `tests/sync/byte-stability.test.ts` green
   over the fixture corpus; for any element or structure the change touches, a byte-stability fixture
@@ -34,7 +39,11 @@ content, or drifting between the two run modes.
   (FR-064), not only synthetic ones: BUG-25 and BUG-26 survived for months because no fixture had a
   pattern that most real topics contain. An inline change also keeps `tests/sync/inline-reconcile.test.ts`
   R1 (zero false rewrites over the corpus) and `tests/sync/structure-check.test.tsx` (zero false
-  FR-063 warnings) green. Any change to the parser, the serializer, or the inline reconciler also runs
+  FR-063 warnings) green, and a change near marks or PIs keeps `tests/sync/review-carrier.test.ts`
+  green (ADR-015 I1–I5: the corpus parses to no mark; suggest → save → reopen preserves the change
+  list; Reject All and Accept All after a reopen match the pre-suggestion document and the direct
+  edit byte for byte; Heretto's own raw samples open as the right marks). Any change to the parser,
+  the serializer, or the inline reconciler also runs
   the opt-in edit fuzz (`npm run test:edit-fuzz`: a word appended to every text node of every corpus
   fixture, 1,405 edits) with zero failures outside the causes it lists as filed — unedited
   byte-stability cannot see a dropped edit (BUG-29 dropped 24 of 24 in one topic). The fuzz only

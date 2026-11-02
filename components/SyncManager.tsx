@@ -91,11 +91,15 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
   // Ctrl+Enter: force immediate sync in both directions
   useEffect(() => {
     if (syncTrigger === 0) return;
-    if (suspendSync) return;
 
     const lexicalRoot = editor.getRootElement();
     const activeEl = document.activeElement;
     const lexicalHasFocus = lexicalRoot && activeEl && lexicalRoot.contains(activeEl);
+
+    // ADR-015 decision 5: while suggesting, only the XML → Lexical direction
+    // is suspended (a re-parse would run over live marks); Lexical → XML
+    // carries the marks as review PIs, like any other edit.
+    if (suspendSync && !lexicalHasFocus) return;
 
     if (lexicalHasFocus) {
       // Lexical is focused → serialize Lexical to XML (patch against master)
@@ -124,7 +128,8 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
         if (lastUpdatedBy === 'api') {
           // FR-056: an API whole-doc replacement becomes the new base document.
           // Applied immediately regardless of focus — existing tracked-change marks
-          // are discarded by the re-parse (marks are session-only; carrier = FR-051).
+          // are discarded by the re-parse (the API's document is the new base,
+          // ADR-015 decision 5 leaves this rule as it is; the app toasts the count).
           // Overwrite any stale buffered Monaco edit before flushing so it cannot
           // clobber the fresh API load.
           pendingXmlRef.current = xmlContent;
@@ -176,7 +181,9 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
       <OnChangePlugin
         ignoreSelectionChange={true}
         onChange={(editorState) => {
-          if (suspendSync) return;
+          // ADR-015 decision 5: not gated on suspendSync — a suggestion is a
+          // document change, written as Heretto review PIs by the serializer,
+          // so the XML pane, the dirty flag, and Save all see it.
           if (isSyncingFromXmlRef.current) return;
 
           const generatedXml = serializeLexicalToXml(editorState, masterXmlRef.current, nodeOriginMap, xmlMetaCache);

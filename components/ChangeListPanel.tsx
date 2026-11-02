@@ -1,20 +1,29 @@
 // FR-046 — the tracked-changes sidebar (Word-style review pane).
 //
 // Docked over the right edge of the visual editor pane while suggesting mode
-// has unresolved changes. One row per logical change (grouped by changeId via
-// $scanTrackedChanges — identity is never a Lexical node key). Row click
-// scrolls the first mark into view; per-row Accept/Reject are atomic model
-// mutations. Accept All / Reject All stay in the Toolbar — one surface each.
-import React, { useEffect, useRef, useState } from 'react';
+// has unresolved changes. One row per logical change (grouped by changeId +
+// kind via $scanTrackedChanges — identity is never a Lexical node key; ADR-015
+// decision 8: a replace carried from Heretto is two rows sharing one id). Row
+// click scrolls the first mark into view; per-row Accept/Reject are atomic
+// model mutations. Accept All / Reject All stay in the Toolbar — one surface
+// each.
+//
+// ADR-015 decision 3: a suggestion in the document that the carrier does not
+// model (a format toggle, a whole-element insert) is listed too, from the XML
+// itself, as unsupported — visible, never dropped, resolved in Heretto.
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { Check, X, ChevronDown, ChevronUp, Plus, Minus, Pilcrow } from 'lucide-react';
+import { Check, X, ChevronDown, ChevronUp, Plus, Minus, Pilcrow, HelpCircle } from 'lucide-react';
 import { $scanTrackedChanges } from '../lib/tracked-changes/scan';
 import { $acceptChange, $rejectChange } from '../lib/tracked-changes/mutations';
+import { listUnsupportedSuggestions } from '../lib/tracked-changes/pi-carrier';
 import type { Change } from '../lib/tracked-changes/model';
 import type { DocumentMode } from '../types/tab';
 
 interface ChangeListPanelProps {
   documentMode: DocumentMode;
+  /** The tab's XML — the source of the unsupported-suggestion rows. */
+  xmlContent: string;
 }
 
 const kindIcon = (kind: Change['kind']) => {
@@ -31,10 +40,13 @@ const kindIcon = (kind: Change['kind']) => {
 const kindLabel = (kind: Change['kind']) =>
   kind === 'insert' ? 'Inserted' : kind === 'delete' ? 'Deleted' : 'Paragraph split';
 
+const timeLabel = (iso: string | number) =>
+  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 const changesSignature = (changes: Change[]): string =>
   changes.map(c => `${c.changeId}\0${c.kind}\0${c.text}`).join('\n');
 
-export const ChangeListPanel = ({ documentMode }: ChangeListPanelProps) => {
+export const ChangeListPanel = ({ documentMode, xmlContent }: ChangeListPanelProps) => {
   const [editor] = useLexicalComposerContext();
   const [changes, setChanges] = useState<Change[]>([]);
   const [collapsed, setCollapsed] = useState(false);
@@ -58,7 +70,13 @@ export const ChangeListPanel = ({ documentMode }: ChangeListPanelProps) => {
     return editor.registerUpdateListener(refresh);
   }, [editor, documentMode]);
 
-  if (documentMode !== 'suggesting' || changes.length === 0) return null;
+  const unsupported = useMemo(
+    () => (documentMode === 'suggesting' ? listUnsupportedSuggestions(xmlContent, new Set(changes.map(c => c.changeId))) : []),
+    [documentMode, xmlContent, changes],
+  );
+
+  const total = changes.length + unsupported.length;
+  if (documentMode !== 'suggesting' || total === 0) return null;
 
   const scrollToChange = (change: Change) => {
     const dom = editor.getElementByKey(change.firstNodeKey);
@@ -92,14 +110,14 @@ export const ChangeListPanel = ({ documentMode }: ChangeListPanelProps) => {
         style={{ color: 'var(--app-text-primary)', backgroundColor: 'var(--app-surface-raised)' }}
         aria-expanded={!collapsed}
       >
-        <span>Tracked changes ({changes.length})</span>
+        <span>Tracked changes ({total})</span>
         {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
       </button>
       {!collapsed && (
         <div className="flex-1 overflow-y-auto">
           {changes.map(change => (
             <div
-              key={change.changeId}
+              key={`${change.changeId}:${change.kind}`}
               className="px-3 py-2 border-t cursor-pointer transition-colors hover-btn"
               style={{ borderColor: 'var(--app-border-subtle)' }}
               onClick={() => scrollToChange(change)}
@@ -112,7 +130,7 @@ export const ChangeListPanel = ({ documentMode }: ChangeListPanelProps) => {
                   {kindLabel(change.kind)}
                 </span>
                 <span className="text-[10px] ml-auto" style={{ color: 'var(--app-text-muted)' }}>
-                  {change.author} · {new Date(change.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {change.author} · {timeLabel(change.date)}
                 </span>
               </div>
               {change.text && (
@@ -155,6 +173,27 @@ export const ChangeListPanel = ({ documentMode }: ChangeListPanelProps) => {
                   <X className="w-3 h-3" />
                   Reject
                 </button>
+              </div>
+            </div>
+          ))}
+          {unsupported.map(s => (
+            <div
+              key={`${s.changeId}:${s.kind}`}
+              className="px-3 py-2 border-t"
+              style={{ borderColor: 'var(--app-border-subtle)' }}
+              aria-label={`Unsupported suggestion (${s.kind})`}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <HelpCircle className="w-3 h-3" style={{ color: 'var(--app-text-muted)' }} />
+                <span className="text-[11px] font-medium" style={{ color: 'var(--app-text-secondary)' }}>
+                  Unsupported suggestion ({s.kind})
+                </span>
+                <span className="text-[10px] ml-auto" style={{ color: 'var(--app-text-muted)' }}>
+                  {s.author} · {timeLabel(s.dateMs)}
+                </span>
+              </div>
+              <div className="text-xs break-words" style={{ color: 'var(--app-text-muted)' }}>
+                Made in Heretto with a shape DITA Architect can't show as a change yet. It is kept exactly as written; accept or reject it in Heretto.
               </div>
             </div>
           ))}

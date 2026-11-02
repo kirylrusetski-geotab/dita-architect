@@ -14,6 +14,7 @@
 // changed run, an unsupported Lexical node) the reconciler bails loudly and the
 // caller falls back to the legacy patch path.
 import type { NodeOriginMapType } from './nodeOriginMap';
+import type { TrackedMark } from '../lib/tracked-changes/model';
 import {
   scanInlineChildren,
   WS_RUN,
@@ -82,8 +83,10 @@ interface DTextUnit { kind: 'text'; sig: string; fmt: number; text: string; piec
 /** `idSig` is the unit's identity for anchoring: equal to `sig` except for a
  *  link, where it leaves out the link's content (href + attributes only), so a
  *  link whose text changed is still matched to its source <xref> and
- *  reconciled inside it (BUG-36/C6) instead of being replaced wholesale. */
-interface DAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: Element; owner: Element | null }
+ *  reconciled inside it (BUG-36/C6) instead of being replaced wholesale.
+ *  `nodes` (ADR-015): a tracked suggestion spans several sibling nodes (start
+ *  PI, text, end PI); a splice must take all of them. `node` is the first. */
+interface DAtomicUnit { kind: 'atomic'; sig: string; idSig: string; isLink: boolean; node: Element | ProcessingInstruction; owner: Element | null; nodes?: Node[] }
 interface DFixedUnit { kind: 'fixed'; node: Node | null; owner: Element | null }
 type DUnit = DTextUnit | DAtomicUnit | DFixedUnit;
 
@@ -99,6 +102,10 @@ const linkIdSig = (href: string, attrs: Record<string, string> | null) => `l|${h
 // The element is part of a chip's identity (BUG-46): <keyword conkeyref="x"/>
 // and <ph conkeyref="x"/> are different elements.
 const chipSig = (refTag: string, refType: string, refValue: string, text: string) => `c|${refTag}|${refType}|${refValue}|${text}`;
+// ADR-015: a suggestion is identified by everything its PIs carry plus its
+// text; the same mark unchanged on both sides is an anchor.
+const trackedSig = (mark: TrackedMark, fmt: number, text: string) =>
+  `k|${mark.changeId}|${mark.kind}|${mark.author}|${mark.date}|${fmt}|${text}`;
 
 /** Collapse a raw text node the way the parser does, keeping a normalized→raw offset map. */
 const collapse = (raw: string): { norm: string; map: number[] } => {
@@ -192,6 +199,9 @@ const domUnitsFromAtoms = (atoms: Atom[]): { units: DUnit[]; drift?: string } =>
     if (atom.kind === 'stamped') {
       const sig = stampedSig(atom.tag, atom.attrs, atom.fmt, atom.text);
       units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner });
+    } else if (atom.kind === 'tracked') {
+      const sig = trackedSig(atom.mark, atom.fmt, atom.text);
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: atom.node, owner: atom.owner, nodes: atom.nodes });
     } else if (atom.kind === 'link') {
       const inner = domUnitsFromAtoms(atom.children);
       if (inner.drift) return { units, drift: inner.drift };
@@ -252,6 +262,12 @@ const lexUnits = (lexicalNode: any, originMap?: NodeOriginMapType): LUnit[] | nu
   for (const child of lexicalNode.getChildren()) {
     const type = child.getType();
     if (type === 'dita-info-preview' || type === 'dita-container-boundary') continue;
+    if (type === 'tracked-text') {
+      // ADR-015: a mark is one atomic unit, split markers (empty text) included.
+      const sig = trackedSig(child.getMark(), lexFmt(child), child.getTextContent());
+      units.push({ kind: 'atomic', sig, idSig: sig, isLink: false, node: child });
+      continue;
+    }
     if (type === 'text') {
       const text: string = child.getTextContent();
       const fmt = lexFmt(child);
@@ -331,6 +347,20 @@ const nodeOf = (item: DItem): Node | null => {
   if (item.k === 'c') return item.piece.node;
   if (item.k === 'a') return item.unit.node;
   return item.node;
+};
+
+/** Every DOM node an item occupies: a tracked suggestion is several siblings
+ *  (ADR-015); everything else is one node. */
+const nodesOf = (item: DItem): Node[] => {
+  if (item.k === 'a' && item.unit.nodes) return item.unit.nodes;
+  const n = nodeOf(item);
+  return n ? [n] : [];
+};
+
+/** The last DOM node of an item — where new content goes when inserted after it. */
+const lastNodeOf = (item: DItem): Node | null => {
+  const nodes = nodesOf(item);
+  return nodes.length ? nodes[nodes.length - 1] : null;
 };
 
 /** Deepest node containing every node in `nodes` (Node.contains is inclusive). */
@@ -626,7 +656,8 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
     let ref: Node | null;
     if (prevSel) {
       const prev = prevSel;
-      const pn = nodeOf(prev)!;
+      // After a tracked suggestion means after its END PI, never inside the run.
+      const pn = lastNodeOf(prev)!;
       const top = childOfLevel(pn, level);
       if (!top) return false;
       if (prev.k === 'c' && prev.piece.kind === 'text' && top === pn) {
@@ -668,11 +699,13 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
   // Before mutating: every middle item must resolve to a sibling run under the level.
   const tops: Node[] = [];
   for (let k = i; k < ei; k++) {
-    const n = nodeOf(D[k]);
-    if (!n) return false;
-    const t = childOfLevel(n, level);
-    if (!t) return false;
-    if (tops[tops.length - 1] !== t) tops.push(t);
+    const ns = nodesOf(D[k]);
+    if (ns.length === 0) return false;
+    for (const n of ns) {
+      const t = childOfLevel(n, level);
+      if (!t) return false;
+      if (tops[tops.length - 1] !== t) tops.push(t);
+    }
   }
   for (let k = 1; k < tops.length; k++) {
     if (tops[k - 1].nextSibling !== tops[k]) return false;
@@ -681,7 +714,7 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
   // anchor, or another gap's text): that is how a straddling edit used to
   // delete a <menucascade>'s unchanged <uicontrol> (BUG-34). Bail instead.
   const middleNodes = new Set<Node>();
-  for (let k = i; k < ei; k++) { const n = nodeOf(D[k]); if (n) middleNodes.add(n); }
+  for (let k = i; k < ei; k++) for (const n of nodesOf(D[k])) middleNodes.add(n);
   for (const top of tops) {
     if (top.nodeType !== Node.ELEMENT_NODE) continue;
     for (const n of allNodes) {
@@ -692,6 +725,8 @@ const applyGap = (rootEl: Element, D: DItem[], L: LItem[], plan: GapPlan, deps: 
   // Split the end first, then the start, so start offsets stay valid when both
   // fall in one text node. Only a text node directly under the level is split.
   let endNode: Node = tops[tops.length - 1];
+  // The split points are text offsets, so they apply to character items only;
+  // a tracked unit at either end is taken whole through `tops`.
   if (last.k === 'c' && last.piece.kind === 'text' && last.piece.node.parentNode === level) {
     const node = last.piece.node;
     const rawEnd = last.piece.map[last.off + 1];
@@ -767,7 +802,7 @@ export const reconcileInline = (
     const du = D[dk] as DTextUnit | DAtomicUnit;
     const lu = L[lk];
     if (du.sig !== lu.sig && du.kind === 'atomic' && du.isLink && lu.kind === 'atomic' && lu.isLink) {
-      linkEdits.push({ el: du.node, lex: lu.node });
+      linkEdits.push({ el: du.node as Element, lex: lu.node });
     }
   }
 
@@ -828,7 +863,7 @@ export const reconcileInline = (
     if (r === 'bail') return report({ status: 'bail', reason: 'unsupported', tag, detail: 'link content not reconcilable' });
   }
   const allNodes: Node[] = [];
-  for (const u of D) for (const item of dItemsOf(u)) { const n = nodeOf(item); if (n) allNodes.push(n); }
+  for (const u of D) for (const item of dItemsOf(u)) allNodes.push(...nodesOf(item));
   for (const { gap, plan } of plans) {
     if (!applyGap(rootEl, gap.D, gap.L, plan, deps, allNodes, gap.around)) {
       return report({ status: 'bail', reason: 'unsupported', tag, detail: 'changed run is not one sibling run, or would remove unchanged content' });

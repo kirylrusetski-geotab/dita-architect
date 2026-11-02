@@ -6,6 +6,7 @@ import { herettoFolderCache } from '../constants/heretto';
 import { parseHerettoFolder, getFolderName } from '../lib/heretto-utils';
 import { escapeXml, getTitleFromXml, slugifyToFilename, slugifyToId, withUpdatedTopicId, findUnrecognizedElements, compareXml, stripHerettoClassAttrs } from '../lib/xml-utils';
 import { validateContentModel, summarizeViolations, type ContentModelViolation } from '../lib/content-model-validate';
+import { setSessionAuthor } from '../lib/tracked-changes/model';
 import { toast } from 'sonner';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -86,6 +87,8 @@ export function useHerettoCms({
         const root = typeof data.rootUuid === 'string' ? data.rootUuid.trim() : '';
         setHerettoRootUuid(root);
         setHerettoCredentials(prev => ({ ...prev, host: data.host || '', rootUuid: root, email: data.email || '' }));
+        // ADR-015 decision 7: suggestions are written to Heretto under this account.
+        setSessionAuthor(typeof data.email === 'string' ? data.email : '');
       })
       .catch(() => {});
     return () => { abort.abort(); };
@@ -142,6 +145,7 @@ export function useHerettoCms({
         signal: withTimeout(),
       });
       if (!res.ok) throw new Error();
+      setSessionAuthor(herettoCredentials.email);
       // The saved root becomes the effective one. If the field was left blank the
       // server keeps whatever was on disk, so re-read it rather than trusting the form.
       let nextRoot = herettoCredentials.rootUuid.trim();

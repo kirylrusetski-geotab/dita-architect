@@ -15,11 +15,15 @@ export function $scanTrackedChanges(): Change[] {
   const visit = (node: LexicalNode): void => {
     if ($isTrackedTextNode(node)) {
       const mark = node.getMark();
-      const existing = changes.get(mark.changeId);
+      // ADR-015 decision 8: one changeId can carry two kinds (Heretto writes
+      // a replace as a ct-ins + ct-del pair sharing the id), so a change is
+      // keyed by both. Mutations still act on the whole changeId.
+      const key = `${mark.changeId}\u0000${mark.kind}`;
+      const existing = changes.get(key);
       if (existing) {
         existing.text += node.getTextContent();
       } else {
-        changes.set(mark.changeId, {
+        changes.set(key, {
           changeId: mark.changeId,
           kind: mark.kind,
           text: node.getTextContent(),

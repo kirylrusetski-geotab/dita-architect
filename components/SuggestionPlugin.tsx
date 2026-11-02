@@ -54,7 +54,7 @@ import {
   $rejectAllChanges,
   $rejectChange,
 } from '../lib/tracked-changes/mutations';
-import { newMark, SESSION_AUTHOR } from '../lib/tracked-changes/model';
+import { newMark, sessionAuthor } from '../lib/tracked-changes/model';
 import type { DocumentMode } from '../types/tab';
 
 interface SuggestionPluginProps {
@@ -66,6 +66,9 @@ interface SuggestionPluginProps {
   onAcceptAll: (tabId: string, xml: string) => void;
   onRejectAll: (tabId: string) => void;
   onChangeCountChanged: (tabId: string, count: number) => void;
+  /** ADR-015 decision 6: marks arrived from a parse (a topic saved with
+   *  suggestions) while the tab is in Editing mode — the app switches it. */
+  onCarriedMarks?: (tabId: string, count: number) => void;
 }
 
 // One toast per category per few seconds — holding a blocked key must not
@@ -103,10 +106,33 @@ export const SuggestionPlugin = ({
   onAcceptAll,
   onRejectAll,
   onChangeCountChanged,
+  onCarriedMarks,
 }: SuggestionPluginProps) => {
   const [editor] = useLexicalComposerContext();
   const { nodeOriginMap, xmlMetaCache } = useSyncContext();
   const lastCountRef = useRef(0);
+  const carriedReportedRef = useRef(false);
+
+  // ADR-015 decision 6: a parse that produces marks (a topic carrying Heretto
+  // suggestions) while the tab is in Editing mode, the open default. Reported
+  // once per arrival; Viewing mode is an explicit choice and is left alone.
+  useEffect(() => {
+    if (documentMode !== 'editing') {
+      carriedReportedRef.current = false;
+      return;
+    }
+    if (!onCarriedMarks) return;
+    const check = () => {
+      if (carriedReportedRef.current) return;
+      const count = editor.getEditorState().read(() => $scanTrackedChanges().length);
+      if (count > 0) {
+        carriedReportedRef.current = true;
+        onCarriedMarks(tabId, count);
+      }
+    };
+    check();
+    return editor.registerUpdateListener(check);
+  }, [editor, documentMode, tabId, onCarriedMarks]);
 
   // Viewing mode locks the visual editor only (the XML pane stays live).
   useEffect(() => {
@@ -348,7 +374,7 @@ export const SuggestionPlugin = ({
           if (
             $isTrackedTextNode(node) &&
             node.getMark().kind === 'insert' &&
-            node.getMark().author === SESSION_AUTHOR
+            node.getMark().author === sessionAuthor()
           ) {
             // Typing inside your own insert run — the fast path extends the
             // suggestion correctly and cheaply. Leave it alone.

@@ -5,6 +5,15 @@ import { reconcileInline, type ReconcileDeps, type ReconcileMode } from './inlin
 import { NOTE_BLOCK_TAGS, FMT_BOLD as RUN_BOLD, FMT_ITALIC as RUN_ITALIC, FMT_CODE as RUN_CODE } from './inline-units';
 import { BLOCK_CHILD_TAGS, CELL_BLOCK_TAGS, DD_BLOCK_TAGS } from './parseXmlToLexical';
 import { restoreSourceSpelling } from './source-spelling';
+import type { TrackedMark } from '../lib/tracked-changes/model';
+import {
+  REVIEW_START,
+  REVIEW_END,
+  parseReviewStart,
+  parseReviewEnd,
+  reviewStartData,
+  kindForCode,
+} from '../lib/tracked-changes/pi-carrier';
 
 interface XmlMeta {
   rootTag: string;
@@ -54,17 +63,59 @@ const isContainerEl = (el: Element): boolean => {
   return true;
 };
 
-// FR-046 tripwire: tracked marks are resolved before serialization by design
-// (sync suspended during suggesting mode). Warn once — not per node — if one
-// ever reaches the serializer, so a broken invariant is visible without
-// flooding the console.
-let warnedTrackedTextReachedSerializer = false;
-const warnTrackedTextReachedSerializer = (): void => {
-  if (warnedTrackedTextReachedSerializer) return;
-  warnedTrackedTextReachedSerializer = true;
-  console.warn(
-    '[FR-046] A tracked-change mark reached the serializer — marks should be accepted/rejected before serialization. Delete/split marks were skipped; insert marks were serialized as plain text.',
-  );
+// ADR-015: a split marker writes its end PI where it stands; its start PI
+// belongs at the end of the previous block, which this serialize places in a
+// post-pass (placeSplitStartPis). Reset per serialize.
+let pendingSplitStarts = new Map<string, TrackedMark>();
+
+const isReviewPi = (n: Node, target: string): n is ProcessingInstruction =>
+  n.nodeType === Node.PROCESSING_INSTRUCTION_NODE && (n as ProcessingInstruction).target === target;
+
+/** The review PIs the Lexical side owns: every start/end of a kind the carrier
+ *  models. Comments and unmapped kinds are left to the DOM, as always. */
+const isCarriedReviewPi = (n: Node): boolean => {
+  if (isReviewPi(n, REVIEW_START)) {
+    const start = parseReviewStart(n.data);
+    return !!start && kindForCode(start.kind) !== null;
+  }
+  return isReviewPi(n, REVIEW_END);
+};
+
+/**
+ * After the body walk: give every new split marker its start PI (last child of
+ * the previous element sibling), and remove a split start PI whose end PI is
+ * gone (the split was accepted or rejected). An end PI with nowhere to put its
+ * start (first block of the body) is removed too, never left orphaned.
+ */
+const placeSplitStartPis = (doc: Document): void => {
+  const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_PROCESSING_INSTRUCTION);
+  const starts = new Map<string, ProcessingInstruction>();
+  const ends = new Map<string, ProcessingInstruction>();
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const pi = n as ProcessingInstruction;
+    if (pi.target === REVIEW_START) {
+      const start = parseReviewStart(pi.data);
+      if (start && start.kind === 'ct-split') starts.set(start.changeId, pi);
+    } else if (pi.target === REVIEW_END) {
+      const id = parseReviewEnd(pi.data);
+      if (id) ends.set(id, pi);
+    }
+  }
+  for (const [changeId, mark] of pendingSplitStarts) {
+    if (starts.has(changeId)) continue;
+    const end = ends.get(changeId);
+    if (!end) continue;
+    const prev = (end.parentNode as Element | null)?.previousElementSibling;
+    if (!prev) {
+      console.warn(`[ADR-015] A paragraph split (${changeId}) has no previous block to carry its start PI; the marker was dropped.`);
+      end.parentNode?.removeChild(end);
+      continue;
+    }
+    prev.appendChild(doc.createProcessingInstruction(REVIEW_START, reviewStartData(mark)));
+  }
+  for (const [changeId, start] of starts) {
+    if (!ends.has(changeId)) start.parentNode?.removeChild(start);
+  }
 };
 
 const getXmlMeta = (originalXml: string, cache: XmlMetaCache): XmlMeta => {
@@ -141,6 +192,22 @@ const serializeTextRun = (text: string, fmt: number, doc: Document): Node => {
 const lexicalFmt = (child: any): number =>
   (child.hasFormat('bold') ? RUN_BOLD : 0) | (child.hasFormat('italic') ? RUN_ITALIC : 0) | (child.hasFormat('code') ? RUN_CODE : 0);
 
+/** A text-carrying Lexical node as DITA: its stamped inline element when the
+ *  origin map has one, else a formatted text run. */
+const serializeTextChild = (child: any, doc: Document, originMap?: NodeOriginMapType): Node => {
+  const text = child.getTextContent();
+  const origin = originMap?.get(child.getKey());
+  if (origin?.inlineTag) {
+    const el = doc.createElement(origin.inlineTag);
+    if (origin.inlineAttrs) {
+      Object.entries(origin.inlineAttrs).forEach(([k, v]) => el.setAttribute(k, v));
+    }
+    el.appendChild(doc.createTextNode(text));
+    return el;
+  }
+  return serializeTextRun(text, lexicalFmt(child), doc);
+};
+
 /**
  * Serialize one inline Lexical child into DOM nodes. The per-child rules live
  * here once; serializeInlineContent walks a node's children with them and the
@@ -152,27 +219,22 @@ const serializeInlineChild = (child: any, doc: Document, originMap?: NodeOriginM
   // The original <info> DOM is left byte-stable by the patch path.
   if (type === 'dita-info-preview') return [];
   if (type === 'dita-container-boundary') return []; // ADR-009 visual-only marker
-  // FR-046 defensive guard: tracked marks must be resolved (accepted or
-  // rejected) before serialization — sync is suspended during suggesting
-  // mode, so this path is unreachable in practice. If a mark does slip
-  // through: delete/split marks are not document content (skip); insert
-  // marks serialize as the plain text they carry (fall through below).
+  // ADR-015: a tracked mark is a Heretto suggestion. Insert and delete wrap
+  // their run (the text as any run is written) in a start/end PI pair; a
+  // split marker writes its end PI here and its start PI at the end of the
+  // previous block (placeSplitStartPis).
   if (type === 'tracked-text') {
-    warnTrackedTextReachedSerializer();
-    if (child.getMark().kind !== 'insert') return [];
-  }
-  if (type === 'text' || type === 'tracked-text') {
-    const text = child.getTextContent();
-    const origin = originMap?.get(child.getKey());
-    if (origin?.inlineTag) {
-      const el = doc.createElement(origin.inlineTag);
-      if (origin.inlineAttrs) {
-        Object.entries(origin.inlineAttrs).forEach(([k, v]) => el.setAttribute(k, v));
-      }
-      el.appendChild(doc.createTextNode(text));
-      return [el];
+    const mark: TrackedMark = child.getMark();
+    if (mark.kind === 'split') {
+      pendingSplitStarts.set(mark.changeId, mark);
+      return [doc.createProcessingInstruction(REVIEW_END, mark.changeId)];
     }
-    return [serializeTextRun(text, lexicalFmt(child), doc)];
+    const start = doc.createProcessingInstruction(REVIEW_START, reviewStartData(mark));
+    const end = doc.createProcessingInstruction(REVIEW_END, mark.changeId);
+    return [start, serializeTextChild(child, doc, originMap), end];
+  }
+  if (type === 'text') {
+    return [serializeTextChild(child, doc, originMap)];
   }
   if (type === 'link') {
     const xref = doc.createElement('xref');
@@ -235,9 +297,12 @@ const reconcileDeps = (doc: Document, originMap?: NodeOriginMapType): ReconcileD
  * Preserves any processing instructions (e.g. Heretto review markers).
  */
 const replaceElementContent = (domEl: Element, lexicalNode: any, doc: Document, originMap?: NodeOriginMapType) => {
-  // Save processing instructions before clearing
+  // Save processing instructions before clearing. ADR-015: the review PIs of
+  // a carried kind are the Lexical side's to re-emit (a still-pending mark
+  // writes its own pair; a resolved one has none), so keeping them here would
+  // duplicate or resurrect them. Comments and unmapped kinds stay.
   const pis: Node[] = Array.from(domEl.childNodes).filter(
-    child => child.nodeType === Node.PROCESSING_INSTRUCTION_NODE
+    child => child.nodeType === Node.PROCESSING_INSTRUCTION_NODE && !isCarriedReviewPi(child)
   );
   while (domEl.firstChild) domEl.removeChild(domEl.firstChild);
   serializeInlineContent(lexicalNode, doc, originMap).forEach(n => domEl.appendChild(n));
@@ -1643,6 +1708,8 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
     return originalXml;
   }
 
+  pendingSplitStarts = new Map();
+
   editorState.read(() => {
     const root = $getRoot();
     const children = root.getChildren();
@@ -1708,6 +1775,9 @@ export const serializeLexicalToXml = (editorState: any, originalXml: string, ori
       rootEl.appendChild(newBody);
     }
   });
+
+  // ADR-015: split markers get their start PIs; resolved splits lose them.
+  placeSplitStartPis(clonedDoc);
 
   // Serialize the cloned document
   const serializer = new XMLSerializer();
