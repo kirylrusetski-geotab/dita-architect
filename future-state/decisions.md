@@ -1338,3 +1338,167 @@ underline) — but its **Review panel listed only the suggestion made in Heretto
 come from a side index its editor writes, not from the PIs, so a DA suggestion is visible and resolvable in
 DA, and visible but not card-resolvable in Heretto (recorded in the grammar doc). The sandbox was restored
 byte for byte afterwards.
+
+---
+
+## ADR-016 — The native menu bar and PDF export: menu items are declared bridge calls; printing uses a dedicated web view
+
+**Date:** 2026-11-02 · **Status:** Accepted (shipped in v0.14.0, 2026-11-02 — Execution Plan Session 7: P2-39, P2-41, P2-40, FR-050 slice 1; see the implementation note at the end)
+
+**Context** — The macOS shell (ADR-002) has three menus: an app menu with only Quit, an Edit menu that
+exists so Cut/Copy/Paste reach the `WKWebView`, and a Window menu. Every document command lives in the
+in-app header (File Options, the Heretto dropdown) and the toolbar, so `⌘N`/`⌘O`/`⌘S`/`⌘W` do nothing
+and keyboard users cannot discover document-level actions (FR-039). CLAUDE.md carries a **menu-bar
+placement rule** that has never had an ADR to point at. The shell already has one way to drive the web
+app: `JSBridge.call` runs `window.__ditaApi.<method>(…)` through `callAsyncJavaScript`, and
+`HttpServer` uses it for the tab API (ADR-007). "Export as PDF" has never produced a PDF: the web app
+builds print HTML (`lib/dita-print.ts`), posts it to `PrintBridge`, and `PrintBridge` writes a temp
+`dita-print-*.html` and opens it in the default browser for a manual ⌘P; `WebViewController.swift`'s
+own comment records that `WKWebView.printOperation` produced blank pages — when called on the *shell*
+web view. FR-050 names the standard remedy (a dedicated, hidden print web view) that was never tried,
+and `createPDF()` is ruled out because it emits one unpaginated page. The architectural trigger fires:
+a new native surface (menus, an open panel, a save panel, a print web view) and a new `__ditaApi`
+surface. The multi-agent pipeline was the plan's candidate for this milestone; its dry-run on
+2026-11-02 completed all nine steps but showed that every hard gate fails open on a report without a
+verdict token, so this milestone is built directly (Build discipline rule 9), with the mandatory
+fresh-context adversarial review (rule 7).
+
+**Decision**
+
+1. **The placement rule is this ADR's first decision, verbatim.** Two layers with distinct jobs:
+   the **macOS menu bar** holds app-wide commands, the document lifecycle, and `⌘` shortcuts; the
+   **in-app toolbar/header** holds active editing controls, view state, and connection status. If an
+   action deserves a `⌘` shortcut or applies to the document as a whole → menu bar (or both); a
+   formatting control used mid-sentence or a view toggle → toolbar; something that shows connection
+   status as much as it provides actions → header. Dual-path is expected for a Mac app. The Heretto
+   dropdown stays in the header permanently (it is a status indicator); the File Options dropdown
+   stops growing — new document-level actions go in the File menu. CLAUDE.md's section becomes a
+   pointer here.
+2. **Every bridge-backed menu item is one row of one table.** `AppDelegate.swift` declares its menus
+   from a `MenuAction` table — title, key equivalent, modifier flags, the `__ditaApi` method name, and
+   the method's arguments — and every such item shares one selector, `runMenuAction(_:)`, which reads
+   the row from the item's `representedObject` and calls `jsBridge.call("window.__ditaApi.<method>",
+   args, body: "return window.__ditaApi.<method>(<arg names>)")`. There are no per-item selectors.
+   Items that are native by nature have no bridge half and are not in the table: Quit, the Edit and
+   Window menus, **About DITA Architect** (an `NSAlert` showing `CFBundleShortVersionString` and
+   `CFBundleVersion` from the bundle), and **Open Local File…** (decision 4). The table is the single
+   thing the wiring test reads (I1).
+3. **The menu bridge is a second registrar on the same object.** `lib/native-menu-bridge.ts` exports
+   `registerNativeMenuBridge(handlers)`, which adds the menu methods to `window.__ditaApi`; the tab API
+   (`lib/native-api-bridge.ts`, ADR-007) keeps its own registrar. Both merge into one shared object
+   (`lib/native-api-object.ts`) so a re-registration of either never wipes the other. The methods, each
+   doing exactly what the in-app control does by calling the *same* handler (Gate 7 reuse): `newTopic
+   (type)` → `handleNewTopic`; `closeActiveTab()` → `handleCloseTab(activeTabId)` (unsaved edits still
+   get the confirm); `saveActiveTab()` → `handleHerettoSave()` (a tab without a Heretto file opens the
+   Save browser, as the hook already does); `openReplaceModal()` → the diff modal when the tab has a
+   replace target, else the browser in replace mode; `openExportModal()` → `handlePrint`;
+   `openHerettoConnectModal()` → `openHerettoStatus`; `openHerettoBrowserModal()` →
+   `openHerettoBrowser('open')`; `openReleaseNotes()`; `openKeyboardShortcuts()`; `toggleXmlPane()` →
+   flips `codeEditorCollapsed`; `setTheme(name)` / `setXmlTheme(name)` → `handleThemeChange` /
+   `handleSyntaxThemeChange` after validating the name against `THEME_OPTIONS` /
+   `SYNTAX_THEME_OPTIONS`; `getActiveTheme()` → `{theme, syntaxTheme}`; and `exportFinished(status,
+   message)` (decision 6, Swift → JS). Every method returns the tab API's JSON shape — `{success,
+   httpStatus, …}`, an unknown topic type or theme name is `400`, nothing throws across the bridge —
+   so the Swift side logs a failure instead of crashing on it.
+4. **Open Local File… is native.** `⌘O` runs an `NSOpenPanel` (`.dita`, `.xml`) in Swift, reads the
+   file, and calls the **existing** `window.__ditaApi.loadContent(xml, fileName)` (ADR-007), which
+   already validates the XML, opens a tab, and toasts. The plan listed an `openLocalFile()` method;
+   none is added, because a native panel is the Mac convention a menu item should meet and the bridge
+   already has the loader. The hidden `<input type="file">` behind the in-app File Options → Open stays.
+5. **View state flows to the menu, not from it.** The theme and XML-syntax-theme submenus show a check
+   on the active item. Because `NSMenuDelegate.menuNeedsUpdate` is synchronous and the bridge is not,
+   the web app **pushes** `{theme, syntaxTheme}` to Swift through a `ditaUi` script message whenever
+   either changes (and once on mount), Swift caches the pair, and `menuNeedsUpdate` applies the check
+   marks from the cache; `getActiveTheme()` exists for the smoke and symmetry. **Toggle XML Pane** is
+   `⌘\` and flips the existing collapse. **Toggle Split View is not built**: the app has one layout
+   (visual + XML, with the XML pane collapsible), so there is no second mode to cycle to — it would be a
+   duplicate of Toggle XML Pane under another name (placement rule: no duplicate surface). The P2-40
+   row is corrected rather than approximated.
+6. **Export as PDF is a native print of a dedicated web view, with page numbers stamped by PDFKit.**
+   The web app posts `{html, title}` to `ditaPrint` (the `title` is `derivePrintTitle`'s result).
+   `PrintBridge` then: runs an `NSSavePanel` (suggested `<title>.pdf`); on OK creates a hidden
+   `WKWebView` inside an off-screen `NSWindow` (never the shell's view), `loadHTMLString(html)`, waits
+   for `didFinish` plus a short paint delay; runs `printOperation(with:)` with an `NSPrintInfo` whose
+   `jobDisposition` is `.save` and whose `jobSavingURL` is a temp file, with no print or progress panel;
+   then opens the result with PDFKit and **writes the final PDF** by redrawing every page into a new
+   PDF context with a "Page N of M" footer (flattened into the page, not an annotation); deletes the
+   temp; and reports back with `jsBridge.call("window.__ditaApi.exportFinished", …)` with `saved`
+   (and the path), `cancelled`, or `failed` (and the error), which the web app turns into the toast —
+   so the success toast is never shown before the file exists (FR-050 slice 1 item 4). No temp HTML,
+   no `NSWorkspace.open`. The browser run mode keeps its hidden-iframe print dialog (an accepted Gate 3
+   asymmetry — there is no save panel in a browser — recorded in API.md/CLAUDE.md as FR-050 asks).
+   `generatePrintHtml`/`PRINT_CSS`/`derivePrintTitle` are unchanged; print fidelity is FR-050 slice 2,
+   parked.
+7. **Shortcuts are one list.** The menu's `⌘` shortcuts are added to `constants/keyboard-shortcuts.ts`
+   under a category of their own, marked as native-app items, so the cheat sheet (FR-005) shows them;
+   a test asserts that no menu shortcut collides with any in-app shortcut and that the Swift table and
+   the cheat sheet agree (I2).
+8. **Build and bundle.** `macos/build.sh` gains the PDFKit framework; nothing else in the shell's
+   build changes (still bare `swiftc`, ADR-002).
+
+**Invariants** (the plan's I1–I5, each a test written before the code; Swift itself has no unit harness
+here — the compile, the wiring test over its source, and the smoke are its checks)
+
+- **I1** Every bridge-backed menu item has both halves: the `MenuAction` table in `AppDelegate.swift`
+  names only methods that `registerNativeMenuBridge` registers (plus `loadContent`, ADR-007), and
+  every registered menu method is reachable from a menu row — set equality in both directions, read
+  from the two source files (a wiring check, grep-based by design).
+- **I2** `⌘N` / `⇧⌘N` / `⌥⌘N` / `⌘O` / `⌘W` / `⌘S` / `⌘\` do what P2-39/P2-40 say and collide with no
+  toolbar shortcut in `constants/keyboard-shortcuts.ts`; the cheat sheet lists them.
+- **I3** Export as PDF produces a paginated PDF through the native save panel with a page-number footer
+  on every page; the blank-page failure does not recur (smoke: a real topic exported, opened, page
+  count and footers read back).
+- **I4** The theme submenus show the check on the active theme and stay in sync with the toolbar
+  dropdown (the push in decision 5 fires on every change; smoke in the rebuilt app).
+- **I5** Nothing here touches the serializer or the round-trip contract — the corpus, the reconciler's
+  R1, and the edit fuzz are unchanged.
+
+**Consequences** — The app gains the keyboard surface a Mac app is expected to have, with one shape for
+adding a menu item (a table row + a bridge method) that a test enforces, so the menu cannot drift from
+the bridge. "Export as PDF" produces a real, paginated, numbered PDF in one step, and a failure reaches
+the writer as an error instead of a stale success. Costs and limits, named: the menu is macOS-only by
+design (FR-060 shells would need their own); About is native and so is Open Local File, so I1's test
+must exclude them explicitly; the PDF's content fidelity is exactly today's print HTML (conkeyref chips,
+Heretto images, nested blocks — FR-050 slice 2); fonts in the print HTML are Google-CDN links, so an
+offline export falls back to system fonts; theme check marks depend on the push arriving, so a
+`WKWebView` reload re-pushes on mount; the dual-path items (Save, Open from Heretto, Replace, themes,
+What's New, Keyboard Shortcuts) now exist in two places, which the placement rule explicitly allows.
+
+**Alternatives considered** — **(A) One `@objc` selector per menu item** — rejected: twenty
+near-identical methods and nothing a test can enumerate; the table is the contract. **(B)
+`WKWebView.createPDF()`** — rejected: one continuous page, no pagination, no footer. **(C) Print the
+shell web view** — rejected: the recorded blank-page failure. **(D) Let WebKit draw headers and
+footers** — rejected: undocumented for `WKWebView` and not controllable (format, font, placement); a
+PDFKit pass over the finished pages gives an exact footer that a reader can verify by opening the file.
+**(E) Build Toggle Split View as a second layout** — rejected: speculative surface (Gate 7, smallest
+slice); nothing in the roadmap asks for a second layout. **(F) Build the milestone through the
+multi-agent pipeline** — rejected on the dry-run's evidence (gates fail open; see the Execution Plan's
+status log for 2026-11-02); revisit once F3/F7/F9 are fixed and a second dry-run passes.
+
+**Implementation note (2026-11-02, after the adversarial review — Build discipline rule 7).** A
+fresh-context reviewer probed the working tree with throwaway tests, `swiftc -typecheck`, and a Swift
+harness that compiles the real `PrintExporter.swift`. It confirmed **no defect in shipped behaviour**
+and could not falsify I1–I5 (I3 by harness: 6 and 46 pages, zero blank, "Page N of M" on every page,
+per-page text identical to the unstamped output; `runModal(for:)` on the off-screen window returns
+immediately and `didRun` arrives asynchronously). Three plausible weaknesses, all fixed before release:
+
+1. **The export busy guard had a gap during the save panel** — `current` was set only after the panel
+   returned, so a second Export… while the sheet was up would queue a second sheet and orphan the first
+   job's window. A `busy` flag now covers the request from acceptance to `finish` (cancel included).
+2. **`callBridge` passed arguments in sorted-name order**, which would have broken any two-argument row
+   (`exportFinished(message, status)`); latent — every row is 0- or 1-arg — but `MenuAction.args` is now
+   an ordered `KeyValuePairs` and the body is built in declared order.
+3. **`stampPageNumbers` is not rotation-safe** (a `/Rotate 90` page would be clipped). Not reachable:
+   WebKit's print output is always unrotated with an origin-anchored media box. Recorded as a known
+   limit in the function's doc comment rather than engineered around.
+
+Nits taken: the three "load-bearing" comments in the exporter (print-view frame, `orderBack`, settle
+delay) overclaimed — the harness paginated correctly without each of them on this macOS — so the code
+is kept defensively and the comments say so; the wiring test now requires every `.action(MenuAction(`
+row to parse (a row split across lines can no longer vanish silently once the table grows) and checks
+that `newTopic` rows pass a real topic type; the shortcut category constant lives with the shortcuts
+and is re-exported by the bridge; the menu-bridge effect no longer re-registers on every keystroke
+(`handlePrint` and the replace check depend on the fields they read, not the whole tab); About shows the
+version only (the bundle's build number is never bumped). Not changed: `openLocalFile` reads UTF-8
+only (UTF-16 gives an accurate alert); the `.dita` UTType is a dynamic type, so the open panel filters
+`.dita` and `.xml` but not `.ditamap` (maps are unsupported anyway).

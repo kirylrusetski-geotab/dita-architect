@@ -55,7 +55,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-036](#fr-036-map-discovery--surface-ditamaps-that-reference-the-current-topic)              | Map discovery — surface ditamaps that reference the current topic                 | 2026-04-10 | Open                      |
 | 🔴  | [FR-037](#fr-037-general-discoverability--empty-states-onboarding-hints-and-feature-surfacing)  | General discoverability — empty states, onboarding hints, and feature surfacing   | 2026-04-13 | Open                      |
 | 🟢  | FR-038                                                                                          | Base visual styling for xrefs in the visual editor                                | 2026-04-14 | Shipped v0.9.3            |
-| 🔴  | [FR-039](#fr-039-macos-native-app--menu-bar-structure-and-item-placement-policy)                | macOS native app — menu bar structure and item placement policy                   | 2026-05-25 | Open                      |
+| 🟢  | [FR-039](#fr-039-macos-native-app--menu-bar-structure-and-item-placement-policy)                | macOS native app — menu bar structure and item placement policy                   | 2026-05-25 | Shipped v0.14.0 (2026-11-02, ADR-016) |
 | 🔴  | [FR-040](#fr-040-element-insertion-mode--before-after-wrap-in-the--menu)                        | Element insertion mode — Before, After, Wrap in the `+` menu                      | 2026-05-25 | Open                      |
 | 🟢  | FR-041                                                                                          | `POST /api/load-content` should accept an optional Heretto UUID                   | 2026-05-27 | Shipped v0.9.6.1          |
 | 🟢  | FR-042                                                                                          | `insert-section` tracked changes must serialize back to DITA XML on accept        | 2026-05-27 | Shipped v0.9.6.1          |
@@ -66,7 +66,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-047](#fr-047-byte-stability-test-corpus--shared-test-editor-factory)                        | Byte-stability test corpus + shared test editor factory                           | 2026-07-17 | Shipped v0.9.0 (`090d1d0`, 2026-07-17) |
 | 🟢  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Shipped v0.9.0 (`4b1ccc7`, 2026-07-17) |
 | 🟢  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Shipped v0.9.7            |
-| 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
+| 🟡  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Slice 1 shipped v0.14.0 (2026-11-02, ADR-016); slice 2 parked |
 | 🟡  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Carrier slice shipped v0.13.0 (2026-11-02, ADR-015); format marks, block merges, residuals open |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
@@ -85,6 +85,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
 | 🟢  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Shipped v0.12.0 (2026-10-28, ADR-014) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
+| 🔴  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Open (after v0.14.0) |
 
 ---
 
@@ -283,7 +284,7 @@ Discoverability isn't one feature — it's a perspective. Each new feature shoul
 ## FR-039: macOS native app — menu bar structure and item placement policy
 
 **Requested:** 2026-05-25
-**Status:** Open
+**Status:** Shipped in v0.14.0 (2026-11-02) — the placement principle is ADR-016 decision 1; the File, View, and app menus below are built as ADR-016 describes (one `MenuAction` row + one `lib/native-menu-bridge.ts` method per item). Deviations, recorded there: Open Local File… is a native `NSOpenPanel` feeding the existing `loadContent` (no `openLocalFile()` method); **Toggle Split View is not built** — the app has one layout with a collapsible XML pane, so it would duplicate Toggle XML Pane. FR-069 is the follow-up (retire the in-app File Options dropdown in the native app).
 **Priority:** P2
 **Impact:** High
 
@@ -533,7 +534,7 @@ Rebuilding `INITIAL_DITA` (the demo widget topic) — it uses real sample prose,
 ## FR-050: Native PDF export + print fidelity pass
 
 **Requested:** 2026-07-17
-**Status:** Open
+**Status:** Slice 1 shipped in v0.14.0 (2026-11-02, ADR-016 decision 6): `PrintExporter.swift` — native save panel → dedicated hidden print `WKWebView` in an off-screen `NSWindow` → `printOperation(with:)` with `jobDisposition = .save` → PDFKit redraw with "Page N of M" footers → `window.__ditaApi.exportFinished` (saved / cancelled / failed; the success toast waits for the file). No temp HTML, no `NSWorkspace.open`. Slice 2 (print fidelity) stays parked — Heretto's PDF Generator is the publishing pipeline.
 **Priority:** P2
 **Impact:** Medium-high
 **Model weight:** Sonnet (each slice)
@@ -1100,3 +1101,31 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 2. The indicator follows wrap, unwrap, undo, and redo without a reload.
 3. No change to any serialized byte: the byte-stability corpus and the inline-reconcile suite are untouched.
 4. All six themes keep a visible but quiet contrast for the indicator.
+
+---
+
+## FR-069: Retire the in-app File Options dropdown in the native app once the menu bar carries its commands
+
+**Requested:** 2026-11-02
+**Source:** Kiryl, during Session 7 (v0.14.0, the native menu bar), looking at the shell's bare menu bar (`DITA Architect · Edit · Window`) next to the header's two dropdowns: "would it make sense from a UI perspective to move the file options and heretto menu to the [menu] bar?"
+**Status:** Open — sequenced after v0.14.0 (depends on ADR-016's File menu existing)
+**Priority:** P2
+**Impact:** Medium. Once the File menu exists, the header's File Options dropdown is a second copy of the same commands in a less conventional place; two homes for one command is the duplication FR-039 warned about.
+**Model weight:** Sonnet
+
+**Problem:** In the native app, document commands (New, Open, Save, Print/Export, Convert, Keyboard Shortcuts) live in a web-style "File Options" dropdown in the header, and Heretto's Open/Save/Replace/Connect-a-Map/Status live in a second dropdown beside it. A Mac user looks for these in the menu bar first. v0.14.0 (ADR-016) puts them there too, so after it ships the header carries a duplicate of the File menu.
+
+**Signal:** Kiryl, 2026-11-02, with the menu bar on screen. FR-039 (2026-05-25) already set the rule: "the File Options dropdown should stop growing; new document-level actions go in the macOS File menu." ADR-016 decision 1 promotes that rule to a decision and names dual-path as acceptable — but *acceptable* is not *required*.
+
+**Smallest slice:** In the native run mode only (`location.protocol === 'dita:'`), hide the **File Options** dropdown and move its one command that has no menu-bar home yet — **Convert** — into the File menu (one more `MenuAction` row + one bridge method, ADR-016 decision 2). Keep the **Heretto** dropdown: it is the connection-status indicator and the placement rule keeps it in the header permanently; its *actions* are already dual-pathed into the File menu by v0.14.0, so it may shrink to Status + map items later, but that is a separate judgement. In browser run mode (port 3000) nothing changes — there is no menu bar, so the header dropdown is the only home (Gate 3: the command set stays reachable in both modes; the *surface* differs by design, as ADR-016 already records for Export as PDF).
+
+**Serves:** Writer experience — one conventional home per command on the Mac; discoverability (FR-037).
+
+**Not in scope:** removing the Heretto button; changing the toolbar; any change in browser mode; the Edit menu's standard items.
+
+### Acceptance criteria
+
+1. In the native app, no File Options button is rendered; every command it offered is reachable from the menu bar (including Convert), and ⌘-shortcuts are unchanged from v0.14.0.
+2. In browser mode the header is unchanged (a test renders the header under `http:` and `dita:` and asserts the difference).
+3. The ADR-016 wiring test still passes with the Convert row (both halves present).
+4. The Keyboard Shortcuts cheat sheet still lists every menu shortcut once.

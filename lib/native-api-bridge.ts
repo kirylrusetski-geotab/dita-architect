@@ -5,6 +5,7 @@ import { computeProposedXml } from './xml-insert';
 import { createTab } from '../types/tab';
 import { APP_VERSION } from '../constants/version';
 import { toast } from 'sonner';
+import { isNativeApp, nativeApiObject } from './native-api-object';
 
 export interface NativeApiBridgeHandlers {
   getTabs: () => Tab[];
@@ -19,20 +20,21 @@ export interface NativeApiBridgeHandlers {
 
 export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void {
   // Only activate in the native app — the dita:// URL scheme is used exclusively there
-  if (typeof location === 'undefined' || location.protocol !== 'dita:') return;
+  if (!isNativeApp()) return;
 
   const {
     getTabs,
     getActiveTabId,
     getHerettoConnected,
     getTheme,
-    updateTab,
     handleHerettoSave,
     setTabs,
     setActiveTabId,
   } = handlers;
 
-  (window as unknown as Record<string, unknown>).__ditaApi = {
+  // Merged into the shared object so the menu bridge's methods (ADR-016) survive
+  // this registrar re-running on every tabs change.
+  Object.assign(nativeApiObject(), {
     getStatus: (): string => {
       const tabs = getTabs();
       return JSON.stringify({
@@ -211,5 +213,5 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         });
       }
     },
-  };
+  });
 }

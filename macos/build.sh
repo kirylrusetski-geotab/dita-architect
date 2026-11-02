@@ -19,12 +19,15 @@ swiftc \
   "$SOURCES/main.swift" \
   "$SOURCES/AppDelegate.swift" \
   "$SOURCES/WebViewController.swift" \
+  "$SOURCES/PrintExporter.swift" \
   "$SOURCES/DITASchemeHandler.swift" \
   "$SOURCES/JSBridge.swift" \
   "$SOURCES/HttpServer.swift" \
   -framework AppKit \
   -framework WebKit \
   -framework Network \
+  -framework PDFKit \
+  -framework UniformTypeIdentifiers \
   -target arm64-apple-macosx13.0 \
   -O \
   -o "$SCRIPT_DIR/DITAArchitect"

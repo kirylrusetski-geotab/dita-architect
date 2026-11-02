@@ -53,6 +53,9 @@ import type { XmlError } from './components/MonacoDitaEditor';
 import { formatRelativeTime, formatXml } from './lib/xml-utils';
 import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
+import { registerNativeMenuBridge } from './lib/native-menu-bridge';
+import { postNativePrint } from './lib/native-print';
+import { pushNativeUiState } from './lib/native-ui-state';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
 import { createTab, type DocumentMode } from './types/tab';
@@ -428,24 +431,19 @@ export default function ProfessionalDitaEditor() {
     prevSyncTriggerRef.current = activeTab.syncTrigger;
   }, [activeTab?.id, activeTab?.lastUpdatedBy, activeTab?.syncTrigger]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     const title = derivePrintTitle(
       activeTab.localFileName,
       activeTab.herettoFile?.name ?? null,
     );
     const html = generatePrintHtml(activeTab.xmlContent, title);
 
-    // In the native macOS app, delegate to the Swift PrintBridge, which writes
-    // the HTML to a temp file and opens it in the system browser. The user then
-    // presses ⌘P in the browser to get the print dialog and save as PDF.
-    // (window.print() and WKWebView.printOperation both produce blank output.)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nativeBridge = (window as any).webkit?.messageHandlers?.ditaPrint;
-    if (nativeBridge) {
-      nativeBridge.postMessage(html);
-      toast.success('Opened in browser — press ⌘P to save as PDF');
-      return;
-    }
+    // Native macOS app (ADR-016 decision 6 / FR-050 slice 1): the Swift
+    // PrintExporter runs the save panel, renders the HTML in a dedicated hidden
+    // web view, prints it to a paginated PDF with page-number footers, and
+    // reports back through window.__ditaApi.exportFinished — which shows the
+    // toast. Nothing to say here until the file exists.
+    if (postNativePrint(html, title)) return;
 
     // Browser fallback: hidden iframe avoids the popup-blocker that triggers when
     // using window.open().
@@ -476,7 +474,45 @@ export default function ProfessionalDitaEditor() {
     }, 250);
 
     toast.success('Print dialog opened');
-  };
+  }, [activeTab.xmlContent, activeTab.localFileName, activeTab.herettoFile?.name]);
+
+  // ADR-016 decision 3: the macOS menu bar's bridge. Each method calls the same
+  // handler the in-app control calls. Re-registers (merging into the shared
+  // __ditaApi object) whenever a handler changes — not on every keystroke.
+  const activeHasReplaceTarget = !!activeTab?.herettoReplaceTarget;
+  useEffect(() => {
+    registerNativeMenuBridge({
+      getActiveTabId: () => activeTabId,
+      handleNewTopic,
+      handleCloseTab,
+      handleHerettoSave: () => handleHerettoSave(),
+      openReplace: () => {
+        // The diff modal needs a target; without one, pick it in the browser first
+        // (exactly what the Heretto dropdown's "Replace existing..." does).
+        if (activeHasReplaceTarget) setIsHerettoReplaceModalOpen(true);
+        else void openHerettoBrowser('replace');
+      },
+      exportPdf: handlePrint,
+      openHerettoStatus,
+      openHerettoBrowser,
+      openReleaseNotes: () => setIsReleaseNotesOpen(true),
+      openKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
+      toggleXmlPane: () => setCodeEditorCollapsed(prev => !prev),
+      setTheme: handleThemeChange,
+      setXmlTheme: handleSyntaxThemeChange,
+      getTheme: () => appTheme,
+      getXmlTheme: () => syntaxTheme,
+    });
+  }, [
+    activeTabId, activeHasReplaceTarget, handleNewTopic, handleCloseTab, handleHerettoSave, openHerettoBrowser,
+    openHerettoStatus, handlePrint, handleThemeChange, handleSyntaxThemeChange, appTheme, syntaxTheme,
+    setIsKeyboardShortcutsOpen, setCodeEditorCollapsed,
+  ]);
+
+  // ADR-016 decision 5: the View menu's check marks come from this push.
+  useEffect(() => {
+    pushNativeUiState({ theme: appTheme, syntaxTheme });
+  }, [appTheme, syntaxTheme]);
 
   const handleFormatClick = () => {
     const monacoApiRef = activeTab.monacoApiRef;

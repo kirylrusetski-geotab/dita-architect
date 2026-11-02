@@ -79,6 +79,11 @@ content, or drifting between the two run modes.
 - A feature that works only on `:3000` or only on `:3001` is incomplete, not done.
 - A new endpoint requires both a `vite.config.ts` middleware route **and** a Swift `HttpServer`
   route + `window.__ditaApi` method.
+- The **surface** may differ where the platform does (ADR-016): the macOS menu bar and its `⌘`
+  shortcuts exist only in the native app, and Export as PDF is a native save panel there but the
+  browser's print dialog on `:3000` — but every *command* stays reachable in both modes (the in-app
+  dropdowns remain), and a menu item is complete only when its `MenuAction` row and its
+  `lib/native-menu-bridge.ts` method both exist (`tests/native-menu-wiring.test.ts`).
 - **Review check:** confirm the data path exists in both `vite.config.ts` and the Swift shell.
   **Pipeline owner:** Marcus (build/devops) + Elena.
 

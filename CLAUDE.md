@@ -4,7 +4,7 @@
 
 A lightweight DITA editor (React + TypeScript + Vite + Lexical + Monaco) built by Kiryl Rusetski. Visual editor on the left, XML pane on the right, syncs between both. Integrates with any Heretto CMS instance (host + credentials in `~/heretto.json`) for browsing, opening, saving, and replacing topics.
 
-**Current version:** 0.13.0 (2026-11-02)
+**Current version:** 0.14.0 (2026-11-02)
 
 ---
 
@@ -132,7 +132,7 @@ The Obsidian folder also contains **symlinks** to `future-state/BACKLOG.md` and 
 
 ## Multi-Agent Pipeline
 
-A 9-step pipeline built on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). **It is a tool, not the default.** Every release since v0.8.5 was built directly with Gates 1–7 applied by hand; the pipeline has not run since March 2026. See "When to use the pipeline vs. working directly" below for the rule, and dry-run it on a disposable task before trusting it on a milestone.
+A 9-step pipeline built on the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`). **It is a tool, not the default.** Every release since v0.8.5 was built directly with Gates 1–7 applied by hand. Its last run was the 2026-11-02 dry-run (all nine steps completed on a disposable one-test task after the persona model IDs were updated to `claude-opus-5-5` / `claude-sonnet-5-5`); that run found that every hard gate fails open on a report with no verdict token and that branch isolation falls back silently — fix both before trusting it on a milestone. See "When to use the pipeline vs. working directly" below for the rule.
 
 ### How to invoke
 
@@ -156,7 +156,7 @@ The pipeline creates a `pipeline/<timestamp>` git branch before implementation s
 | 8 | **Taylor Brooks** (QA Lead) | Test run — emits ALL PASS/FAILURES verdict | Hard gate; triggers Jamie retry on FAILURES |
 | 9 | **Rafael Santos** | Wrapup — summary + appends to `PROJECT_LOG.md` | — |
 
-Each step writes its output to a report file in `agents/shared/` via `file-comm.ts`. The orchestrator reads these reports to feed context forward.
+Each step writes its output to a report file in `agents/.reports/` (not `agents/shared/`, which holds the pipeline's source helpers) via `file-comm.ts`; `pipeline-health.json` there records per-step status. The orchestrator reads these reports to feed context forward. The pipeline creates its branch but never commits, so inspect its result with `git status`, not `git diff main`.
 
 ### Engineering culture (baked into every agent prompt)
 
@@ -181,7 +181,7 @@ Work directly (gates applied by hand) when:
 - The work is **discovery**: probing the Heretto REST API, reading Lexical source, counting real occurrences.
 - It is **Haiku or Sonnet weight**, a version bump, or a backlog/FR update.
 
-Before the first real use: run `npx tsx agents/run.ts` on a trivial, disposable request and confirm all nine steps complete, the reports land in `agents/shared/`, and the `pipeline/<timestamp>` branch is created. Budget half an hour; the Agent SDK has moved since the pipeline last ran.
+Before any milestone use: run `npx tsx agents/run.ts` on a trivial, disposable request and confirm all nine steps complete, the reports land in `agents/.reports/`, and the `pipeline/<timestamp>` branch is created. Probe the persona model IDs first with `npx tsx agents/probe-model.ts <model>` — the SDK reports a refused model as a *successful* result whose text is the 403, which the orchestrator cannot see. The 2026-11-02 dry-run passed mechanically; its hand-off log (`agents/.reports/wrapup.md`, PROJECT_LOG) lists the gate defects (F3, F7, F9) to fix before the pipeline's verdicts can be trusted.
 
 ---
 
@@ -211,7 +211,7 @@ npm run test:watch  # watch mode
 npm run test:coverage
 ```
 
-Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus, incl. the FR-064 `sampled/` real topics), `tests/sync/inline-reconcile.test.ts` (ADR-010 R1–R6; R1 asserts zero false rewrites over the whole corpus), `tests/sync/inline-wrap.test.ts` (ADR-010 I1–I7: every wrap element × 13 contexts), `tests/inline-wrap-plugin.test.tsx` (wrap commands, shortcuts, and the Suggesting-mode block through the real component tree), `tests/sync/structure-check.test.tsx` (FR-063: zero false warnings over the corpus), `tests/sync/inline-containers.test.ts` (BUG-34/36/42: edits inside container inlines, C9 for a new run with nothing beside it), `tests/sync/table-cells.test.ts` (BUG-29 T1–T6 in both table kinds, BUG-40 `<dd>`), `tests/sync/format-element-splice.test.ts` (BUG-37: splicing inside a `<b>`/`<i>`/`<codeph>`), `tests/sync/mixed-format-element.test.ts` (BUG-44: a `<b>`/`<i>`/`<codeph>` with element children), `tests/sync/source-spelling.test.ts` (BUG-31/ADR-012: the source-spelling pass, incl. a seeded randomized case), `tests/sync/adjacent-lists.test.ts` (BUG-26: two same-type lists stay two lists), `tests/sync/serializer-metadata.test.ts` (BUG-30/41: no invented XML declaration, `@cols` rewritten only when it changed), `tests/token-format-reset.test.tsx` (BUG-39), `tests/cascade-separator.test.tsx` (BUG-43), `tests/xml-insert.test.ts` (FR-045 API insertion transform), `tests/xml-format.test.ts` (BUG-45: the real `formatXml` over every corpus fixture — same editor text, text-holding elements byte-identical, idempotent), `tests/bug45-load-verbatim.test.tsx` (BUG-45: every load path keeps the source bytes), `tests/sync/ref-chips.test.ts` (BUG-46: every ref-carrying inline element is a chip that serializes as its own element), `tests/heretto-map-loader.test.ts` (ADR-013 I1/I1b: the real Altitude maps, precedence, depth, caps, path resolution), `tests/key-registry.test.tsx` (I2/I3/I5: chip states change no byte; silent restore), `tests/cross-file-xref.test.tsx` (I6 + BUG-48's CSS rule), `tests/insert-variable.test.tsx` (FR-066 / I4), `tests/content-model-validate.test.ts` (FR-067/ADR-014 I1/I2: the corpus clean, the four P2-36 I3 constructs with element/parent/location), `tests/content-model-save-gate.test.tsx` (I3: a blocked Save/Replace never reaches `fetch` or touches `xmlContent`/`savedXmlRef`/dirty flags), `tests/native-api-bridge.test.ts` (ADR-008 + FR-067/ADR-014 I4: `saveTab`'s `{error, details}` contract), `tests/tracked-changes/pi-carrier.test.ts` (ADR-015 decision 1: the PI data ↔ mark mapping), `tests/sync/review-carrier.test.ts` (ADR-015 I1–I5: the corpus parses to no mark; suggest → save → reopen keeps the change list; Reject All / Accept All after a reopen are byte-exact; Heretto's own raw samples in `tests/sync/fixtures/review-carrier/` open as the right marks), `tests/sync/review-carrier-hardening.test.ts` (the adversarial review's six confirmed defects, each pinned), `tests/review-carrier-plugin.test.tsx` (live Lexical → XML sync in Suggesting mode, the open-in-Suggesting switch, the panel's rows and unsupported suggestions, Accept All through the plugin).
+Tests live in `tests/`. Key suites: `tests/sync/round-trip.test.ts` (XML→Lexical→XML fidelity), `tests/sync/byte-stability.test.ts` (Gate 1 corpus, incl. the FR-064 `sampled/` real topics), `tests/sync/inline-reconcile.test.ts` (ADR-010 R1–R6; R1 asserts zero false rewrites over the whole corpus), `tests/sync/inline-wrap.test.ts` (ADR-010 I1–I7: every wrap element × 13 contexts), `tests/inline-wrap-plugin.test.tsx` (wrap commands, shortcuts, and the Suggesting-mode block through the real component tree), `tests/sync/structure-check.test.tsx` (FR-063: zero false warnings over the corpus), `tests/sync/inline-containers.test.ts` (BUG-34/36/42: edits inside container inlines, C9 for a new run with nothing beside it), `tests/sync/table-cells.test.ts` (BUG-29 T1–T6 in both table kinds, BUG-40 `<dd>`), `tests/sync/format-element-splice.test.ts` (BUG-37: splicing inside a `<b>`/`<i>`/`<codeph>`), `tests/sync/mixed-format-element.test.ts` (BUG-44: a `<b>`/`<i>`/`<codeph>` with element children), `tests/sync/source-spelling.test.ts` (BUG-31/ADR-012: the source-spelling pass, incl. a seeded randomized case), `tests/sync/adjacent-lists.test.ts` (BUG-26: two same-type lists stay two lists), `tests/sync/serializer-metadata.test.ts` (BUG-30/41: no invented XML declaration, `@cols` rewritten only when it changed), `tests/token-format-reset.test.tsx` (BUG-39), `tests/cascade-separator.test.tsx` (BUG-43), `tests/xml-insert.test.ts` (FR-045 API insertion transform), `tests/xml-format.test.ts` (BUG-45: the real `formatXml` over every corpus fixture — same editor text, text-holding elements byte-identical, idempotent), `tests/bug45-load-verbatim.test.tsx` (BUG-45: every load path keeps the source bytes), `tests/sync/ref-chips.test.ts` (BUG-46: every ref-carrying inline element is a chip that serializes as its own element), `tests/heretto-map-loader.test.ts` (ADR-013 I1/I1b: the real Altitude maps, precedence, depth, caps, path resolution), `tests/key-registry.test.tsx` (I2/I3/I5: chip states change no byte; silent restore), `tests/cross-file-xref.test.tsx` (I6 + BUG-48's CSS rule), `tests/insert-variable.test.tsx` (FR-066 / I4), `tests/content-model-validate.test.ts` (FR-067/ADR-014 I1/I2: the corpus clean, the four P2-36 I3 constructs with element/parent/location), `tests/content-model-save-gate.test.tsx` (I3: a blocked Save/Replace never reaches `fetch` or touches `xmlContent`/`savedXmlRef`/dirty flags), `tests/native-api-bridge.test.ts` (ADR-008 + FR-067/ADR-014 I4: `saveTab`'s `{error, details}` contract), `tests/tracked-changes/pi-carrier.test.ts` (ADR-015 decision 1: the PI data ↔ mark mapping), `tests/sync/review-carrier.test.ts` (ADR-015 I1–I5: the corpus parses to no mark; suggest → save → reopen keeps the change list; Reject All / Accept All after a reopen are byte-exact; Heretto's own raw samples in `tests/sync/fixtures/review-carrier/` open as the right marks), `tests/sync/review-carrier-hardening.test.ts` (the adversarial review's six confirmed defects, each pinned), `tests/review-carrier-plugin.test.tsx` (live Lexical → XML sync in Suggesting mode, the open-in-Suggesting switch, the panel's rows and unsupported suggestions, Accept All through the plugin), `tests/native-menu-wiring.test.ts` (ADR-016 I1/I2: the Swift `MenuAction` table and `MENU_BRIDGE_METHODS` agree in both directions; the P2-39/P2-40 shortcuts, no collision with the cheat sheet; the theme submenus equal the app's theme lists), `tests/native-menu-bridge.test.ts` (every menu method calls its in-app handler and answers `{success, httpStatus}`; bad arguments are 400; the two registrars coexist; `exportFinished` toasts), `tests/native-messages.test.ts` (the `ditaPrint` and `ditaUi` script messages).
 
 **Opt-in edit fuzz:** `npm run test:edit-fuzz` (about 30 s, skipped in `npm test`) appends a word to every editable text node of every corpus fixture (1,422 edits, the five raw-Heretto review-carrier fixtures included) and fails on any lost, added, duplicated, or reordered content, any reconciler bail, or any edit whose source-spelling pass changed the document tree (ADR-012 B2), outside the causes it lists as already filed (`KNOWN_FIXTURES`, empty). Run it after any change to the parser, the serializer, `sync/inline-reconcile.ts`, or `sync/source-spelling.ts`; when a listed bug is fixed, remove its allowance.
 
@@ -227,20 +227,21 @@ This file does not carry a copy of the backlog; copies go stale (the one that us
 
 ---
 
-## macOS Native App — Menu Bar Placement Rule
+## macOS Native App — Menu Bar
 
-Two layers with distinct jobs:
-
-| Layer | Job |
-|---|---|
-| **macOS menu bar** | App-wide commands, document lifecycle, `⌘` shortcuts |
-| **In-app toolbar/header** | Active editing controls, view state, connection status |
-
-**Decision rule:** If an action deserves a `⌘` shortcut or applies to the document as a whole → menu bar (or both). If it is a formatting control used mid-sentence or a view toggle → toolbar. If it shows connection status as much as it provides actions → header.
-
-Dual-path is acceptable and expected for Mac apps: an action can appear in both the macOS menu bar and the in-app header dropdown. The **Heretto button/dropdown stays in the header permanently** — it is a status indicator. The **File Options dropdown should stop growing** — new document-level actions go in the macOS File menu, not File Options.
-
-Every menu item requires two things: (1) an `NSMenuItem` with a target/action selector in `AppDelegate.swift` that calls into `jsBridge`, and (2) a `window.__ditaApi.methodName()` function in `dita-architect.tsx` exposed to the JS context.
+The placement rule (menu bar vs in-app toolbar/header, dual-path, "File Options stops growing") is
+**ADR-016 decision 1** in [`future-state/decisions.md`](./future-state/decisions.md) — read it there.
+The shape it fixes (ADR-016 decisions 2–3): every bridge-backed menu item is **one row of the
+`MenuAction` table** in `macos/Sources/DITAArchitect/AppDelegate.swift` (title, key, modifiers,
+`__ditaApi` method, args; one shared selector) **plus one method** registered by
+`lib/native-menu-bridge.ts` (`MENU_BRIDGE_METHODS`), which calls the same handler the in-app control
+calls and answers `{success, httpStatus, …}`. `tests/native-menu-wiring.test.ts` reads both and fails
+when they disagree, or when a menu shortcut collides with the cheat sheet
+(`constants/keyboard-shortcuts.ts`, category `macOS menu (native app)`). Native-only items (About,
+Open Local File… → `NSOpenPanel` → the existing `loadContent`) have no bridge half by design. Export as
+PDF is `PrintExporter.swift` (save panel → hidden print `WKWebView` → `printOperation(with:)` →
+PDFKit page-number footers → `exportFinished` callback); the browser run mode keeps its print dialog —
+the one accepted Gate 3 asymmetry, there being no save panel in a browser.
 
 ---
 

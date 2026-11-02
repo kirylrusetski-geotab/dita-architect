@@ -7,6 +7,9 @@ export interface KeyboardShortcut {
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl';
 
+/** ADR-016: the cheat-sheet category for the native menu bar's shortcuts (re-exported by lib/native-menu-bridge.ts). */
+export const MENU_SHORTCUT_CATEGORY = 'macOS menu (native app)';
+
 export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     category: 'Editor',
@@ -47,5 +50,42 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     category: 'Help',
     keys: ['?', `${mod}+/`],
     description: 'Open keyboard shortcuts',
+  },
+  // ADR-016 — the macOS menu bar (native app only; the browser has no menu bar).
+  // tests/native-menu-wiring.test.ts checks these against the Swift menu table.
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘N'],
+    description: 'New Task topic',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⇧⌘N'],
+    description: 'New Concept topic',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌥⌘N'],
+    description: 'New Reference topic',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘O'],
+    description: 'Open a local .dita / .xml file',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘W'],
+    description: 'Close the active tab',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘S'],
+    description: 'Save to Heretto (opens the Save browser for a tab without a Heretto file)',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘\\'],
+    description: 'Show or hide the XML pane',
   },
 ];
