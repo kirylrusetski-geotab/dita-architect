@@ -21,6 +21,30 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.0',
+    date: '2026-11-02',
+    title: 'DITA Architect gets a real Mac menu bar — ⌘N, ⌘O, ⌘S, ⌘W, a View menu with themes — and Export as PDF finally produces a PDF.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'File menu: New Task (⌘N), New Concept (⇧⌘N), New Reference (⌥⌘N), Open Local File… (⌘O, a native open panel), Close Tab (⌘W), Save to Heretto (⌘S — for a topic without a Heretto file it opens the Save browser), Replace in Heretto…, Export as PDF…, Connect to Heretto…, Open from Heretto…. Every item does exactly what the same control in the app does; the in-app dropdowns stay where they are.',
+          'View menu: Toggle XML Pane (⌘\\), a Theme submenu listing all six themes, and an XML Syntax Theme submenu listing all seven — each with a check on the active one, kept in sync with the toolbar.',
+          'App menu: About DITA Architect (version and build), What\'s New…, Keyboard Shortcuts…. The Keyboard Shortcuts sheet lists the menu shortcuts under their own heading.',
+          'Export as PDF… now writes a real PDF: a native save panel, then a paginated document with "Page N of M" on every page, rendered from the same print layout as before. No more "open in the browser and press ⌘P". If the export fails, you see why; if you cancel the panel, nothing happens.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'The menu bar is the native Mac app\'s. In a browser (the dev server) the same commands remain in the header dropdowns and Export as PDF opens the browser\'s print dialog, since a browser has no save panel.',
+          'The PDF shows exactly what the print layout showed before: variables print as their reference, Heretto images do not resolve, and block content inside notes and table cells is flattened. Fidelity is a separate, parked item (FR-050 slice 2). Heretto\'s PDF Generator remains the publishing pipeline; this export is a draft artifact.',
+          'There is no "Toggle Split View" item: the app has one layout, with the XML pane collapsible, so Toggle XML Pane is that command.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-11-02',
     title: 'Suggestions now travel with the topic: they survive saving, closing, and reopening, and reach Heretto as Heretto\'s own suggestions.',
