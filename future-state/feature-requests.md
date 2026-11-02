@@ -67,7 +67,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-048](#fr-048-test-suite-triage--gate-5-artifacts)                                           | Test-suite triage — Gate 5 artifacts                                              | 2026-07-17 | Shipped v0.9.0 (`4b1ccc7`, 2026-07-17) |
 | 🟢  | [FR-049](#fr-049-true-placeholders-for-template-titleshortdesc-empty-node--css-decoration)      | True placeholders for template title/shortdesc                                    | 2026-07-17 | Shipped v0.9.7            |
 | 🔴  | [FR-050](#fr-050-native-pdf-export--print-fidelity-pass)                                        | Native PDF export + print fidelity pass                                           | 2026-07-17 | Open                      |
-| 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Open                      |
+| 🔴  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | In progress — carrier slice (ADR-015, Session 6, 2026-11-02) |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
 | 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
@@ -671,7 +671,7 @@ Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
 
 **Requested:** 2026-07-17
 **Source:** FR-046 v1 scope decisions (Kiryl) — the deliberate exclusions, filed at ship time
-**Status:** Open
+**Status:** In progress — slice (3), the DITA round-trip carrier, is being built as ADR-015 (Execution Plan Session 6, started 2026-11-02, Fable); slices (1), (2), and (4) stay open as the post-1.0 remainder
 **Priority:** P3
 **Impact:** Medium
 **Model weight:** Fable (the carrier touches the round-trip contract — Gate 1)
@@ -686,6 +686,13 @@ Alternatively as a path parameter: `GET /api/tabs/tab-2/content`.
 2. **Block-merge tracking** — backspace at a boundary between two original blocks records a merge marker (the inverse of FR-046's split marker); reject re-splits at the recorded position.
 3. **DITA round-trip carrier** — serialize marks into the already-round-tripped Heretto review PIs (`<?ezd-review-start?>` / `<?ezd-review-end?>`) so tracked changes survive save/reload; the `TrackedMark` payload (changeId/author/date) is already shaped for it. This is the piece that makes suggesting mode multi-session and unlocks reviewing in Heretto itself.
 4. **Smaller residuals:** IME composition tracking (currently toast-only), rich multi-block paste (currently flattened inline), bounded `resolvedUrlCache` in the image resolver (BUG-18 residual).
+
+### Carrier slice — design decisions (2026-11-02, Session 6 shaping; see ADR-015)
+
+- Built only from the grammar FR-065 observed raw (both passes): `insert`/`delete`/`split` ↔ `ct-ins`/`ct-del`/`ct-split`; author ↔ the Heretto account email; date ↔ epoch milliseconds.
+- Read and write go through the one shared inline scanner (ADR-010), so a carried, untouched suggestion is an anchor and its bytes never change.
+- Heretto shapes the carrier does not model (a format toggle's straddling pair, a whole-element insert, a `comment`) stay opaque and byte-exact exactly as today, and are listed in the change panel as unsupported suggestions rather than dropped. Modelling them is slices (1)/(2) above.
+- In Suggesting mode, Lexical → XML sync runs live (the XML pane and `herettoDirty` tell the truth about unsaved suggestions); XML → Lexical stays suspended. A topic that opens with suggestions opens in Suggesting mode.
 
 
 ---
@@ -982,7 +989,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-10-20 (the roadmap has said "file it" since 2026-07-18)
 **Source:** Roadmap v0.13.0 prerequisite; pulled forward 2026-10-20 so the hardest remaining milestone starts from facts
-**Status:** Shipped (v0.9.8, 2026-10-20) — first pass. `future-state/heretto-review-pi-grammar.md` has the grammar, two worked examples (insert+split sharing one changeId across a paragraph break; Accept All stripping every PI to plain committed XML), and a `TrackedMark` mapping table. **Four gaps named and left unresolved, most importantly the delete kind's raw PI was never captured** (it was accepted before a fetch caught it) — the document says explicitly this must be verified, not inferred, before ADR-014 (planned as ADR-012, then ADR-013, as ADR-010 and ADR-011 took the earlier numbers on 2026-10-20/21). Re-open or file a small follow-up before starting v0.13.0 if the gaps aren't closed by then.
+**Status:** Shipped (v0.9.8, 2026-10-20) — first pass. `future-state/heretto-review-pi-grammar.md` has the grammar, two worked examples (insert+split sharing one changeId across a paragraph break; Accept All stripping every PI to plain committed XML), and a `TrackedMark` mapping table. Four gaps were named and left unresolved then, most importantly the delete kind's raw PI. **Second pass done 2026-11-02 (Session 6 shaping):** every gap the carrier depends on was closed with raw samples — `ct-del` keeps the struck text; a replace is a `ct-ins` + `ct-del` pair sharing one changeId; a bold toggle is a `ct-ins` pair straddling the element's start tag; Enter at a paragraph's end is a whole-element `ct-ins`, `ct-split` being the mid-paragraph case; Accept and Reject are clean inverses per kind. Still open (not needed by the carrier): two-author overlap, whole-element delete. ADR-015 was written from the samples, not from the first pass's inferences.
 **Priority:** P2
 **Impact:** High for v0.13.0 (review carrier); zero risk to the product — read-only investigation
 **Model weight:** Sonnet, half-session

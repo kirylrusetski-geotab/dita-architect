@@ -1155,3 +1155,127 @@ through the existing display does the job. **(C) Severity tiers now, with "Save 
 violations.** Would mean inventing a distinction the content-model table does not encode today (P2-36 built
 it as a flat set, deliberately — see its own file header) rather than reading what the table actually says;
 revisit only if/when the table grows a soft tier for a real reason.
+
+---
+
+## ADR-015 — The review carrier: tracked marks are Heretto suggestion PIs, in both directions
+
+**Date:** 2026-11-02 · **Status:** Proposed (Execution Plan Session 6, FR-051 carrier slice → v0.13.0)
+
+**Context** — FR-046 (ADR-004) made tracked changes data on the model (`TrackedTextNode` carrying
+`{changeId, kind: insert|delete|split, author, date}`), but session-only: sync is suspended while a tab is
+in Suggesting mode, so `tab.xmlContent` stays at the pre-suggestion master, a save in Suggesting mode sends
+that stale master (the author's suggestions are silently absent), closing the tab loses them, and the
+serializer has a tripwire that warns if a mark ever reaches it. Heretto has its own grammar for pending
+suggestions — processing instructions `<?ezd-review-start CHANGE_ID:KIND:AUTHOR:TIMESTAMP_MS?> …
+<?ezd-review-end CHANGE_ID?>` — which already round-trips through DITA Architect byte-exact as opaque
+fixed atoms (the scanner treats every PI as a fixed point, ADR-010). FR-065 observed that grammar live;
+its gaps were closed on 2026-11-02 with raw samples (`heretto-review-pi-grammar.md`, "Second pass"):
+`ct-del` keeps the struck text between its PIs (DA's own kept-and-struck model); a replace is a `ct-ins`
++ `ct-del` pair **sharing one `CHANGE_ID`**; a bold toggle is a `ct-ins` pair whose two PIs have
+different parents (start before `<b>`, end as its first child); Enter at a paragraph's end is a `ct-ins`
+pair around a whole new `<p/>` at body level, while `ct-split` is the mid-paragraph case only (start PI
+last in the first `<p>`, end PI first in the second); Accept and Reject are clean inverses for every kind;
+`comment` is a fourth kind, present in two real corpus topics, that is not a suggestion at all.
+
+The architectural trigger fires hard: marks become document content on save, which changes the round-trip
+contract (Gate 1) and retires an FR-046 invariant ("marks never reach the serializer").
+
+**Decision**
+
+1. **Mapping (from the observed grammar, nothing inferred).** `insert` ↔ `ct-ins` around plain character
+   data; `delete` ↔ `ct-del` around the kept text; `split` ↔ `ct-split` with the positional translation
+   below. `author` ↔ the plain email; `date` (ISO string in DA) ↔ epoch milliseconds (`Date.parse` /
+   `toISOString`, millisecond-exact). `changeId` ↔ `CHANGE_ID` (both UUIDs). Written as
+   `lib/tracked-changes/pi-carrier.ts`: pure parse/format of the PI data and the kind table, nothing else.
+2. **Read side — the shared scanner grows one atom kind.** `sync/inline-units.ts`'s `scanInlineChildren`
+   recognises, among one element's children, a `ct-ins`/`ct-del` start PI followed by **text nodes only**
+   and then its own end PI, and emits a `tracked` atom (mark + text) that `atomsToLexical` builds as a
+   `$createTrackedTextNode`. A `ct-split` is recognised when its end PI is the first child of a block and
+   its start PI is the last child of the previous element sibling: the end PI becomes a zero-width split
+   marker (DA's own shape), the start PI stays a fixed atom. The kind of an end PI is looked up in a
+   per-document registry of start PIs (a `WeakMap<Document, …>`, built lazily). Because the parser and the
+   reconciler read the same scanner (ADR-010), a carried mark is one unit on both sides and an unchanged
+   one is an **anchor**: byte-exact, never rewritten.
+3. **Everything else stays as it is today: opaque, byte-exact, and now visible.** A pair that does not
+   fit decision 2 — a `ct-ins` straddling an element start (a format toggle), a pair around a whole
+   element (a block insert), a pair whose content holds an inline element, a `comment`, an unknown kind,
+   an unmatched PI — remains a fixed atom exactly as every PI has been since ADR-010, so no byte changes
+   and nothing is dropped. The change-list panel lists each such *suggestion* kind (not `comment`, which
+   is not a suggestion) as an **unsupported suggestion** with its author and time and no Accept/Reject,
+   computed from the XML itself (every start PI minus the changeIds the tree carries as marks), so the list
+   is rebuildable from the document alone, like the marks (ADR-004's marks-as-data property).
+4. **Write side — the serializer emits marks as PIs; the tripwire is retired.** `serializeInlineChild`
+   writes an insert or delete `TrackedTextNode` as `[start PI, the text run (formatted as any text run
+   is), end PI]`. A split marker writes its end PI where it stands and registers the start PI, which a
+   post-pass after the body walk appends as the last child of the previous element sibling (only when no
+   start PI with that changeId already exists — a carried split whose block is rewritten must not gain a
+   second). The reconciler models `tracked-text` Lexical children as atomic units (today it bails on them),
+   and a tracked unit on the DOM side spans all its nodes (start PI, text, end PI), so a splice removes or
+   keeps the whole run. `replaceElementContent`'s "re-append the PIs" fallback keeps every PI except the
+   review pairs the Lexical content re-emits itself (no duplicates). `warnTrackedTextReachedSerializer`
+   and its test are deleted: a mark reaching the serializer is now the contract, not a breach.
+5. **Sync in Suggesting mode becomes one-directional, not suspended.** Lexical → XML runs exactly as in
+   Editing mode (`SyncManager`'s `OnChangePlugin` and the Ctrl+Enter path no longer return early when the
+   editor side is the source), so `tab.xmlContent` carries the suggestions as PIs live, `herettoDirty`
+   becomes true the moment a suggestion exists (it was silently false before), and Save, Replace, and
+   `POST /api/tabs/:id/save` send the carrier XML with no change to their own code. XML → Lexical stays
+   suspended and buffered (a Monaco edit would still re-parse over live marks), and the FR-056 rule (an
+   API `PUT` applies immediately and replaces the base document) is unchanged — so the API's `PUT` and
+   `insert-section` review flows are untouched (I6). Reject All no longer needs its own serialize: the
+   update it makes flows through the same path.
+6. **A document that carries suggestions opens in Suggesting mode.** `SuggestionPlugin` watches a tab
+   that is in Editing mode (the open default) for marks arriving from a parse and asks the app to switch
+   that tab to Suggesting with a toast naming the count. Viewing mode is left alone (an explicit choice).
+   The exit-Suggesting confirmation (accept all / reject all / cancel) is unchanged: marks persist across
+   saves and reopens *within* Suggesting mode; leaving it still resolves them.
+7. **The author is the Heretto account.** `SESSION_AUTHOR = 'You'` becomes `sessionAuthor()`, set to the
+   credentials email when `/heretto-credentials` loads (falls back to `You` when no email is configured —
+   a save then still needs a connected Heretto file, so in practice the email is known). Own-ness (merge
+   into / retract an own insert) compares against it, so a suggestion carried back from Heretto by the
+   same account is still "yours". A `:` in an author is written as `_` to keep the four-field grammar.
+8. **The change list keys on changeId + kind.** A replace carried from Heretto is two marks with one
+   changeId; the panel shows two rows (Inserted / Deleted). Accept and Reject already locate every node of
+   a changeId and apply per-kind semantics, so resolving either row resolves both — the same as Heretto's
+   one card. DA's own replace-typing keeps minting two changeIds (unchanged).
+
+**Invariants** (the plan's I1–I6, each a test written before the code)
+
+- **I1** The carrier is inert without marks: the whole byte-stability corpus (both `comment`-carrying
+  topics included) round-trips byte-identically, and no corpus fixture parses to a single tracked mark.
+- **I2** Suggest (insert, delete, split) → serialize → parse the result: `$scanTrackedChanges()` lists the
+  same changes — ids, kinds, authors, dates, text, document order.
+- **I3** Reject All after that reopen serializes byte-equal to the document as it was before the
+  suggestions were made.
+- **I4** Accept All after that reopen serializes byte-equal to the same edits made directly in Editing mode.
+- **I5** Heretto's own output opens correctly: the raw second-pass samples (scrubbed) are fixtures —
+  `ct-del` → one delete mark with the email as author; the replace pair → an insert and a delete sharing a
+  changeId; the first pass's `ct-ins` + `ct-split` across two paragraphs → an insert and a split; the bold
+  wrap and the whole-`<p>` insert → zero marks, one listed unsupported suggestion each, and an unedited
+  round trip of each fixture is byte-identical; the `comment` fixtures list nothing.
+- **I6** `PUT /api/tabs/:id/content` and `insert-section` in Suggesting mode still stage `pendingReview`
+  (already pinned in `tests/native-api-bridge.test.ts`; re-asserted, not re-implemented).
+
+**Consequences** — Suggestions survive Save, Close, and Reopen, and appear in Heretto's Review tab as
+Heretto's own cards, with the writer's email; a suggestion made in Heretto opens in DA as a mark of the
+right kind. The round-trip contract now has one more node kind in both directions, held in the one shared
+scanner, so the parser and the serializer cannot disagree about where a mark begins and ends. Costs and
+limits, named: a suggestion whose content holds an inline element (a tracked `<uicontrol>`), a format
+toggle, or a block insert made in Heretto is visible but not resolvable in DA (unsupported; FR-051's
+remainder); a format toggle in DA stays blocked in Suggesting mode (unchanged); a tracked delete over a
+stamped token (`<uicontrol>`) serializes as plain text inside the PIs, so accepting it in Heretto loses the
+tag — an FR-046 limitation (the new node has no `originMap` stamp) that the carrier makes reachable and
+that is filed, not fixed, here; review PIs inside a `<b>`/`<i>`/`<codeph>` are invisible to the scanner
+(that element's `textContent` is taken raw) and an edit to that element's text loses them — true for
+`comment` PIs since ADR-010 and filed as a bug alongside this ADR.
+
+**Alternatives considered** — **(A) Carry marks outside the document** (a sidecar, local storage) —
+rejected: the roadmap's point is reviewing in Heretto itself, and a sidecar is lost the moment Heretto's
+editor touches the topic. **(B) Translate at save time only** (keep sync suspended, convert the tree to PIs
+inside `handleHerettoSave`) — rejected: the XML pane would lie about what Save sends, `herettoDirty` would
+stay false with unsaved suggestions, and a second code path to the serializer is exactly the drift ADR-010
+removed. **(C) Model Heretto's whole grammar now** (format marks via the straddling pair, block inserts via
+the element-wrapping pair) — rejected: both are FR-051's named remainder, each needs its own accept/reject
+semantics in the tree, and the plan says to exclude honestly rather than approximate; decision 3 keeps them
+byte-exact and visible until then. **(D) Keep `'You'` as the author** — rejected: Heretto displays the
+author field verbatim, and own-ness after a reopen depends on a stable identity.
