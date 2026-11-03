@@ -165,8 +165,11 @@ export class DitaCodeBlockNode extends DecoratorNode<React.ReactElement> {
   }
 
   exportJSON(): SerializedDitaCodeBlockNode {
+    // No `...super.exportJSON()`: Lexical 0.16's DecoratorNode defines no
+    // exportJSON, so the spread reaches LexicalNode's base, which throws
+    // "base method not extended" (BUG-47). `type`/`version` are the whole
+    // base shape, as DitaPhRefNode's BUG-46 fix established.
     return {
-      ...super.exportJSON(),
       type: 'ditacodeblock',
       version: 1,
       code: this.__code,

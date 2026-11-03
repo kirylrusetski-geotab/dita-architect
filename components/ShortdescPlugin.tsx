@@ -15,6 +15,7 @@ import {
 import { $isHeadingNode, HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { useSyncContext } from '../sync';
 import {
+  DITA_TOPIC_TYPE,
   DITA_PLACEHOLDER_TITLES,
   DITA_PLACEHOLDER_SHORTDESCS,
   GENERIC_PLACEHOLDER_TITLE,
@@ -25,9 +26,10 @@ import {
 // FR-049: a placeholder is an EMPTY title/shortdesc node. The prompt is CSS
 // (`::before { content: attr(data-placeholder) }`), never document text, so it
 // cannot be appended to and never reaches Heretto. Topic-type aware when the
-// type is known.
+// type is known. Checked against DITA_TOPIC_TYPE (not a literal union) so a
+// future topic type doesn't need a second edit here (P2-25 slice 2).
 const isKnownTopicType = (t: string | undefined): t is DitaTopicType =>
-  t === 'task' || t === 'concept' || t === 'reference';
+  !!t && (DITA_TOPIC_TYPE as readonly string[]).includes(t);
 const titlePrompt = (topicType?: string) =>
   isKnownTopicType(topicType) ? DITA_PLACEHOLDER_TITLES[topicType] : GENERIC_PLACEHOLDER_TITLE;
 const shortdescPrompt = (topicType?: string) =>

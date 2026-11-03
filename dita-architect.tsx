@@ -638,6 +638,9 @@ export default function ProfessionalDitaEditor() {
         <TopicTypeModal
           title="Convert Topic Type"
           description="Select the target DITA topic type. This will update the root element and body tag."
+          // P2-25 slice 2: troubleshooting is a New Topic option, not a Convert
+          // target — see the `types` prop's doc comment on TopicTypeModal.
+          types={['task', 'concept', 'reference']}
           onSelect={handleConvertTopic}
           onClose={() => setIsConvertModalOpen(false)}
           disabledType={currentTopicType}

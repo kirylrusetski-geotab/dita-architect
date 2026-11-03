@@ -104,8 +104,8 @@ export class DitaContainerBoundaryNode extends DecoratorNode<React.ReactElement>
   }
 
   exportJSON(): SerializedDitaContainerBoundaryNode {
+    // No `...super.exportJSON()` — see DitaCodeBlockNode's comment (BUG-47).
     return {
-      ...super.exportJSON(),
       type: 'dita-container-boundary',
       version: 1,
       kind: this.__kind,

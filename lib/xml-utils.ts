@@ -276,14 +276,14 @@ export function slugifyToId(title: string): string {
     .replace(/^_+|_+$/g, '') || 'topic';
 }
 
-const DEFAULT_TOPIC_IDS = new Set(['new_task', 'new_concept', 'new_reference']);
+const DEFAULT_TOPIC_IDS = new Set(['new_task', 'new_concept', 'new_reference', 'new_troubleshooting']);
 
 /**
  * If the root element's `id` attribute is still a template default, replace it with `newId`.
  * Returns the original XML unchanged if the ID has already been customized.
  */
 export function withUpdatedTopicId(xml: string, newId: string): string {
-  const idMatch = xml.match(/(<(?:task|concept|reference|topic)[^>]*\bid=")([^"]+)"/);
+  const idMatch = xml.match(/(<(?:task|concept|reference|topic|troubleshooting)[^>]*\bid=")([^"]+)"/);
   if (!idMatch || !DEFAULT_TOPIC_IDS.has(idMatch[2])) return xml;
   return xml.replace(idMatch[0], `${idMatch[1]}${newId}"`);
 }
@@ -293,12 +293,19 @@ const BODY_TAG_MAP: Record<string, string> = {
   concept: 'conbody',
   reference: 'refbody',
   topic: 'body',
+  // P2-25 slice 2: without this entry, converting a troubleshooting topic
+  // (currentType) to anything else fell through to the 'body' fallback below,
+  // never matched the real <troublebody> tag, and silently left it (with all
+  // its condition/cause/remedy content) as a sibling of the freshly created
+  // empty body instead of being renamed into it.
+  troubleshooting: 'troublebody',
 };
 
 const DOCTYPE_MAP: Record<DitaTopicType, string> = {
   task: '<!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">',
   concept: '<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">',
   reference: '<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">',
+  troubleshooting: '<!DOCTYPE troubleshooting PUBLIC "-//OASIS//DTD DITA Troubleshooting//EN" "troubleshooting.dtd">',
 };
 
 /**

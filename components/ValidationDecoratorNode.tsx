@@ -129,8 +129,8 @@ export class ValidationDecoratorNode extends DecoratorNode<React.ReactElement> {
   }
 
   exportJSON(): SerializedValidationDecoratorNode {
+    // No `...super.exportJSON()` — see DitaCodeBlockNode's comment (BUG-47).
     return {
-      ...super.exportJSON(),
       type: 'validation-decorator',
       version: 1,
       href: this.__href,

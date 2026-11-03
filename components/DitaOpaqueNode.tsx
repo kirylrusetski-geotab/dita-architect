@@ -90,8 +90,8 @@ export class DitaOpaqueNode extends DecoratorNode<React.ReactElement> {
   }
 
   exportJSON(): SerializedDitaOpaqueNode {
+    // No `...super.exportJSON()` — see DitaCodeBlockNode's comment (BUG-47).
     return {
-      ...super.exportJSON(),
       type: 'ditaopaque',
       version: 1,
       tagName: this.__tagName,

@@ -12,6 +12,7 @@ import { registerNativeApiBridge } from '../lib/native-api-bridge';
 import { createTab } from '../types/tab';
 import { THEME_OPTIONS } from '../components/Toolbar';
 import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
+import { DITA_TOPIC_TYPE } from '../constants/dita';
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
@@ -101,7 +102,7 @@ describe('each method calls the in-app handler and answers {success, httpStatus}
     return res;
   };
 
-  it.each(['task', 'concept', 'reference'] as const)('newTopic(%s)', (type) => {
+  it.each(DITA_TOPIC_TYPE)('newTopic(%s)', (type) => {
     forceNative();
     const h = makeHandlers();
     registerNativeMenuBridge(h);
@@ -113,10 +114,10 @@ describe('each method calls the in-app handler and answers {success, httpStatus}
     forceNative();
     const h = makeHandlers();
     registerNativeMenuBridge(h);
-    const res = JSON.parse(getApi().newTopic('troubleshooting'));
+    const res = JSON.parse(getApi().newTopic('glossary'));
     expect(res.success).toBe(false);
     expect(res.httpStatus).toBe(400);
-    expect(res.error).toMatch(/troubleshooting/);
+    expect(res.error).toMatch(/glossary/);
     expect(h.calls.handleNewTopic).toBeUndefined();
   });
 

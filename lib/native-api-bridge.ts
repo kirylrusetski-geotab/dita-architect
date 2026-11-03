@@ -32,11 +32,26 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     setActiveTabId,
   } = handlers;
 
+  // BUG-51: `getTabs()` reads React state, which lags a `setTabs` call by one
+  // render — a second API call landing in the same tick as the first (an AI
+  // caller chaining PUT then save without waiting) used to see the pre-write
+  // tabs array. `tabsOverride` is updated synchronously by every setTabs call
+  // this registrar issues (via `bridgeSetTabs`), so a read immediately after
+  // always sees that write; it resets to null on each re-registration (this
+  // function runs again once the real render catches up), so it never goes
+  // stale itself.
+  let tabsOverride: Tab[] | null = null;
+  const currentTabs = (): Tab[] => tabsOverride ?? getTabs();
+  const bridgeSetTabs = (updater: ((prev: Tab[]) => Tab[]) | Tab[]): void => {
+    tabsOverride = typeof updater === 'function' ? (updater as (prev: Tab[]) => Tab[])(currentTabs()) : updater;
+    setTabs(updater);
+  };
+
   // Merged into the shared object so the menu bridge's methods (ADR-016) survive
   // this registrar re-running on every tabs change.
   Object.assign(nativeApiObject(), {
     getStatus: (): string => {
-      const tabs = getTabs();
+      const tabs = currentTabs();
       return JSON.stringify({
         version: APP_VERSION,
         herettoConnected: getHerettoConnected(),
@@ -47,7 +62,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     },
 
     getTabs: (): string => {
-      const tabs = getTabs();
+      const tabs = currentTabs();
       return JSON.stringify({
         activeTabId: getActiveTabId(),
         tabs: tabs.map(tab => ({
@@ -63,7 +78,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     },
 
     getTabContent: (id: string): string => {
-      const tab = getTabs().find(t => t.id === id);
+      const tab = currentTabs().find(t => t.id === id);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
       return JSON.stringify({
         success: true,
@@ -80,7 +95,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     },
 
     updateTabContent: (id: string, xml: string): string => {
-      const tabs = getTabs();
+      const tabs = currentTabs();
       const tab = tabs.find(t => t.id === id);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
 
@@ -103,7 +118,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
       }
 
-      setTabs(prev => prev.map(t =>
+      bridgeSetTabs(prev => prev.map(t =>
         t.id === id
           ? { ...t, pendingReview: { proposedXml: xml, baseXml: tab.xmlContent, sourceLabel: 'AI draft' } }
           : t
@@ -112,7 +127,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     },
 
     saveTab: async (id: string): Promise<string> => {
-      const tabs = getTabs();
+      const tabs = currentTabs();
       const tab = tabs.find(t => t.id === id);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab with ID "${id}" not found` });
       if (!tab.herettoFile) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has no associated Heretto file' });
@@ -147,7 +162,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     },
 
     insertSection: (tabId: string, sectionXml: string, replaceId?: string): string => {
-      const tabs = getTabs();
+      const tabs = currentTabs();
       const tab = tabs.find(t => t.id === tabId);
       if (!tab) return JSON.stringify({ success: false, httpStatus: 404, error: `Tab "${tabId}" not found` });
       // ADR-008: the suggesting-mode guard is removed — insertSection now stages
@@ -167,7 +182,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
 
       // baseXml is the exact string the proposal was computed against — the
       // Accept-time drift guard compares the live tab content to it.
-      setTabs(prev => prev.map(t =>
+      bridgeSetTabs(prev => prev.map(t =>
         t.id === tabId
           ? {
               ...t,
@@ -201,7 +216,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
           newTab.herettoJustLoaded = true;
         }
 
-        setTabs(prev => [...prev, newTab]);
+        bridgeSetTabs(prev => [...prev, newTab]);
         setActiveTabId(newTab.id);
         toast.success(`Imported ${fileName}`);
         return JSON.stringify({ success: true, httpStatus: 200, status: 'loaded' });

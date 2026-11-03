@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Tab } from '../types/tab';
 import { createTab } from '../types/tab';
-import { DITA_TEMPLATES, INITIAL_DITA } from '../constants/dita';
+import { DITA_TEMPLATES, INITIAL_DITA, type DitaTopicType } from '../constants/dita';
 import { convertDitaTopic } from '../lib/xml-utils';
 import { toast } from 'sonner';
 
@@ -74,7 +74,7 @@ export function useTabManager({
     setActiveTabId(newTab.id);
   }, []);
 
-  const handleNewTopic = useCallback((type: 'task' | 'concept' | 'reference') => {
+  const handleNewTopic = useCallback((type: DitaTopicType) => {
     const template = DITA_TEMPLATES[type];
     const newTab = createTab(template);
     setTabs(prev => [...prev, newTab]);
@@ -83,7 +83,11 @@ export function useTabManager({
     toast.success(`New ${type} topic created`);
   }, [setIsNewTopicModalOpen]);
 
-  const handleConvertTopic = useCallback((targetType: 'task' | 'concept' | 'reference') => {
+  // Typed DitaTopicType (not the 3-value literal union) only so this matches
+  // TopicTypeModal's onSelect prop type; the modal itself never offers
+  // 'troubleshooting' as a Convert target (see TopicTypeModal's `types` prop
+  // at this hook's call site in dita-architect.tsx).
+  const handleConvertTopic = useCallback((targetType: DitaTopicType) => {
     const result = convertDitaTopic(activeTab.xmlContent, targetType);
 
     if (!result.ok) {

@@ -140,8 +140,8 @@ export class DitaInfoPreviewNode extends DecoratorNode<React.ReactElement> {
   }
 
   exportJSON(): SerializedDitaInfoPreviewNode {
+    // No `...super.exportJSON()` — see DitaCodeBlockNode's comment (BUG-47).
     return {
-      ...super.exportJSON(),
       type: 'dita-info-preview',
       version: 1,
       content: this.__content,

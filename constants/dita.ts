@@ -1,4 +1,12 @@
-export const DITA_TOPIC_TYPE = ['task', 'concept', 'reference'] as const;
+// P2-25 slice 2: troubleshooting joins the other three topic types. Every
+// place that used to switch on the 3-value literal union was audited when
+// this was added — see lib/xml-utils.ts (BODY_TAG_MAP, DOCTYPE_MAP,
+// DEFAULT_TOPIC_IDS, withUpdatedTopicId), components/ShortdescPlugin.tsx
+// (isKnownTopicType), components/TopicTypeModal.tsx (a `types` prop restricts
+// Convert Topic Type to the original three — composing a troubleshooting
+// topic's condition/cause/remedy structure from generic content is a
+// different problem than creating one from a template, and isn't asked for).
+export const DITA_TOPIC_TYPE = ['task', 'concept', 'reference', 'troubleshooting'] as const;
 export type DitaTopicType = typeof DITA_TOPIC_TYPE[number];
 
 // FR-049: templates ship genuinely EMPTY <title/> and <shortdesc/>. The prompt
@@ -36,6 +44,32 @@ export const DITA_TEMPLATES: Record<DitaTopicType, string> = {
     <p>Reference content goes here.</p>
   </refbody>
 </reference>`,
+  // Shape matches real Heretto troubleshooting topics (ADR-009): a <condition>,
+  // then a <troubleSolution> holding one <cause> and one <remedy> whose steps
+  // are <steps-unordered> (the form Heretto's own authors use, and the only
+  // list form the content model allows inside <remedy> — bare <ul>/<ol> are
+  // deliberately excluded there).
+  troubleshooting: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE troubleshooting PUBLIC "-//OASIS//DTD DITA Troubleshooting//EN" "troubleshooting.dtd">
+<troubleshooting id="new_troubleshooting">
+  <title/>
+  <shortdesc/>
+  <troublebody>
+    <condition>
+      <p>Describe the condition that triggers this issue.</p>
+    </condition>
+    <troubleSolution>
+      <cause>
+        <p>Describe the cause of the issue.</p>
+      </cause>
+      <remedy>
+        <steps-unordered>
+          <step><cmd>First remedy step.</cmd></step>
+        </steps-unordered>
+      </remedy>
+    </troubleSolution>
+  </troublebody>
+</troubleshooting>`,
 };
 
 /** Prompts rendered (as CSS `data-placeholder`) while the title is empty. Keyed by topic type; see GENERIC_PLACEHOLDER_TITLE for unknown types. */
@@ -43,6 +77,7 @@ export const DITA_PLACEHOLDER_TITLES: Record<DitaTopicType, string> = {
   task: 'Enter your task title',
   concept: 'Enter your concept title',
   reference: 'Enter your reference title',
+  troubleshooting: 'Enter your troubleshooting title',
 };
 
 /** Prompts rendered while the shortdesc is empty. */
@@ -50,6 +85,9 @@ export const DITA_PLACEHOLDER_SHORTDESCS: Record<DitaTopicType, string> = {
   task: 'Enter a short description of the task.',
   concept: 'Enter a short description of the concept.',
   reference: 'Enter a short description of the reference.',
+  // "the issue" reads better to a writer than "the troubleshooting" — the one
+  // deliberate deviation from the task/concept/reference naming pattern above.
+  troubleshooting: 'Enter a short description of the issue.',
 };
 
 export const GENERIC_PLACEHOLDER_TITLE = 'Enter a title';

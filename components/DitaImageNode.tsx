@@ -222,8 +222,8 @@ export class DitaImageNode extends DecoratorNode<React.ReactElement> {
   }
 
   exportJSON(): SerializedDitaImageNode {
+    // No `...super.exportJSON()` — see DitaCodeBlockNode's comment (BUG-47).
     return {
-      ...super.exportJSON(),
       type: 'ditaimage',
       version: 1,
       href: this.__href,

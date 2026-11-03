@@ -362,6 +362,92 @@ describe('attribute preservation', () => {
 // 10. Nested task elements (steps-unordered would be unusual but steps nesting)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 11. Troubleshooting conversion (P2-25 slice 2 — BODY_TAG_MAP/DOCTYPE_MAP
+// completeness). The UI never offers troubleshooting as a Convert target
+// (TopicTypeModal's `types` prop), but convertDitaTopic itself must not
+// crash or corrupt a document if it's ever called with it directly.
+// ---------------------------------------------------------------------------
+
+const TROUBLESHOOTING_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE troubleshooting PUBLIC "-//OASIS//DTD DITA Troubleshooting//EN" "troubleshooting.dtd">
+<troubleshooting id="cant_add_users">
+  <title>Why can't I add users?</title>
+  <shortdesc>Learn why the option is unavailable.</shortdesc>
+  <troublebody>
+    <condition>
+      <p>The option to add a user is unavailable.</p>
+    </condition>
+    <troubleSolution>
+      <cause>
+        <p>Your account lacks the clearance to add users.</p>
+      </cause>
+      <remedy>
+        <steps-unordered>
+          <step><cmd>Contact an administrator.</cmd></step>
+        </steps-unordered>
+      </remedy>
+    </troubleSolution>
+  </troublebody>
+</troubleshooting>`;
+
+describe('task → troubleshooting conversion', () => {
+  it('renames taskbody → troublebody', () => {
+    const result = convertDitaTopic(TASK_XML, 'troubleshooting');
+    if (!result.ok) throw new Error('unexpected failure');
+    const root = parseRoot(result.xml);
+    expect(root.querySelector('taskbody')).toBeNull();
+    expect(root.querySelector('troublebody')).not.toBeNull();
+  });
+
+  it('uses the correct troubleshooting DOCTYPE and preserves title/shortdesc', () => {
+    const result = convertDitaTopic(TASK_XML, 'troubleshooting');
+    if (!result.ok) throw new Error('unexpected failure');
+    expect(result.xml).toContain('<!DOCTYPE troubleshooting PUBLIC');
+    const root = parseRoot(result.xml);
+    expect(text(root, 'title')).toBe('Install Widget');
+  });
+
+  it('converts <steps>/<step>/<cmd> to <ol>/<li> (task-specific cleanup still applies)', () => {
+    const result = convertDitaTopic(TASK_XML, 'troubleshooting');
+    if (!result.ok) throw new Error('unexpected failure');
+    const root = parseRoot(result.xml);
+    expect(root.querySelector('steps')).toBeNull();
+    expect(root.querySelector('ol')).not.toBeNull();
+  });
+});
+
+describe('troubleshooting → concept conversion', () => {
+  it('renames troublebody → conbody and preserves the condition/cause/remedy content', () => {
+    const result = convertDitaTopic(TROUBLESHOOTING_XML, 'concept');
+    if (!result.ok) throw new Error('unexpected failure');
+    const root = parseRoot(result.xml);
+    expect(root.querySelector('troublebody')).toBeNull();
+    const conbody = root.querySelector('conbody');
+    expect(conbody).not.toBeNull();
+    // Nothing is dropped — the troubleshooting containers move in whole.
+    expect(conbody!.querySelector('condition')).not.toBeNull();
+    expect(conbody!.querySelector('troubleSolution > cause')).not.toBeNull();
+    expect(conbody!.querySelector('troubleSolution > remedy')).not.toBeNull();
+  });
+
+  it('does not duplicate the body — exactly one body-tag element', () => {
+    const result = convertDitaTopic(TROUBLESHOOTING_XML, 'concept');
+    if (!result.ok) throw new Error('unexpected failure');
+    const root = parseRoot(result.xml);
+    expect(root.querySelectorAll('conbody, troublebody')).toHaveLength(1);
+  });
+});
+
+describe('troubleshooting → troubleshooting (same-type)', () => {
+  it('returns ok: false with reason "same-type"', () => {
+    const result = convertDitaTopic(TROUBLESHOOTING_XML, 'troubleshooting');
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error();
+    expect(result.reason).toBe('same-type');
+  });
+});
+
 describe('nested task elements', () => {
   const NESTED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE task PUBLIC "-//OASIS//DTD DITA Task//EN" "task.dtd">
