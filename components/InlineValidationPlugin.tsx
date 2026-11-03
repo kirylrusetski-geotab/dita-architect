@@ -27,7 +27,7 @@ const UNKNOWN_RETRY_MS = 30_000;
 const BROKEN_XREF_CLASS = 'dita-validation-broken-xref';
 const UNRESOLVED_KEYREF_CLASS = 'dita-validation-unresolved-keyref';
 const VALIDATION_ATTR = 'data-validation-error';
-const LINK_EDIT_TOOLTIP = 'Links open in published output — not in the editor';
+const LINK_EDIT_TOOLTIP = 'Links open in published output, not in the editor';
 
 export const InlineValidationPlugin = ({
   xmlContent,

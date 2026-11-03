@@ -115,7 +115,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       }
 
       if (tab.pendingReview) {
-        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review. Accept or reject it first' });
       }
 
       bridgeSetTabs(prev => prev.map(t =>
@@ -133,7 +133,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       if (!tab.herettoFile) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has no associated Heretto file' });
       // ADR-008: since PUT no longer writes xmlContent, saving while a review is
       // pending would silently push the pre-PUT document to Heretto.
-      if (tab.pendingReview) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has a pending review — accept or reject it before saving' });
+      if (tab.pendingReview) return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab has a pending review. Accept or reject it before saving' });
 
       // FR-067 / ADR-014 I4: validated here, independently, so an AI-drafted
       // document never reaches Heretto invalid either. Checked before
@@ -168,7 +168,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
       // ADR-008: the suggesting-mode guard is removed — insertSection now stages
       // pendingReview rather than writing xmlContent, so live marks are unaffected.
       if (tab.pendingReview) {
-        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review — accept or reject it first' });
+        return JSON.stringify({ success: false, httpStatus: 400, error: 'Tab already has a pending review. Accept or reject it first' });
       }
 
       // FR-045: compute the proposed document deterministically at the XML

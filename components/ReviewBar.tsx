@@ -26,7 +26,7 @@ export const ReviewBar = ({ sourceLabel, onAccept, onReject }: ReviewBarProps) =
         <span className="truncate font-medium" style={{ color: 'var(--app-text-primary)' }}>
           {sourceLabel ?? 'API'}
         </span>
-        <span style={{ color: 'var(--app-text-muted)' }}>— review the diff, then accept or reject</span>
+        <span style={{ color: 'var(--app-text-muted)' }}>: review the diff, then accept or reject</span>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">

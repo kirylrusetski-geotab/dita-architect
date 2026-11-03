@@ -172,7 +172,7 @@ describe('I6 — suggesting mode blocks wrap and unwrap with a toast', () => {
       const t = findText($getRoot(), 'Settings');
       expect(t?.getTextContent()).not.toBe('Settings'); // never split out into its own node
     });
-    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet — switch to Editing mode");
+    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet. Switch to Editing mode");
   });
 
   it('⌘⇧U in suggesting mode is claimed and blocked: no wrap, no tracked insertion, a toast', async () => {
@@ -194,7 +194,7 @@ describe('I6 — suggesting mode blocks wrap and unwrap with a toast', () => {
       walk($getRoot());
       expect(tracked).toEqual([]);
     });
-    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet — switch to Editing mode");
+    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet. Switch to Editing mode");
     nowSpy.mockRestore();
   });
 
@@ -210,7 +210,7 @@ describe('I6 — suggesting mode blocks wrap and unwrap with a toast', () => {
     editor.getEditorState().read(() => {
       expect(findText($getRoot(), 'old guide')?.getParent()?.getType()).toBe('link');
     });
-    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet — switch to Editing mode");
+    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet. Switch to Editing mode");
     nowSpy.mockRestore();
   });
 });

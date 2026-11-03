@@ -373,7 +373,7 @@ export const TableActionMenuPlugin = () => {
             }
           });
           if (prevented) {
-            toast.error('Cannot delete the last row — tables must have at least one row');
+            toast.error('Cannot delete the last row: tables must have at least one row');
           }
           setMenuVisible(false);
         },
@@ -481,7 +481,7 @@ export const TableActionMenuPlugin = () => {
             }
           });
           if (prevented) {
-            toast.error('Cannot delete the last column — tables must have at least one column');
+            toast.error('Cannot delete the last column: tables must have at least one column');
           }
           setMenuVisible(false);
         },

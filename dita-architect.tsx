@@ -346,7 +346,7 @@ export default function ProfessionalDitaEditor() {
     const tab = tabs.find(t => t.id === tabId);
     if (!tab?.pendingReview) return;
     if (tab.xmlContent !== tab.pendingReview.baseXml) {
-      toast.error('Document changed since this proposal was created — review cancelled. Re-send the request.');
+      toast.error('Document changed since this proposal was created. Review cancelled. Re-send the request.');
       updateTab(tabId, { pendingReview: null });
       return;
     }
@@ -454,7 +454,7 @@ export default function ProfessionalDitaEditor() {
     const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
     if (!iframeDoc) {
       document.body.removeChild(iframe);
-      toast.error('Print failed — could not create print frame');
+      toast.error('Print failed: could not create print frame');
       return;
     }
 
@@ -1116,7 +1116,7 @@ export default function ProfessionalDitaEditor() {
                       return;
                     }
                     updateTab(tab.id, { documentMode: mode });
-                    if (mode === 'suggesting') toast('Suggesting mode — edits become tracked changes');
+                    if (mode === 'suggesting') toast('Suggesting mode: edits become tracked changes');
                   }}
                   trackedChangeCount={tab.trackedChangeCount}
                   onAcceptAll={() => setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, acceptAllTrigger: t.acceptAllTrigger + 1 } : t))}
@@ -1189,7 +1189,7 @@ export default function ProfessionalDitaEditor() {
                         ) : tab.herettoDirty ? (
                           <>
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                            <span>Edited — not yet saved</span>
+                            <span>Edited, not yet saved</span>
                           </>
                         ) : (
                           <>
@@ -1306,7 +1306,7 @@ export default function ProfessionalDitaEditor() {
                       onCarriedMarks={(tabId, count) => {
                         // ADR-015 decision 6: a topic saved with suggestions opens in Suggesting mode.
                         setTabs(prev => prev.map(t => t.id === tabId && t.documentMode === 'editing' ? { ...t, documentMode: 'suggesting' } : t));
-                        toast(`${count} suggestion${count === 1 ? '' : 's'} carried from Heretto — opened in Suggesting mode`);
+                        toast(`${count} suggestion${count === 1 ? '' : 's'} carried from Heretto: opened in Suggesting mode`);
                       }}
                     />
                     {/* Inside SyncManager so it can read an xref's scope/format (ADR-013 decision 8). */}
@@ -1462,7 +1462,7 @@ export default function ProfessionalDitaEditor() {
 
             <div className="flex items-center gap-2">
               {SYNTAX_THEME_OPTIONS.find(o => o.value === syntaxTheme)?.mode === 'light' && appTheme !== 'light' && (
-                <Tooltip content="Daylight is a light syntax theme — pairs best with the Light visual theme">
+                <Tooltip content="Daylight is a light syntax theme, pairs best with the Light visual theme">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--editor-note-warning)' }} />
                 </Tooltip>
               )}

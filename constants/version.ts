@@ -23,7 +23,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '1.0.0',
     date: '2026-11-03',
-    title: 'DITA Architect 1.0: a daily driver. Create any of the four topic types, mark them up, connect a map, and save to Heretto — without opening Heretto\'s editor or the XML pane.',
+    title: 'DITA Architect 1.0: a daily driver. Create any of the four topic types, mark them up, connect a map, and save to Heretto, all without opening Heretto\'s editor or the XML pane.',
     sections: [
       {
         heading: 'New',
@@ -35,14 +35,14 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Fixed',
         items: [
           'Copying a selection that held a code block, an image, a broken-link marker, or a couple of other decorative elements used to throw silently; it no longer does.',
-          'An AI caller chaining a content proposal straight into a save, with no pause between the two, could occasionally have the save slip through before the proposal was staged, sending the unchanged document — nothing wrong ever reached Heretto, but the save should have been refused. It now is, every time.',
+          'An AI caller chaining a content proposal straight into a save, with no pause between the two, could occasionally have the save slip through before the proposal was staged, sending the unchanged document. Nothing wrong ever reached Heretto, but the save should have been refused. It now is, every time.',
         ],
       },
       {
         heading: 'Good to know',
         items: [
-          '1.0 is the acceptance bar this project set for itself in July: create from template, mark up, connect a map, validate, save, suggest — all without leaving the visual editor. The native menu bar and Export as PDF (v0.14.0), the review carrier (v0.13.0), and everything before them are what make that true today.',
-          'What\'s next lives in a fresh "Roadmap — post-1.0" note: richer tracked changes, print fidelity, a Windows/Linux shell, and the rest of what this release deliberately left for later.',
+          '1.0 is the acceptance bar this project set for itself in July: create from template, mark up, connect a map, validate, save, suggest, all without leaving the visual editor. The native menu bar and Export as PDF (v0.14.0), the review carrier (v0.13.0), and everything before them are what make that true today.',
+          'What\'s next lives in a fresh post-1.0 roadmap note: richer tracked changes, print fidelity, a Windows/Linux shell, and the rest of what this release deliberately left for later.',
         ],
       },
     ],
@@ -50,13 +50,13 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '0.14.0',
     date: '2026-11-02',
-    title: 'DITA Architect gets a real Mac menu bar — ⌘N, ⌘O, ⌘S, ⌘W, a View menu with themes — and Export as PDF finally produces a PDF.',
+    title: 'DITA Architect gets a real Mac menu bar (⌘N, ⌘O, ⌘S, ⌘W, a View menu with themes), and Export as PDF finally produces a PDF.',
     sections: [
       {
         heading: 'New',
         items: [
-          'File menu: New Task (⌘N), New Concept (⇧⌘N), New Reference (⌥⌘N), Open Local File… (⌘O, a native open panel), Close Tab (⌘W), Save to Heretto (⌘S — for a topic without a Heretto file it opens the Save browser), Replace in Heretto…, Export as PDF…, Connect to Heretto…, Open from Heretto…. Every item does exactly what the same control in the app does; the in-app dropdowns stay where they are.',
-          'View menu: Toggle XML Pane (⌘\\), a Theme submenu listing all six themes, and an XML Syntax Theme submenu listing all seven — each with a check on the active one, kept in sync with the toolbar.',
+          'File menu: New Task (⌘N), New Concept (⇧⌘N), New Reference (⌥⌘N), Open Local File… (⌘O, a native open panel), Close Tab (⌘W), Save to Heretto (⌘S, which opens the Save browser for a topic without a Heretto file), Replace in Heretto…, Export as PDF…, Connect to Heretto…, Open from Heretto…. Every item does exactly what the same control in the app does; the in-app dropdowns stay where they are.',
+          'View menu: Toggle XML Pane (⌘\\), a Theme submenu listing all six themes, and an XML Syntax Theme submenu listing all seven, each with a check on the active one, kept in sync with the toolbar.',
           'App menu: About DITA Architect (version and build), What\'s New…, Keyboard Shortcuts…. The Keyboard Shortcuts sheet lists the menu shortcuts under their own heading.',
           'Export as PDF… now writes a real PDF: a native save panel, then a paginated document with "Page N of M" on every page, rendered from the same print layout as before. No more "open in the browser and press ⌘P". If the export fails, you see why; if you cancel the panel, nothing happens.',
         ],
@@ -79,23 +79,23 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'New',
         items: [
-          'In Suggesting mode, what you suggest is part of the document the moment you make it: the XML pane shows each insertion, deletion, and paragraph split as Heretto\'s own review markup, the tab is marked unsaved, and Save to Heretto sends the suggestions along. Close the topic and reopen it later — the Tracked changes panel shows the same suggestions, with the same authors and times.',
-          'A topic that already carries suggestions — yours from an earlier session, or a reviewer\'s made in Heretto — opens straight into Suggesting mode with every suggestion listed. Accept or reject them here; Reject All gives the topic back exactly as it was before the suggestions, byte for byte, and Accept All leaves exactly what the same edits made directly would have.',
+          'In Suggesting mode, what you suggest is part of the document the moment you make it: the XML pane shows each insertion, deletion, and paragraph split as Heretto\'s own review markup, the tab is marked unsaved, and Save to Heretto sends the suggestions along. Close the topic and reopen it later: the Tracked changes panel shows the same suggestions, with the same authors and times.',
+          'A topic that already carries suggestions (yours from an earlier session, or a reviewer\'s made in Heretto) opens straight into Suggesting mode with every suggestion listed. Accept or reject them here; Reject All gives the topic back exactly as it was before the suggestions, byte for byte, and Accept All leaves exactly what the same edits made directly would have.',
           'Suggestions carry your Heretto account (the email in your Heretto settings) as the author, so Heretto shows who made them. A struck word keeps its element: deleting a `<uicontrol>` as a suggestion and rejecting it gives the `<uicontrol>` back, not plain text.',
         ],
       },
       {
         heading: 'Good to know',
         items: [
-          'Heretto\'s editor renders suggestions made here exactly like its own — struck text, underlined insertions — but its Review panel lists only suggestions made in Heretto itself (its cards come from a side index its editor writes, not from the document). Accept or reject yours in DITA Architect.',
+          'Heretto\'s editor renders suggestions made here exactly like its own (struck text, underlined insertions), but its Review panel lists only suggestions made in Heretto itself (its cards come from a side index its editor writes, not from the document). Accept or reject yours in DITA Architect.',
           'A few Heretto suggestion shapes are not shown as changes yet: a bold or italic toggle, a whole new paragraph inserted in Heretto, and a Heretto comment. They are kept exactly as written, and the first two are listed in the panel as "Unsupported suggestion" so nothing is hidden; resolve those in Heretto.',
-          'Pressing Enter in Suggesting mode splits a paragraph only where Heretto\'s split shape can be written — a plain body paragraph (inside a section too). In a table cell, a definition, a note, a list item, or the title the split is refused with a message, like formatting changes are.',
+          'Pressing Enter in Suggesting mode splits a paragraph only where Heretto\'s split shape can be written: a plain body paragraph (inside a section too). In a table cell, a definition, a note, a list item, or the title the split is refused with a message, like formatting changes are.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
-          'FR-051 carrier slice, ADR-015. The grammar was observed raw in Heretto first (FR-065, two passes, every gap closed with a captured sample), never inferred: `ct-ins`/`ct-del`/`ct-split` ↔ insert/delete/split; a replace is a `ct-ins` + `ct-del` pair sharing one changeId (two rows in the panel); a bold toggle is a pair straddling the element\'s start tag and Enter at a paragraph\'s end is a pair around a whole new `<p/>` (both unsupported, kept byte-exact). `lib/tracked-changes/pi-carrier.ts` is the pure mapping. The shared inline scanner gained one atom kind, so a carried suggestion is one unit for both the parser and the reconciler: unchanged, it is an anchor and its bytes never move; a struck formatted or stamped word is one text-only element inside the pair. The serializer writes a mark as a PI pair, places a split\'s start PI in the previous paragraph, and never leaves a PI it orphaned behind. SyncManager syncs Lexical → XML live in Suggesting mode (XML → Lexical stays suspended). A fresh-context adversarial review before release confirmed six defects — Accept All re-emitting the PIs it had just accepted, marks over formatted or stamped text not round-tripping, lost characters when splicing inside a `<b>`, splits in table cells becoming permanent structure, a half-listed replace, orphan PIs after a legacy rewrite — all fixed and pinned (`tests/sync/review-carrier-hardening.test.ts`), fixing BUG-49 and BUG-50 along the way. Suite: 88 files, 2,259 tests passing; edit fuzz 1,422 edits, 0 findings; byte-stability corpus unchanged.',
+          'FR-051 carrier slice, ADR-015. The grammar was observed raw in Heretto first (FR-065, two passes, every gap closed with a captured sample), never inferred: `ct-ins`/`ct-del`/`ct-split` ↔ insert/delete/split; a replace is a `ct-ins` + `ct-del` pair sharing one changeId (two rows in the panel); a bold toggle is a pair straddling the element\'s start tag and Enter at a paragraph\'s end is a pair around a whole new `<p/>` (both unsupported, kept byte-exact). `lib/tracked-changes/pi-carrier.ts` is the pure mapping. The shared inline scanner gained one atom kind, so a carried suggestion is one unit for both the parser and the reconciler: unchanged, it is an anchor and its bytes never move; a struck formatted or stamped word is one text-only element inside the pair. The serializer writes a mark as a PI pair, places a split\'s start PI in the previous paragraph, and never leaves a PI it orphaned behind. SyncManager syncs Lexical → XML live in Suggesting mode (XML → Lexical stays suspended). A fresh-context adversarial review before release confirmed six defects: Accept All re-emitting the PIs it had just accepted, marks over formatted or stamped text not round-tripping, lost characters when splicing inside a `<b>`, splits in table cells becoming permanent structure, a half-listed replace, orphan PIs after a legacy rewrite. All fixed and pinned (`tests/sync/review-carrier-hardening.test.ts`), fixing BUG-49 and BUG-50 along the way. Suite: 88 files, 2,259 tests passing; edit fuzz 1,422 edits, 0 findings; byte-stability corpus unchanged.',
         ],
       },
     ],
@@ -108,21 +108,21 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'New',
         items: [
-          'Saving to Heretto, replacing an existing topic, and the API\'s save endpoint now check the document\'s structure before writing anything. A problem such as a figure directly inside a step\'s command, or a numbered list directly inside a troubleshooting remedy, blocks the save and names the element, its parent, and where it is in the XML pane — instead of being discovered only when Heretto\'s own schema rejects it.',
+          'Saving to Heretto, replacing an existing topic, and the API\'s save endpoint now check the document\'s structure before writing anything. A problem such as a figure directly inside a step\'s command, or a numbered list directly inside a troubleshooting remedy, blocks the save and names the element, its parent, and where it is in the XML pane, instead of being discovered only when Heretto\'s own schema rejects it.',
           'The same check runs live while you edit, so a structural problem shows in the error indicator and panel (the one that already flags a missing DOCTYPE or a broken `<xref>`) before you even try to save.',
         ],
       },
       {
         heading: 'Good to know',
         items: [
-          'There is no "save anyway" for these — a structural problem here is the kind Heretto would reject outright, not a style preference.',
+          'There is no "save anyway" for these: a structural problem here is the kind Heretto would reject outright, not a style preference.',
           'Nothing about this changes what gets saved: a document with no structural problems saves exactly as it did before.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
-          'FR-067 / ADR-014: `lib/content-model-validate.ts` walks the document against the DITA 1.3 content-model table built in the previous session (P2-36), locating each violation by matching a scan of the raw XML against the parsed structure. The check runs twice — once woven into the XML pane\'s existing live validation, once again, independently, at the exact moment of every save — so a stale result never lets something through. Checked clean against the whole byte-stability corpus (no existing real topic trips it) and against the four invalid shapes the content-model table named as examples. Suite: 84 files, 2,115 tests passing.',
+          'FR-067 / ADR-014: `lib/content-model-validate.ts` walks the document against the DITA 1.3 content-model table built in the previous session (P2-36), locating each violation by matching a scan of the raw XML against the parsed structure. The check runs twice: once woven into the XML pane\'s existing live validation, and again, independently, at the exact moment of every save, so a stale result never lets something through. Checked clean against the whole byte-stability corpus (no existing real topic trips it) and against the four invalid shapes the content-model table named as examples. Suite: 84 files, 2,115 tests passing.',
         ],
       },
     ],
@@ -234,10 +234,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'A `<b>`/`<i>`/`<codeph>` that holds exactly one text child is now spliced into like ordinary text (the same splice-level and anchor machinery from BUG-34/36), instead of being replaced wholesale on every edit. One residual, found while verifying the fix against the full corpus: a `<b>`/`<i>`/`<codeph>` with mixed content (for example a nested `<i>` inside a `<b>`) still shows the old symptom, since the parser flattens that shape before this fix ever sees it — filed as BUG-44.',
-          'A `<menucascade>` step is now stamped in `originMap` with the fact that its owner is a `<menucascade>`; a new plugin applies a CSS class to each step\'s DOM element, and an adjacent-sibling CSS rule draws the separator — never as document text, so it cannot reach the XML.',
+          'A `<b>`/`<i>`/`<codeph>` that holds exactly one text child is now spliced into like ordinary text (the same splice-level and anchor machinery from BUG-34/36), instead of being replaced wholesale on every edit. One residual, found while verifying the fix against the full corpus: a `<b>`/`<i>`/`<codeph>` with mixed content (for example a nested `<i>` inside a `<b>`) still shows the old symptom, since the parser flattens that shape before this fix ever sees it, filed as BUG-44.',
+          'A `<menucascade>` step is now stamped in `originMap` with the fact that its owner is a `<menucascade>`; a new plugin applies a CSS class to each step\'s DOM element, and an adjacent-sibling CSS rule draws the separator, never as document text, so it cannot reach the XML.',
           'Two adjacent same-type lists at body level now get an invisible boundary node between them at parse time (the same device the troubleshooting containers already use across a container boundary), stopping Lexical\'s own list-merge transform before it runs.',
-          'The opt-in edit fuzz (`npm run test:edit-fuzz`) went from 162 failures at the start of this sweep to 1 — the BUG-44 residual above. Suite: 74 files, 1759 tests passing.',
+          'The opt-in edit fuzz (`npm run test:edit-fuzz`) went from 162 failures at the start of this sweep to 1 (the BUG-44 residual above). Suite: 74 files, 1759 tests passing.',
         ],
       },
     ],
@@ -508,13 +508,13 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '0.9.3',
     date: '2026-08-04',
-    title: 'PUT now shows a diff — AI-drafted content goes to review, not straight into the document.',
+    title: 'PUT now shows a diff: AI-drafted content goes to review, not straight into the document.',
     sections: [
       {
         heading: 'New',
         items: [
-          '`PUT /api/tabs/:id/content` now stages a proposal instead of applying immediately. The XML pane shows a red/green Monaco diff with an Accept/Reject bar — the same surface used by `insert-section`. The tab\'s content is not changed until you click Accept. Works in any mode, including suggesting mode, and from any base document including a blank skeleton.',
-          '`insert-section` now works in suggesting mode. The guard that previously blocked it ("resolve tracked changes before inserting") is gone — both routes go through the review surface, so there is nothing left to guard against.',
+          '`PUT /api/tabs/:id/content` now stages a proposal instead of applying immediately. The XML pane shows a red/green Monaco diff with an Accept/Reject bar (the same surface used by `insert-section`). The tab\'s content is not changed until you click Accept. Works in any mode, including suggesting mode, and from any base document including a blank skeleton.',
+          '`insert-section` now works in suggesting mode. The guard that previously blocked it ("resolve tracked changes before inserting") is gone. Both routes go through the review surface, so there is nothing left to guard against.',
         ],
       },
       {
@@ -535,12 +535,12 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '0.9.2',
     date: '2026-08-04',
-    title: 'API content now renders in suggesting mode immediately — the AI-drafts-human-reviews workflow unblocked.',
+    title: 'API content now renders in suggesting mode immediately: the AI-drafts-human-reviews workflow unblocked.',
     sections: [
       {
         heading: 'Bug Fixes',
         items: [
-          '`PUT /api/tabs/:id/content` while a tab is in suggesting mode now renders in the visual editor and XML pane straight away, with no mode toggle required. Previously, the sync bridge buffered the incoming content behind the suspension that protects live tracked-change marks, and nothing flushed that buffer — leaving the tab blank with no indication anything had gone wrong. The fix applies API whole-document replacements immediately regardless of focus; the new content becomes the base document, and any further edits in suggesting mode are tracked against it.',
+          '`PUT /api/tabs/:id/content` while a tab is in suggesting mode now renders in the visual editor and XML pane straight away, with no mode toggle required. Previously, the sync bridge buffered the incoming content behind the suspension that protects live tracked-change marks, and nothing flushed that buffer, leaving the tab blank with no indication anything had gone wrong. The fix applies API whole-document replacements immediately regardless of focus; the new content becomes the base document, and any further edits in suggesting mode are tracked against it.',
           'If an API replacement discards unresolved suggestions, a toast reports how many were lost rather than letting them disappear silently.',
         ],
       },
@@ -562,7 +562,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Bug Fixes',
         items: [
           'Saving a topic that was loaded through the API no longer reports a false "remote content differs". Heretto injects `class` attributes on ingest, and the save check was comparing them against your local copy: the same attribute strip that Replace already used is now applied to both sides before comparing.',
-          'Refresh and the remote-change poll can no longer overwrite a topic with an error page. Both now confirm Heretto actually returned XML before touching your content — previously an HTML error response would be written straight into the tab **and** into the saved-state reference.',
+          'Refresh and the remote-change poll can no longer overwrite a topic with an error page. Both now confirm Heretto actually returned XML before touching your content. Previously an HTML error response would be written straight into the tab **and** into the saved-state reference.',
           'Content sent to a running editor is no longer lost when a single poll fails. The external-load loop treated one non-OK response as permanent and stopped forever, silently discarding everything queued after it; it now keeps polling.',
         ],
       },

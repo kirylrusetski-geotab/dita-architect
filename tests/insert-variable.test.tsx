@@ -218,7 +218,7 @@ describe('I4: INSERT_VARIABLE_COMMAND through the real tree', () => {
       walk($getRoot());
       expect(chips).toBe(1); // only the existing <ph conkeyref>
     });
-    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet — switch to Editing mode");
+    expect(toastFn).toHaveBeenCalledWith("Inline elements aren't tracked yet. Switch to Editing mode");
     nowSpy.mockRestore();
   });
 });

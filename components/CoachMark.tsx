@@ -42,7 +42,7 @@ export const CoachMark = () => {
       }}
     >
       <span>
-        Edit here or in the XML pane —{' '}
+        Edit here or in the XML pane. Press{' '}
         <kbd
           className="px-1 py-0.5 rounded text-[10px] font-mono font-semibold"
           style={{

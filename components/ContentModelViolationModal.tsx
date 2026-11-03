@@ -15,7 +15,7 @@ interface ContentModelViolationModalProps {
 export const ContentModelViolationModal = ({ violations, onClose }: ContentModelViolationModalProps) => (
   <Modal onClose={onClose} labelId="content-model-violation-title" className="rounded-xl p-6 w-[32rem] max-w-[95vw] shadow-2xl">
     <h3 id="content-model-violation-title" className="text-lg font-bold mb-1" style={{ color: 'var(--app-text-primary)' }}>
-      Can't save — structural problems found
+      Can't save: structural problems found
     </h3>
     <p className="text-sm mb-4" style={{ color: 'var(--app-text-muted)' }}>
       {violations.length === 1

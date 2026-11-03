@@ -87,8 +87,8 @@ export const BottomToolbar = () => {
       <Tooltip
         placement="top"
         content={stats.score !== '-'
-          ? `${stats.note} — Flesch Reading Ease ${stats.score}/100 (60–70 is ideal for technical docs)`
-          : 'Flesch Reading Ease score — 60–70 is ideal for technical documentation'}
+          ? `${stats.note}. Flesch Reading Ease ${stats.score}/100 (60–70 is ideal for technical docs)`
+          : 'Flesch Reading Ease score. 60–70 is ideal for technical documentation'}
       >
         <div className="flex items-center gap-1">
           Readability: <span className="font-semibold" style={{ color: 'var(--editor-bottom-text-strong)' }}>{stats.score}</span>

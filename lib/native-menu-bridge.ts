@@ -82,7 +82,7 @@ export function registerNativeMenuBridge(handlers: NativeMenuBridgeHandlers): vo
 
   const methods: Record<MenuBridgeMethod, (...args: unknown[]) => string> = {
     newTopic: (type: unknown): string => {
-      if (!isTopicType(type)) return bad(`Unknown topic type "${String(type)}" — expected one of ${DITA_TOPIC_TYPE.join(', ')}`);
+      if (!isTopicType(type)) return bad(`Unknown topic type "${String(type)}": expected one of ${DITA_TOPIC_TYPE.join(', ')}`);
       handlers.handleNewTopic(type);
       return ok({ type });
     },
@@ -141,13 +141,13 @@ export function registerNativeMenuBridge(handlers: NativeMenuBridgeHandlers): vo
     },
 
     setTheme: (name: unknown): string => {
-      if (!isThemeName(name)) return bad(`Unknown theme "${String(name)}" — expected one of ${THEME_OPTIONS.map(o => o.value).join(', ')}`);
+      if (!isThemeName(name)) return bad(`Unknown theme "${String(name)}": expected one of ${THEME_OPTIONS.map(o => o.value).join(', ')}`);
       handlers.setTheme(name);
       return ok({ theme: name });
     },
 
     setXmlTheme: (name: unknown): string => {
-      if (!isSyntaxThemeName(name)) return bad(`Unknown XML syntax theme "${String(name)}" — expected one of ${SYNTAX_THEME_OPTIONS.map(o => o.value).join(', ')}`);
+      if (!isSyntaxThemeName(name)) return bad(`Unknown XML syntax theme "${String(name)}": expected one of ${SYNTAX_THEME_OPTIONS.map(o => o.value).join(', ')}`);
       handlers.setXmlTheme(name);
       return ok({ syntaxTheme: name });
     },

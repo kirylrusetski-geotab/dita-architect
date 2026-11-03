@@ -39,7 +39,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 /** Success toast copy (P2-27), plus what the walk could not reach (ADR-013). */
 const describeConnect = (reg: KeyRegistry): string => {
-  let message = `Connected ${reg.map.name} — ${plural(reg.keys.size, 'key definition', 'key definitions')} loaded`;
+  let message = `Connected ${reg.map.name}: ${plural(reg.keys.size, 'key definition', 'key definitions')} loaded`;
   if (reg.mapsSkipped > 0) message += `, ${plural(reg.mapsSkipped, 'submap', 'submaps')} could not be read`;
   if (reg.capped) message += '; stopped at the safety limit, so deeper maps were not read';
   return message;

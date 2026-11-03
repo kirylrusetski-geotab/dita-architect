@@ -107,13 +107,13 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
 
     private func handleProxy(_ task: any WKURLSchemeTask, id: ObjectIdentifier, originalURL: URL, path: String) {
         guard let creds = loadCredentials() else {
-            let data = Data(#"{"error":"Heretto credentials not configured — open Settings"}"#.utf8)
+            let data = Data(#"{"error":"Heretto credentials not configured. Open Settings"}"#.utf8)
             respond(task, id: id, url: originalURL, status: 401,
                     headers: ["Content-Type": "application/json"], body: data)
             return
         }
         guard let host = creds.host else {
-            let data = Data(#"{"error":"Heretto host not configured — open Settings and enter your Heretto hostname"}"#.utf8)
+            let data = Data(#"{"error":"Heretto host not configured. Open Settings and enter your Heretto hostname"}"#.utf8)
             respond(task, id: id, url: originalURL, status: 400,
                     headers: ["Content-Type": "application/json"], body: data)
             return

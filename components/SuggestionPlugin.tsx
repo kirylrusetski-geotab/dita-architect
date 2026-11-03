@@ -88,14 +88,14 @@ const toastThrottled = (category: string, message: string): void => {
 const handleEditResult = (result: EditResult, originMap: NodeOriginMapType): void => {
   switch (result.status) {
     case 'blocked-boundary':
-      toastThrottled('boundary', "Merging paragraphs isn't tracked yet — switch to Editing mode");
+      toastThrottled('boundary', "Merging paragraphs isn't tracked yet. Switch to Editing mode");
       break;
     case 'blocked-decorator':
-      toastThrottled('decorator', "Embedded elements can't be tracked — switch to Editing mode");
+      toastThrottled('decorator', "Embedded elements can't be tracked. Switch to Editing mode");
       break;
     case 'blocked-split':
       // ADR-015: only a plain body paragraph splits into Heretto's shape.
-      toastThrottled('split', "Splitting this paragraph isn't tracked yet — switch to Editing mode");
+      toastThrottled('split', "Splitting this paragraph isn't tracked yet. Switch to Editing mode");
       break;
     case 'reject-split':
       $rejectChange(result.changeId, originMap);
@@ -219,7 +219,7 @@ export const SuggestionPlugin = ({
           } else {
             const { sawDecorator } = $markRangeAsDeleted(sel, undefined, nodeOriginMap);
             if (sawDecorator) {
-              toastThrottled('decorator', 'Embedded elements were left in place — they can\'t be tracked');
+              toastThrottled('decorator', 'Embedded elements were left in place, they can\'t be tracked');
             }
           }
           return true;
@@ -282,7 +282,7 @@ export const SuggestionPlugin = ({
           void navigator.clipboard?.writeText(text).catch(() => {});
           const { sawDecorator } = $markRangeAsDeleted(sel, undefined, nodeOriginMap);
           if (sawDecorator) {
-            toastThrottled('decorator', 'Embedded elements were left in place — they can\'t be tracked');
+            toastThrottled('decorator', 'Embedded elements were left in place, they can\'t be tracked');
           }
           return true;
         },
@@ -312,7 +312,7 @@ export const SuggestionPlugin = ({
       editor.registerCommand(
         INSERT_LINE_BREAK_COMMAND,
         () => {
-          toastThrottled('linebreak', "Line breaks aren't tracked — switch to Editing mode");
+          toastThrottled('linebreak', "Line breaks aren't tracked. Switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -320,7 +320,7 @@ export const SuggestionPlugin = ({
       editor.registerCommand(
         FORMAT_TEXT_COMMAND,
         () => {
-          toastThrottled('format', "Formatting changes aren't tracked yet — switch to Editing mode");
+          toastThrottled('format', "Formatting changes aren't tracked yet. Switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -330,7 +330,7 @@ export const SuggestionPlugin = ({
       editor.registerCommand(
         WRAP_INLINE_COMMAND,
         () => {
-          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
+          toastThrottled('inline', "Inline elements aren't tracked yet. Switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -338,7 +338,7 @@ export const SuggestionPlugin = ({
       editor.registerCommand(
         UNWRAP_INLINE_COMMAND,
         () => {
-          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
+          toastThrottled('inline', "Inline elements aren't tracked yet. Switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -347,7 +347,7 @@ export const SuggestionPlugin = ({
       editor.registerCommand(
         INSERT_VARIABLE_COMMAND,
         () => {
-          toastThrottled('inline', "Inline elements aren't tracked yet — switch to Editing mode");
+          toastThrottled('inline', "Inline elements aren't tracked yet. Switch to Editing mode");
           return true;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -402,7 +402,7 @@ export const SuggestionPlugin = ({
     };
 
     const onCompositionStart = () => {
-      toastThrottled('ime', "IME composition isn't tracked yet — switch to Editing mode");
+      toastThrottled('ime', "IME composition isn't tracked yet. Switch to Editing mode");
     };
 
     container.addEventListener('beforeinput', onBeforeInput, true);

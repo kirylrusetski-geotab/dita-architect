@@ -205,7 +205,7 @@ export const SyncManager = ({ xmlContent, onLexicalChange, lastUpdatedBy, syncTr
       />
       {showOutOfSyncBanner && (
         <div className="dita-sync-banner">
-          Visual editor is out of sync — press Ctrl+Enter to refresh
+          Visual editor is out of sync. Press Ctrl+Enter to refresh
         </div>
       )}
       {children}

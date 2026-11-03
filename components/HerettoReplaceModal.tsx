@@ -144,7 +144,7 @@ export const HerettoReplaceModal = ({
           <HerettoLogo className="w-5 h-5" style={{ color: '#14b8a6' }} />
           <h3 id={modalId} className="text-lg font-bold" style={{ color: 'var(--app-text-primary)' }}>
             Replace in Heretto
-            {step === 'preview' && ' — Preview'}
+            {step === 'preview' && ': Preview'}
           </h3>
         </div>
 

@@ -201,10 +201,10 @@ describe('I6: InlineValidationPlugin marks cross-file xrefs', () => {
       '<xref href="#local">d</xref>, and <xref href="#nowhere">e</xref>.</p>',
     ), 'a');
     expect(links(editor)).toEqual([
-      ['other.dita#other-topic/present', false, 'Links open in published output — not in the editor'],
+      ['other.dita#other-topic/present', false, 'Links open in published output, not in the editor'],
       ['other.dita#other-topic/absent', true, "Target 'other-topic/absent' not found in other.dita"],
       ['missing.dita', true, "File 'missing.dita' not found in Heretto"],
-      ['#local', false, 'Links open in published output — not in the editor'],
+      ['#local', false, 'Links open in published output, not in the editor'],
       ['#nowhere', true, "Target 'nowhere' not found"],
     ]);
   });

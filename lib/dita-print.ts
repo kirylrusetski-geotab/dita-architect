@@ -534,7 +534,7 @@ export function generatePrintHtml(xmlContent: string, docTitle: string): string 
   if (parseError) {
     return buildHtmlDocument(
       docTitle,
-      `<article><h1>${escapeHtml(docTitle)}</h1><p class="shortdesc" style="color:#c00">Unable to parse XML — showing raw source.</p><pre><code>${escapeHtml(xmlContent)}</code></pre></article>`,
+      `<article><h1>${escapeHtml(docTitle)}</h1><p class="shortdesc" style="color:#c00">Unable to parse XML. Showing raw source.</p><pre><code>${escapeHtml(xmlContent)}</code></pre></article>`,
     );
   }
 

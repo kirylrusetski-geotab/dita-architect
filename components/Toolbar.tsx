@@ -432,7 +432,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
         role="group"
         aria-label="Document mode"
       >
-        <Tooltip content="Viewing — visual editor is read-only">
+        <Tooltip content="Viewing: visual editor is read-only">
           <button
             aria-label="Viewing mode"
             aria-pressed={documentMode === 'viewing'}
@@ -443,7 +443,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
             <Eye className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
-        <Tooltip content="Suggesting — edits become tracked changes">
+        <Tooltip content="Suggesting: edits become tracked changes">
           <button
             aria-label="Suggesting mode"
             aria-pressed={documentMode === 'suggesting'}
@@ -454,7 +454,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
             <PenLine className="w-3.5 h-3.5" />
           </button>
         </Tooltip>
-        <Tooltip content="Editing — direct edits">
+        <Tooltip content="Editing: direct edits">
           <button
             aria-label="Editing mode"
             aria-pressed={documentMode === 'editing'}

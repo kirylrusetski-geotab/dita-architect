@@ -96,7 +96,7 @@ function replaceById(currentXml: string, blocks: string[], replaceId: string): P
   const doc = new DOMParser().parseFromString(currentXml, 'application/xml');
   const withId = Array.from(doc.getElementsByTagName('*')).filter(el => el.getAttribute('id') === replaceId);
   if (withId.length === 0) return { error: `No element with id="${replaceId}" found` };
-  if (withId.length > 1) return { error: `Multiple elements with id="${replaceId}" — cannot replace safely` };
+  if (withId.length > 1) return { error: `Multiple elements with id="${replaceId}": cannot replace safely` };
   const tag = withId[0].tagName;
 
   // Locate the element's opening tag in the raw string, then walk same-tag

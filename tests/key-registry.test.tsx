@@ -188,14 +188,14 @@ describe('useKeyRegistry', () => {
     expect(result.current.registry?.keys.size).toBe(2);
     expect(result.current.connectedMap).toEqual({ uuid: MAP_UUID, name: 'Root.ditamap' });
     expect(JSON.parse(localStorage.getItem(CONNECTED_MAP_STORAGE_KEY)!)).toEqual({ uuid: MAP_UUID, name: 'Root.ditamap' });
-    expect(toastSuccess).toHaveBeenCalledWith('Connected Root.ditamap — 2 key definitions loaded');
+    expect(toastSuccess).toHaveBeenCalledWith('Connected Root.ditamap: 2 key definitions loaded');
   });
 
   it('connect: the toast names skipped submaps and a reached safety cap', async () => {
     loadKeyRegistry.mockResolvedValue({ ...registry({ a: 'R.ditamap' }), mapsSkipped: 3, capped: true });
     const { result } = renderHook(() => useKeyRegistry());
     await act(async () => { await result.current.connect(MAP_UUID); });
-    expect(toastSuccess).toHaveBeenCalledWith('Connected Root.ditamap — 1 key definition loaded, 3 submaps could not be read; stopped at the safety limit, so deeper maps were not read');
+    expect(toastSuccess).toHaveBeenCalledWith('Connected Root.ditamap: 1 key definition loaded, 3 submaps could not be read; stopped at the safety limit, so deeper maps were not read');
   });
 
   it('connect: a failure sets the error for the modal, keeps the previous registry, and does not toast', async () => {

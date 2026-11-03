@@ -168,7 +168,7 @@ export function useHerettoCms({
       if (testConnected) {
         toast.success('Credentials saved and connection verified');
       } else {
-        toast.warning('Credentials saved but connection failed — check your Heretto host, root folder UUID, email and token');
+        toast.warning('Credentials saved but connection failed. Check your Heretto host, root folder UUID, email and token');
       }
     } catch {
       toast.error('Failed to save credentials');
@@ -219,7 +219,7 @@ export function useHerettoCms({
           pollFailCountRef.current++;
           if (pollFailCountRef.current === 3) {
             toast.error(res.status === 401 || res.status === 403
-              ? 'Heretto credentials may have expired — reconnect in Heretto Status'
+              ? 'Heretto credentials may have expired. Reconnect in Heretto Status'
               : `Heretto sync check failing (HTTP ${res.status})`);
           }
           schedule();
@@ -241,7 +241,7 @@ export function useHerettoCms({
         if (cancelled) return;
         pollFailCountRef.current++;
         if (pollFailCountRef.current === 3) {
-          toast.error('Cannot reach Heretto — check your network connection');
+          toast.error('Cannot reach Heretto. Check your network connection');
         }
       }
       if (!cancelled) schedule();
@@ -572,7 +572,7 @@ export function useHerettoCms({
           if (trimmed) {
             // HTML response means the proxy or SPA handler intercepted the request
             if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html')) {
-              errorMessage += ' — Heretto returned an unexpected response. If you just added credentials, restart the dev server and try again.';
+              errorMessage += ' - Heretto returned an unexpected response. If you just added credentials, restart the dev server and try again.';
             } else if (trimmed.includes('DTD') || trimmed.includes('validation')) {
               errorMessage += ` - DTD validation error: ${trimmed.substring(0, 200)}`;
             } else if (trimmed.includes('error') || trimmed.includes('Error')) {
@@ -602,7 +602,7 @@ export function useHerettoCms({
       } else if (comparison === 'formatting') {
         toast.success(`Saved ${herettoFile.name} (Heretto reformatted whitespace)`);
       } else {
-        toast.warning(`Saved ${herettoFile.name}, but remote content differs — verify manually`);
+        toast.warning(`Saved ${herettoFile.name}, but remote content differs. Verify manually`);
       }
       setHerettoSaveProgress('idle');
 

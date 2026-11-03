@@ -232,7 +232,7 @@ export const HerettoBrowserModal = ({
             )}
             {searchResults.length === 0 && searchStatus.phase === 'cancelled' && (
               <div className="flex items-center justify-center h-full py-12 text-sm" style={{ color: 'var(--app-text-muted)' }}>
-                Search cancelled — 0 results
+                Search cancelled: 0 results
               </div>
             )}
             {searchResults.length === 0 && (searchStatus.phase === 'searching' || searchStatus.phase === 'idle') && (
@@ -278,7 +278,7 @@ export const HerettoBrowserModal = ({
             ))}
             {searchResults.length > 0 && searchStatus.phase === 'cancelled' && (
               <div className="px-3 py-2 text-xs" style={{ color: 'var(--app-text-muted)' }}>
-                Search cancelled — {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} so far
+                Search cancelled: {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} so far
               </div>
             )}
             {searchResults.length > 0 && searchStatus.phase === 'done' && (
