@@ -65,7 +65,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Good to know',
         items: [
           'The menu bar is the native Mac app\'s. In a browser (the dev server) the same commands remain in the header dropdowns and Export as PDF opens the browser\'s print dialog, since a browser has no save panel.',
-          'The PDF shows exactly what the print layout showed before: variables print as their reference, Heretto images do not resolve, and block content inside notes and table cells is flattened. Fidelity is a separate, parked item (FR-050 slice 2). Heretto\'s PDF Generator remains the publishing pipeline; this export is a draft artifact.',
+          'The PDF shows exactly what the print layout showed before: variables print as their reference, Heretto images do not resolve, and block content inside notes and table cells is flattened. Fidelity is a separate, parked item for a later release. Heretto\'s PDF Generator remains the publishing pipeline; this export is a draft artifact.',
           'There is no "Toggle Split View" item: the app has one layout, with the XML pane collapsible, so Toggle XML Pane is that command.',
         ],
       },
@@ -95,7 +95,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'FR-051 carrier slice, ADR-015. The grammar was observed raw in Heretto first (FR-065, two passes, every gap closed with a captured sample), never inferred: `ct-ins`/`ct-del`/`ct-split` ↔ insert/delete/split; a replace is a `ct-ins` + `ct-del` pair sharing one changeId (two rows in the panel); a bold toggle is a pair straddling the element\'s start tag and Enter at a paragraph\'s end is a pair around a whole new `<p/>` (both unsupported, kept byte-exact). `lib/tracked-changes/pi-carrier.ts` is the pure mapping. The shared inline scanner gained one atom kind, so a carried suggestion is one unit for both the parser and the reconciler: unchanged, it is an anchor and its bytes never move; a struck formatted or stamped word is one text-only element inside the pair. The serializer writes a mark as a PI pair, places a split\'s start PI in the previous paragraph, and never leaves a PI it orphaned behind. SyncManager syncs Lexical → XML live in Suggesting mode (XML → Lexical stays suspended). A fresh-context adversarial review before release confirmed six defects: Accept All re-emitting the PIs it had just accepted, marks over formatted or stamped text not round-tripping, lost characters when splicing inside a `<b>`, splits in table cells becoming permanent structure, a half-listed replace, orphan PIs after a legacy rewrite. All fixed and pinned (`tests/sync/review-carrier-hardening.test.ts`), fixing BUG-49 and BUG-50 along the way. Suite: 88 files, 2,259 tests passing; edit fuzz 1,422 edits, 0 findings; byte-stability corpus unchanged.',
+          'The grammar was observed raw in Heretto first, every gap closed with a captured sample, never inferred: `ct-ins`/`ct-del`/`ct-split` ↔ insert/delete/split; a replace is a `ct-ins` + `ct-del` pair sharing one changeId (two rows in the panel); a bold toggle is a pair straddling the element\'s start tag and Enter at a paragraph\'s end is a pair around a whole new `<p/>` (both unsupported, kept byte-exact). `lib/tracked-changes/pi-carrier.ts` is the pure mapping. The shared inline scanner gained one atom kind, so a carried suggestion is one unit for both the parser and the reconciler: unchanged, it is an anchor and its bytes never move; a struck formatted or stamped word is one text-only element inside the pair. The serializer writes a mark as a PI pair, places a split\'s start PI in the previous paragraph, and never leaves a PI it orphaned behind. SyncManager syncs Lexical → XML live in Suggesting mode (XML → Lexical stays suspended). A fresh-context adversarial review before release confirmed six defects: Accept All re-emitting the PIs it had just accepted, marks over formatted or stamped text not round-tripping, lost characters when splicing inside a `<b>`, splits in table cells becoming permanent structure, a half-listed replace, orphan PIs after a legacy rewrite. All fixed and pinned before release. Suite: 88 files, 2,259 tests passing; edit fuzz 1,422 edits, 0 findings; byte-stability corpus unchanged.',
         ],
       },
     ],
@@ -122,7 +122,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'FR-067 / ADR-014: `lib/content-model-validate.ts` walks the document against the DITA 1.3 content-model table built in the previous session (P2-36), locating each violation by matching a scan of the raw XML against the parsed structure. The check runs twice: once woven into the XML pane\'s existing live validation, and again, independently, at the exact moment of every save, so a stale result never lets something through. Checked clean against the whole byte-stability corpus (no existing real topic trips it) and against the four invalid shapes the content-model table named as examples. Suite: 84 files, 2,115 tests passing.',
+          '`lib/content-model-validate.ts` walks the document against the DITA 1.3 content-model table built in an earlier release, locating each violation by matching a scan of the raw XML against the parsed structure. The check runs twice: once woven into the XML pane\'s existing live validation, and again, independently, at the exact moment of every save, so a stale result never lets something through. Checked clean against the whole byte-stability corpus (no existing real topic trips it) and against the four invalid shapes the content-model table named as examples. Suite: 84 files, 2,115 tests passing.',
         ],
       },
     ],
@@ -159,7 +159,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-013: every map in the repository (449) was read before designing. Keys are read from `@keys` on any element (91% of real key definitions are a plain `<topicref keys>`), submaps from `<mapref>` or `format="ditamap"`, relative paths are resolved folder by folder (`lib/heretto-path.ts`), and the first definition in a breadth-first walk wins, as the DITA 1.3 specification says. In the Help Center map a depth-first walk would have picked the `Altitude_Copy` warehouse for 12 keys. Checked against the live repository: the User Guide map gives 18 keys, the Help Center 282 keys from 84 maps in under 4 seconds. Suite: 82 files, 2,035 tests passing.',
+          'Every map in the repository (449) was read before designing. Keys are read from `@keys` on any element (91% of real key definitions are a plain `<topicref keys>`), submaps from `<mapref>` or `format="ditamap"`, relative paths are resolved folder by folder (`lib/heretto-path.ts`), and the first definition in a breadth-first walk wins, as the DITA 1.3 specification says. In the Help Center map a depth-first walk would have picked the `Altitude_Copy` warehouse for 12 keys. Checked against the live repository: the User Guide map gives 18 keys, the Help Center 282 keys from 84 maps in under 4 seconds. Suite: 82 files, 2,035 tests passing.',
         ],
       },
     ],
@@ -185,7 +185,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'The four load paths no longer call `formatXml` (BUG-45, an amendment to ADR-012). `formatXml` was rewritten: it re-indents only the children of an element that holds no text of its own and whose children are all known block elements, and copies every other element byte for byte. Checked over the whole test corpus: before, the editor showed different text for 7 of 52 topics after formatting; now none. Suite: 77 files, 1,878 tests passing.',
+          'The four load paths no longer call `formatXml`. `formatXml` was rewritten: it re-indents only the children of an element that holds no text of its own and whose children are all known block elements, and copies every other element byte for byte. Checked over the whole test corpus: before, the editor showed different text for 7 of 52 topics after formatting; now none. Suite: 77 files, 1,878 tests passing.',
         ],
       },
     ],
@@ -207,8 +207,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'The inline scanner now reads a `<b>`/`<i>`/`<codeph>` with element children child by child, each child carrying the wrapper\'s format; the inline reconciler strips every format the surrounding elements already provide from spliced text, so nothing is double-wrapped (BUG-44).',
-          'The serializer ends with a new source-spelling pass (ADR-012): it aligns the output\'s markup tokens with the source\'s by meaning and writes the source\'s exact bytes wherever a token is unchanged. It can change only spelling, never content, and the edit fuzz checks that on every one of its 1,407 edits (BUG-31).',
+          'The inline scanner now reads a `<b>`/`<i>`/`<codeph>` with element children child by child, each child carrying the wrapper\'s format; the inline reconciler strips every format the surrounding elements already provide from spliced text, so nothing is double-wrapped.',
+          'The serializer ends with a new source-spelling pass: it aligns the output\'s markup tokens with the source\'s by meaning and writes the source\'s exact bytes wherever a token is unchanged. It can change only spelling, never content, and the edit fuzz checks that on every one of its 1,407 edits.',
           'The byte-stability suite now compares byte for byte with no exceptions, and every one of its 52 fixtures passes (8 were known failures before this release). The edit fuzz has no known failures left. Suite: 75 files, 1,806 tests passing.',
         ],
       },
@@ -234,10 +234,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'A `<b>`/`<i>`/`<codeph>` that holds exactly one text child is now spliced into like ordinary text (the same splice-level and anchor machinery from BUG-34/36), instead of being replaced wholesale on every edit. One residual, found while verifying the fix against the full corpus: a `<b>`/`<i>`/`<codeph>` with mixed content (for example a nested `<i>` inside a `<b>`) still shows the old symptom, since the parser flattens that shape before this fix ever sees it, filed as BUG-44.',
+          'A `<b>`/`<i>`/`<codeph>` that holds exactly one text child is now spliced into like ordinary text (the same splice-level and anchor machinery used for a similar fix two releases back), instead of being replaced wholesale on every edit. One residual, found while verifying the fix against the full corpus: a `<b>`/`<i>`/`<codeph>` with mixed content (for example a nested `<i>` inside a `<b>`) still shows the old symptom, since the parser flattens that shape before this fix ever sees it. Filed for a future release.',
           'A `<menucascade>` step is now stamped in `originMap` with the fact that its owner is a `<menucascade>`; a new plugin applies a CSS class to each step\'s DOM element, and an adjacent-sibling CSS rule draws the separator, never as document text, so it cannot reach the XML.',
           'Two adjacent same-type lists at body level now get an invisible boundary node between them at parse time (the same device the troubleshooting containers already use across a container boundary), stopping Lexical\'s own list-merge transform before it runs.',
-          'The opt-in edit fuzz (`npm run test:edit-fuzz`) went from 162 failures at the start of this sweep to 1 (the BUG-44 residual above). Suite: 74 files, 1759 tests passing.',
+          'The opt-in edit fuzz (`npm run test:edit-fuzz`) went from 162 failures at the start of this sweep to 1, the residual noted above. Suite: 74 files, 1759 tests passing.',
         ],
       },
     ],
@@ -263,11 +263,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'The inline reconciler (ADR-010) now splices a changed run at the deepest element that contains it instead of at the outermost container inline, never removes an element that holds unchanged content, splits one change region into one per element when both sides line up, and reconciles inside a link whose target and attributes did not change. Fixes BUG-34 and BUG-36. A new run with nothing beside it in the source (a differently formatted run between two unchanged elements) is now placed against those elements instead of at the end of its parent. Fixes BUG-42, found in this release\'s smoke test and present since v0.9.9.',
-          'Table cells and `<dd>` are now block wrappers in the ADR-009 sense (amendment, BUG-29): one cell parser for both table kinds, which parses a cell\'s notes, definition lists, figures, and code blocks exactly as the body does and marks the cell\'s own loose text apart from its paragraphs; and one patcher for cells and `<dd>`, which walks each run of blocks with the body walk and reconciles each run of loose text in place, instead of pairing paragraphs by position. Fixes BUG-29, and BUG-40, found while building it.',
-          'A new opt-in edit fuzz, `npm run test:edit-fuzz`, appends a word to every editable text node of every test topic (1405 edits over the real-topic corpus) and checks that no element appears or disappears and no text is lost, duplicated, or reordered. Against v0.10.1 it found no new failures; this release brings its failures from 162 to 73 and its reconciler bails from 6 to 0. The 73 that remain are two already-filed bugs: BUG-26 (43) and the cosmetic BUG-37 pattern (30).',
-          'Filed for the next bug sweep: BUG-37 (text added to the end of bold, italic, or code text becomes a second element), BUG-38 (links that use a key reference are flagged as having an empty `href`), BUG-39 (text typed right after a UI control picks up its bold styling), BUG-41 (a table\'s `cols` count is rewritten on save when the source\'s count is wrong), and BUG-43 (the steps of a menu path show with no separator between them).',
-          'Suite: 69 files, 1693 tests passing, 4 skipped (including the opt-in fuzz). New: `tests/sync/inline-containers.test.ts` (invariants C1 to C9) and `tests/sync/table-cells.test.ts` (invariants T1 to T6, plus BUG-40).',
+          'The inline reconciler now splices a changed run at the deepest element that contains it instead of at the outermost container inline, never removes an element that holds unchanged content, splits one change region into one per element when both sides line up, and reconciles inside a link whose target and attributes did not change, fixing two related bugs. A new run with nothing beside it in the source (a differently formatted run between two unchanged elements) is now placed against those elements instead of at the end of its parent, fixing a third bug found in this release\'s smoke test and present since v0.9.9.',
+          'Table cells and `<dd>` are now block wrappers in the same sense as a troubleshooting container: one cell parser for both table kinds, which parses a cell\'s notes, definition lists, figures, and code blocks exactly as the body does and marks the cell\'s own loose text apart from its paragraphs; and one patcher for cells and `<dd>`, which walks each run of blocks with the body walk and reconciles each run of loose text in place, instead of pairing paragraphs by position. Fixes the content-loss bug named above, and a duplication bug found while building the fix.',
+          'A new opt-in edit fuzz, `npm run test:edit-fuzz`, appends a word to every editable text node of every test topic (1405 edits over the real-topic corpus) and checks that no element appears or disappears and no text is lost, duplicated, or reordered. Against v0.10.1 it found no new failures; this release brings its failures from 162 to 73 and its reconciler bails from 6 to 0. The 73 that remain are two already-filed bugs, already described above.',
+          'Filed for the next bug sweep: text added to the end of bold, italic, or code text becomes a second element; links that use a key reference are flagged as having an empty `href`; text typed right after a UI control picks up its bold styling; a table\'s `cols` count is rewritten on save when the source\'s count is wrong; and the steps of a menu path show with no separator between them.',
+          'Suite: 69 files, 1693 tests passing, 4 skipped (including the opt-in fuzz). New test files cover edits inside container elements and inside table cells.',
         ],
       },
     ],
@@ -297,9 +297,9 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-011: `<section>` is now a container like the troubleshooting containers (ADR-009). Each one is matched to its source element by position among same-tag siblings (`section#2`), not by order of headings; the walk never removes a container to make room for something else; and the final pass removes a container only if the parse produced editor content for it that is now gone (provenance, read from `originMap`), so empty and conref\'d containers always survive. The parser now stamps every top-level node with its real `bodyIndex`, which is how the serializer tells blocks you created from blocks it parsed: yours join the container of the block before them. Fixes BUG-28 and BUG-35.',
-          'Found while building it, and fixed before release: a `<dl>` inside any container re-wrapped each `<dd>`\'s content in a new container on save (latent since ADR-009 for troubleshooting topics); and the old order-based section patcher is gone.',
-          'All three sampled real topics that BUG-28 broke now round-trip byte-for-byte and left the known-failures list. Suite: 65 files, 1449 tests passing, 3 skipped, including `tests/sync/sections.test.ts` (invariants S2 to S10).',
+          '`<section>` is now a container like the troubleshooting containers. Each one is matched to its source element by position among same-tag siblings (`section#2`), not by order of headings; the walk never removes a container to make room for something else; and the final pass removes a container only if the parse produced editor content for it that is now gone (provenance, read from `originMap`), so empty and conref\'d containers always survive. The parser now stamps every top-level node with its real `bodyIndex`, which is how the serializer tells blocks you created from blocks it parsed: yours join the container of the block before them. Fixes the two bugs described above.',
+          'Found while building it, and fixed before release: a `<dl>` inside any container re-wrapped each `<dd>`\'s content in a new container on save (latent since troubleshooting topics first got this treatment); and the old order-based section patcher is gone.',
+          'All three sampled real topics broken by the bug described above now round-trip byte-for-byte and left the known-failures list. Suite: 65 files, 1449 tests passing, 3 skipped.',
         ],
       },
     ],
@@ -330,10 +330,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-010 slice B. `lib/inline-wrap.ts` builds exactly the Lexical shape the parser builds for each element, so re-opening a topic yields the same tree; wrap and unwrap always create new nodes and never edit an existing node\'s `originMap` entry, so undo can restore it. `components/InlineWrapPlugin.tsx` (inside `SyncManager`) owns `WRAP_INLINE_COMMAND`, `UNWRAP_INLINE_COMMAND`, and the shortcuts; it claims `⌘⇧U` before Lexical, whose own underline check ignores Shift. `SuggestionPlugin` blocks both commands.',
-          'FR-063: `sync/structure-check.ts` counts links, notes, tables, lists, code blocks, images, code phrases, chips, and every stamped inline element in the editor and the serialized XML after each sync, and warns only when the XML has fewer. It costs about 0.04 ms per sync. It runs even when the XML did not change, because a drop that leaves the XML identical is the case it exists for. Its first corpus run found that two real topics with an untitled section lose every list on a round trip (BUG-28, severity raised).',
-          'FR-068 filed: `<term>`, `<filepath>`, and a plain `<ph>` have no visual style yet, so a wrap in one of them looks like plain text until you check the XML pane.',
-          'Suite: 64 files, 1424 tests passing, 3 skipped. `tests/sync/inline-wrap.test.ts` pins invariants I1 to I7 for all seven elements across 13 contexts, from body paragraphs to troubleshooting remedies; `tests/inline-wrap-plugin.test.tsx` covers the commands, shortcuts, and the Suggesting-mode block through the real component tree; `tests/sync/structure-check.test.tsx` pins FR-063.',
+          '`lib/inline-wrap.ts` builds exactly the Lexical shape the parser builds for each element, so re-opening a topic yields the same tree; wrap and unwrap always create new nodes and never edit an existing node\'s `originMap` entry, so undo can restore it. `components/InlineWrapPlugin.tsx` (inside `SyncManager`) owns `WRAP_INLINE_COMMAND`, `UNWRAP_INLINE_COMMAND`, and the shortcuts; it claims `⌘⇧U` before Lexical, whose own underline check ignores Shift. `SuggestionPlugin` blocks both commands.',
+          '`sync/structure-check.ts` counts links, notes, tables, lists, code blocks, images, code phrases, chips, and every stamped inline element in the editor and the serialized XML after each sync, and warns only when the XML has fewer. It costs about 0.04 ms per sync. It runs even when the XML did not change, because a drop that leaves the XML identical is the case it exists for. Its first corpus run found that two real topics with an untitled section lose every list on a round trip, which raised that bug\'s priority.',
+          '`<term>`, `<filepath>`, and a plain `<ph>` have no visual style yet, so a wrap in one of them looks like plain text until you check the XML pane. Filed for a future release.',
+          'Suite: 64 files, 1424 tests passing, 3 skipped. `tests/sync/inline-wrap.test.ts` pins behavior for all seven elements across 13 contexts, from body paragraphs to troubleshooting remedies; `tests/inline-wrap-plugin.test.tsx` covers the commands, shortcuts, and the Suggesting-mode block through the real component tree; `tests/sync/structure-check.test.tsx` pins the structure-check warning described above.',
         ],
       },
     ],
@@ -354,10 +354,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-010 slice A. `sync/inline-units.ts` is the one scanner both the parser and the serializer read, so the serializer\'s picture of what a paragraph should contain can no longer drift from what the parser built. `sync/inline-reconcile.ts` matches unchanged inline elements as anchors (a longest common subsequence over element signatures) and splices only the changed run, splitting text nodes at raw offsets so formatting whitespace the parser trimmed survives. Processing instructions, comments, and the boundaries between a `<note>`\'s paragraphs are fixed points: a change that would have to cross one makes the reconciler bail to the previous code path and log one console warning, rather than guess.',
-          'Across the 52-fixture byte-stability corpus the reconciler made 691 decisions on unedited topics: 686 `untouched`, 5 `patched` (all inside the one fixture already failing for BUG-29, where the parser hands the serializer a misaligned pair), 0 bails. Fixes BUG-32 and BUG-33. BUG-34 filed: an edit to the text inside a `<menucascade>` still rewrites the whole menu path.',
+          '`sync/inline-units.ts` is the one scanner both the parser and the serializer read, so the serializer\'s picture of what a paragraph should contain can no longer drift from what the parser built. `sync/inline-reconcile.ts` matches unchanged inline elements as anchors (a longest common subsequence over element signatures) and splices only the changed run, splitting text nodes at raw offsets so formatting whitespace the parser trimmed survives. Processing instructions, comments, and the boundaries between a `<note>`\'s paragraphs are fixed points: a change that would have to cross one makes the reconciler bail to the previous code path and log one console warning, rather than guess.',
+          'Across the 52-fixture byte-stability corpus the reconciler made 691 decisions on unedited topics: 686 `untouched`, 5 `patched` (all inside the one fixture already failing for the table-cell bug noted elsewhere, where the parser hands the serializer a misaligned pair), 0 bails. Fixes two bugs in how a changed run is matched against its surroundings. One more filed: an edit to the text inside a `<menucascade>` still rewrites the whole menu path.',
           'This is the serializer half of the wrap-selection feature planned for v0.10.0. A `<uicontrol>` or `<codeph>` wrapped around selected text already serializes correctly (pinned by test); the toolbar entry is what remains.',
-          'Suite: 61 files, 1208 tests passing, 3 skipped. New suite `tests/sync/inline-reconcile.test.ts` pins the ADR-010 invariants R1 to R6. The S2 test that asserted a dropped toggle beside a `<ph conkeyref>` now asserts the opposite.',
+          'Suite: 61 files, 1208 tests passing, 3 skipped. New suite `tests/sync/inline-reconcile.test.ts` pins the new reconciler\'s behavior. One existing test that had asserted a dropped formatting toggle beside a variable chip now asserts the opposite, which is the fix.',
         ],
       },
     ],
@@ -406,15 +406,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Bug Fixes',
         items: [
           'A paragraph that wraps a list, which Heretto writes as `<p>text<ul>…</ul></p>`, no longer loses its wrapper when you save. Before, even an unedited round-trip rewrote it as `<p>text</p><ul>` and dropped the paragraph\'s attributes. This affected every topic type, not only troubleshooting topics, and had gone unnoticed because no test fixture used the pattern. The wrapper is now patched in place: the list is updated through the normal path and the surrounding text is rewritten only if you changed it.',
-          'Two ordered lists in different troubleshooting containers no longer merge into one when a topic opens. Lexical joins any two neighbouring lists of the same type; the new container labels sit between them and keep them apart. The same merge can still happen to two adjacent lists inside one container or body (BUG-26, filed).',
+          'Two ordered lists in different troubleshooting containers no longer merge into one when a topic opens. Lexical joins any two neighbouring lists of the same type; the new container labels sit between them and keep them apart. The same merge can still happen to two adjacent lists inside one container or body; filed for a future release.',
           'The XML pane no longer warns that `<troubleshooting>` is not a standard topic type, and the topic badge in the toolbar recognises it.',
         ],
       },
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-009 records the design: containers flatten to body-level nodes stamped with `originMap.containerPath` (`troubleSolution#1/remedy#0`); the serializer groups by path and recurses into the preserved element; empty containers are preserved rather than deleted; `DitaContainerBoundaryNode` is the visual-only marker and the list-merge guard. The `<p>`-wrapper fix uses a sibling mechanism, `originMap.pWrapperId`. Two byte-stability fixtures added: the smallest real Heretto troubleshooting topic and a synthetic one with three solutions.',
-          'Known limits of this slice, each stated rather than half-built: deleting a whole condition, cause, or remedy in the visual editor is not written back (use the XML pane); `<responsibleParty>` and `<choices>` inside a remedy are preserved but not shown; the `Troubleshooting` template as a fourth New Topic option is still to come (P2-25 slice 2).',
+          'Containers flatten to body-level nodes stamped with `originMap.containerPath` (`troubleSolution#1/remedy#0`); the serializer groups by path and recurses into the preserved element; empty containers are preserved rather than deleted; `DitaContainerBoundaryNode` is the visual-only marker and the list-merge guard. The `<p>`-wrapper fix uses a sibling mechanism, `originMap.pWrapperId`. Two byte-stability fixtures added: the smallest real Heretto troubleshooting topic and a synthetic one with three solutions.',
+          'Known limits of this slice, each stated rather than half-built: deleting a whole condition, cause, or remedy in the visual editor is not written back (use the XML pane); `<responsibleParty>` and `<choices>` inside a remedy are preserved but not shown; the `Troubleshooting` template as a fourth New Topic option is still to come.',
           'The 19-pattern placeholder-prose detector in the parser is gone, and topic-type conversion no longer swaps prompt text, because there is none to swap. `resolveStoredTheme` in `useEditorUi` owns the theme-name migration and is pinned by test.',
           'Suite: 60 files, 1101 tests passing, 3 skipped. 32 new tests across troubleshooting round-trips, `<p>`-wrapper patching, true placeholders, and the theme migration.',
         ],
@@ -446,7 +446,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         items: [
           '`HERETTO_ROOT_UUID` is gone from `constants/heretto.ts`. The value lives in `useHerettoCms` state (`herettoRootUuid`), is loaded from `/heretto-credentials` on mount, and reaches `HerettoBrowserModal` as a `rootUuid` prop. The connection probe waits for it instead of firing with a constant.',
           'There is no folder-independent probe endpoint. `/rest/all-files`, `/rest/files`, `/rest/root`, `/rest/whoami`, `/rest/user`, and `/rest/content-root` were all tried against a live instance and all return HTTP 500, so the probe still hits `/rest/all-files/<rootUuid>`.',
-          'Root discovery (FR-062 slice 3) is now known to be feasible: every folder\'s XML carries `parent-folder-id`, and walking it upward reaches a parentless `master` folder. Not built yet.',
+          'Automatically discovering the Heretto root folder is now known to be feasible: every folder\'s XML carries `parent-folder-id`, and walking it upward reaches a parentless `master` folder. Not built yet.',
           'Three new tests pin the behaviour: the probe uses the configured root, no root means no probe, and the constant no longer exists.',
         ],
       },
@@ -468,10 +468,10 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          '`API.md` now documents the response envelope: every port-3001 response carries `success` and `httpStatus`, and the Swift server derives the real HTTP status line from that field. The documented contract had lagged the code since v0.9.1 (BUG-23). Example responses updated; `413` and the idle timeout added to the status table.',
-          'Regression tests now pin the three Heretto fixes that shipped untested in v0.9.1 (BUG-24): save verification ignores Heretto\'s injected `class` attributes; an HTML body from Heretto can never overwrite a tab or its saved baseline, on Refresh or on the background change poll; and the external-load poller keeps polling after a failed request. New file `tests/heretto-verification-guards.test.tsx`, 8 tests driving the real hooks.',
+          '`API.md` now documents the response envelope: every port-3001 response carries `success` and `httpStatus`, and the Swift server derives the real HTTP status line from that field. The documented contract had lagged the code since v0.9.1. Example responses updated; `413` and the idle timeout added to the status table.',
+          'Regression tests now pin the three Heretto fixes that shipped untested in v0.9.1: save verification ignores Heretto\'s injected `class` attributes; an HTML body from Heretto can never overwrite a tab or its saved baseline, on Refresh or on the background change poll; and the external-load poller keeps polling after a failed request. New file `tests/heretto-verification-guards.test.tsx`, 8 tests driving the real hooks.',
           'The byte-stability fixture `journey-definition.dita` no longer carries a real author email. The test compares the fixture against its own round-trip, so the edit is self-consistent.',
-          'Sweep-ready lane cleared: BUG-21, BUG-22, BUG-23, BUG-24. Remaining dialog-like overlays not covered by this sweep: the Insert Link and Insert Table popovers in `Toolbar.tsx`, which close on outside click and were not in BUG-22\'s scope.',
+          'This clears four small bugs from the backlog. Remaining dialog-like overlays not covered by this sweep: the Insert Link and Insert Table popovers in `Toolbar.tsx`, which close on outside click and were not in this sweep\'s scope.',
         ],
       },
     ],
@@ -499,8 +499,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Under the Hood',
         items: [
           'The dev server reads the host once at startup, so after changing it you need to restart `npm run dev`. The native app reloads it on every request.',
-          'The Heretto content-root folder UUID is still a constant (FR-062, slice 2). Browse, search, and the connection check depend on it, so a second Heretto instance will not show as connected yet.',
-          'The repository is now public under an all-rights-reserved LICENSE. FR-060 (Windows and Linux shells), FR-061 (rename the Geotab theme to Navy), and FR-062 (Heretto instance agnosticism) were filed.',
+          'The Heretto content-root folder UUID is still fixed at build time. Browse, search, and the connection check depend on it, so a second Heretto instance will not show as connected yet.',
+          'The repository is now public under an all-rights-reserved LICENSE. Native Windows and Linux app shells, renaming the Geotab theme to Navy, and connecting to any Heretto instance (not just one hardcoded tenant) were all filed as future work.',
         ],
       },
     ],
@@ -527,7 +527,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'ADR-008 records the contract change: `PUT /api/tabs/:id/content` proposes; it does not apply. Any caller that PUT-then-saved must accept first. `API.md` updated throughout.',
+          'This is a contract change: `PUT /api/tabs/:id/content` proposes; it does not apply. Any caller that PUT-then-saved must accept first. `API.md` updated throughout.',
         ],
       },
     ],
@@ -629,7 +629,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         items: [
           'Per-tab `::highlight()` CSS rules are injected dynamically at mount and cleaned up at unmount, replacing the single document-global `tracked-insert` key.',
           'Dead `lib/dita-utils.ts` and `types/dita-block.ts` removed. They were only ever imported by their own test file and had no production consumers.',
-          'v0.4.0 release notes corrected: the `format` and `stats` endpoints listed there were part of the port-3000 tab API that was never functional (ADR-007). The note now describes the native API accurately.',
+          'v0.4.0 release notes corrected: the `format` and `stats` endpoints listed there were part of an early tab API that was never functional. The note now describes the native API accurately.',
         ],
       },
     ],
@@ -658,7 +658,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'New lib/xml-insert.ts computes the proposed document by string splicing; untouched content stays byte-identical, so the review diff shows only the actual change (ADR-004 track 1; FR-045). SectionInsertPlugin, the module-level executor slot, and the 50 ms timing race are retired. 19 new tests.',
+          'New lib/xml-insert.ts computes the proposed document by string splicing; untouched content stays byte-identical, so the review diff shows only the actual change. The old plugin, its executor slot, and the 50 ms timing race it depended on are retired. 19 new tests.',
         ],
       },
     ],
@@ -684,7 +684,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         heading: 'Under the Hood',
         items: [
           'Five serializer mediums (noteType, inlineAttrs, stripSpuriousXmlns, dl-split, generic inlineTag stamping) plus prototype-chain fix. Byte-stability corpus 9/9, suite green.',
-          'Technical debt D2 (flushInline consolidation) and D3 (PI-whitespace triplication) identified and filed for future cleanup.',
+          'Two sources of technical debt identified and filed for future cleanup: three near-duplicate inline-flush implementations that should be consolidated into one, and whitespace handling around processing instructions that is written three times over.',
         ],
       },
     ],
@@ -739,7 +739,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'The info preview serializes to nothing. The original `<info>` element is left byte-for-byte untouched on save. Two new round-trip tests confirm a step with `<info>` (codeblock + note) is byte-stable and that editing a step command leaves the sibling `<info>` undisturbed (P2-26 Phase 2).',
+          'The info preview serializes to nothing. The original `<info>` element is left byte-for-byte untouched on save. Two new round-trip tests confirm a step with `<info>` (codeblock + note) is byte-stable and that editing a step command leaves the sibling `<info>` undisturbed.',
         ],
       },
     ],
@@ -759,7 +759,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'Five new round-trip tests covering definition lists: bare `<dl>`, the `<p>`-wrapped form, a definition containing a nested table and note, editing a term in place, and a definition paragraph mixing a conkeyref, a uicontrol, and an inline image followed by sibling content (BUG-01).',
+          'Five new round-trip tests covering definition lists: bare `<dl>`, the `<p>`-wrapped form, a definition containing a nested table and note, editing a term in place, and a definition paragraph mixing a conkeyref, a uicontrol, and an inline image followed by sibling content.',
           'Verified end-to-end against the real Journey Definition topic from Heretto. The `<dl>` structure, conkeyrefs, uicontrols, the six-row table, the note, and the inline image all round-trip without data loss or a stray XHTML namespace.',
         ],
       },
@@ -781,8 +781,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         heading: 'Under the Hood',
         items: [
-          'Five new round-trip tests covering paragraph, note, list, and codeblock block insertion (P1-17) and the API push round-trip (P1-18).',
-          'Three new round-trip tests from the bug sweep: xref-in-note parse and serialize fidelity (P2-46); PUT replace producing only new content when master has more elements (P2-45); table with `cols="1"` but two entries per row round-tripping as a 2-column table (P2-47 regression guard).',
+          'Five new round-trip tests covering paragraph, note, list, and codeblock block insertion, and the API push round-trip.',
+          'Three new round-trip tests from the bug sweep: xref-in-note parse and serialize fidelity; PUT replace producing only new content when master has more elements; and a table with `cols="1"` but two entries per row round-tripping as a 2-column table.',
         ],
       },
     ],
