@@ -21,6 +21,33 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.0.0',
+    date: '2026-11-03',
+    title: 'DITA Architect 1.0: a daily driver. Create any of the four topic types, mark them up, connect a map, and save to Heretto — without opening Heretto\'s editor or the XML pane.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          '`New Topic` now creates a fourth type: Troubleshooting, with a condition and a cause-and-remedy pair shaped like a real Heretto troubleshooting topic, and a genuinely empty title and short description like the other three.',
+        ],
+      },
+      {
+        heading: 'Fixed',
+        items: [
+          'Copying a selection that held a code block, an image, a broken-link marker, or a couple of other decorative elements used to throw silently; it no longer does.',
+          'An AI caller chaining a content proposal straight into a save, with no pause between the two, could occasionally have the save slip through before the proposal was staged, sending the unchanged document — nothing wrong ever reached Heretto, but the save should have been refused. It now is, every time.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          '1.0 is the acceptance bar this project set for itself in July: create from template, mark up, connect a map, validate, save, suggest — all without leaving the visual editor. The native menu bar and Export as PDF (v0.14.0), the review carrier (v0.13.0), and everything before them are what make that true today.',
+          'What\'s next lives in a fresh "Roadmap — post-1.0" note: richer tracked changes, print fidelity, a Windows/Linux shell, and the rest of what this release deliberately left for later.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-11-02',
     title: 'DITA Architect gets a real Mac menu bar — ⌘N, ⌘O, ⌘S, ⌘W, a View menu with themes — and Export as PDF finally produces a PDF.',

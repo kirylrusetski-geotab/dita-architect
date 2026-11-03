@@ -1,8 +1,8 @@
 # DITA Architect
 
-A lightweight DITA editor. Write in a visual editor on the left, see the XML source on the right — changes sync between both sides as you work.
+A daily-driver DITA editor. Write in a visual editor on the left, see the XML source on the right — changes sync between both sides as you work. Create a topic from a template, mark it up, connect a map for variables, and save to Heretto, without opening Heretto's own editor or hand-writing XML.
 
-Available in two forms: a **browser app** you run with Node.js, and a **native macOS app** built from the Swift shell in `macos/`. Both use the same web frontend.
+Available in two forms: a **browser app** you run with Node.js, and a **native macOS app** built from the Swift shell in `macos/`, with a menu bar (New/Open/Save/Export shortcuts, themes) and native PDF export. Both use the same web frontend.
 
 ## What You Can Do
 
@@ -18,6 +18,8 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **Mark up inline elements.** Select text and wrap it in a UI control, code phrase, phrase, term, file path, window title, or cross-reference from the tag-icon menu in the toolbar, or press Ctrl/⌘+Shift+U (`<uicontrol>`) or Ctrl/⌘+Shift+C (`<codeph>`). `Remove inline element` takes one off again. Only the element you add changes in the XML; everything else in the paragraph is written back byte-for-byte.
 
+**Connect a map and insert variables.** Connect a Heretto map from the Heretto menu to load its key registry — chips for existing `conkeyref`/`keyref` references turn solid when they resolve, and the `{}` toolbar button inserts a new variable reference by picking a topic and one of its elements from the connected map.
+
 **Track your changes.** Switch the document mode control between Viewing (read-only), Suggesting (your edits become tracked insertions and deletions you can accept or reject one by one, or all at once), and Editing (direct edits).
 
 **Know when a sync loses something.** If the XML ever ends up with fewer links, notes, lists, tables, or inline elements than the visual editor shows, a warning tells you to check the source pane.
@@ -27,6 +29,8 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 **See where you are in the structure.** Hover over a paragraph in the visual editor to see which DITA element it belongs to — `CONTEXT`, `RESULT`, `PREREQUISITE`, `POSTREQUISITE` — with color-coded left-edge bars.
 
 **Spot unresolved references.** Conkeyrefs, keyrefs, and conrefs that can't be resolved show up as labeled chips (e.g., `[conkeyref: glossary/term]`) instead of blank space.
+
+**Catch a structural mistake before it reaches Heretto.** Saving, replacing, or an AI-drafted document that puts an element somewhere the DITA 1.3 content model doesn't allow — a `<fig>` inside a `<cmd>`, say — is blocked with the exact element, its parent, and the line it's on, not a guess.
 
 **Choose your theme.** 6 app themes (Dark, Light, Claude, Nord, Solarized, Navy) and 7 syntax themes for the XML pane.
 
@@ -98,11 +102,23 @@ Without a Heretto connection the editor still works — create topics from templ
 | ? or Ctrl/⌘+/ | Open keyboard shortcut reference |
 | Escape | Close modal or dismiss menu |
 
-On macOS the modifier is ⌘; elsewhere it is Ctrl. Saving to Heretto has no shortcut yet: use the `Save to Heretto` button in the Heretto bar above a topic you opened from Heretto (a ⌘S save is planned with the native macOS File menu).
+On macOS the modifier is ⌘; elsewhere it is Ctrl.
+
+**The native macOS app also has a menu bar** (File, View, and the app menu), each item doing exactly what its in-app equivalent does:
+
+| Shortcut | Action |
+|---|---|
+| ⌘N / ⇧⌘N / ⌥⌘N | New Task / Concept / Reference topic |
+| ⌘O | Open a local `.dita`/`.xml` file |
+| ⌘W | Close the active tab |
+| ⌘S | Save to Heretto (opens the Save browser for a tab without a Heretto file) |
+| ⌘\\ | Show/hide the XML pane |
+
+File also has Replace in Heretto…, Export as PDF… (a real paginated PDF with page numbers, via a native save panel), Connect to Heretto…, and Open from Heretto…; View has Theme and XML Syntax Theme submenus with a check on the active one. New Troubleshooting topics and Convert Topic Type are reached through the in-app `New`/`Convert` dialogs, which list all four topic types (Convert intentionally does not offer Troubleshooting as a target — see `TopicTypeModal`'s `types` prop).
 
 ## Supported DITA Elements
 
-The editor opens and saves **task**, **concept**, **reference**, **troubleshooting**, and generic **topic** files. `New Topic` creates task, concept, and reference topics from templates (a troubleshooting template is planned).
+The editor opens and saves **task**, **concept**, **reference**, **troubleshooting**, and generic **topic** files. `New Topic` creates all four of task, concept, reference, and troubleshooting from templates — each with a truly empty title and short description (the prompt you see is a visual hint, never saved text) and, for troubleshooting, a condition and a cause-and-remedy pair shaped like a real Heretto troubleshooting topic.
 
 The visual editor renders these elements as formatted content:
 
@@ -112,7 +128,8 @@ The visual editor renders these elements as formatted content:
 - **Troubleshooting:** `<condition>`, `<troubleSolution>`, `<cause>`, `<remedy>` (each labeled in the editor), with `<steps>`, `<steps-unordered>`, or `<steps-informal>` in a remedy
 - **Tables:** `<table>` (CALS), `<simpletable>`; a cell can hold paragraphs, lists, notes, definition lists, figures, code blocks, and nested tables.
 - **Media:** `<fig>`, `<image>`, `<codeblock>`
-- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). `<term>`, `<filepath>`, and `<ph>` have no visual style yet (FR-068), and a menu path (`<menucascade>`) shows its steps without a separator (BUG-43).
+- **Inline:** `<b>`, `<i>`, `<codeph>`, `<uicontrol>`, `<wintitle>`, `<xref>`, `<ph>`, `<term>`, `<filepath>`, and any other leaf inline element (preserved with its attributes). A menu path (`<menucascade>`) shows a separator between its steps. `<term>`, `<filepath>`, and a refless `<ph>` have no visual style yet (FR-068) — the XML pane always shows what's there.
+- **Tracked changes:** suggestions made in Suggesting mode are Heretto's own review markup — they survive Save, Close, and Reopen, show in Heretto's editor as inline suggestions, and a suggestion made in Heretto opens here as a tracked mark you can accept or reject.
 
 Elements the editor doesn't recognize are shown as labeled read-only blocks — they won't be lost or changed when you save.
 
