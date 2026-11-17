@@ -74,7 +74,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Closed 2026-10-20 — already shipped (`GET /api/tabs/:id/content`, v0.3.3) |
 | 🟢  | FR-056                                                                                          | API content loads flush into suggesting mode                                      | 2026-08-04 | Shipped v0.9.2            |
 | 🟢  | FR-057                                                                                          | API whole-document replace rendered as a reviewable diff                          | 2026-08-04 | Shipped v0.9.3            |
-| 🔴  | [FR-058](#fr-058-ingest-api-whole-document-replace-as-tracked-marks)                           | Ingest API whole-document replace as tracked marks                                | 2026-08-04 | Open                      |
+| 🔴  | [FR-058](#fr-058-ingest-api-whole-document-replace-as-tracked-marks)                           | Ingest API whole-document replace as tracked marks                                | 2026-08-04 | Open — re-sequenced 2026-11-17 into the UI Overhaul chain (slice 1 with FR-078, Session 6, v1.6.0; whole-document diff = slice 2, its own session) |
 | 🔴  | [FR-059](#fr-059-expose-readability-score-via-api)                                             | Expose readability score via API                                                  | 2026-08-12 | Open                      |
 | 🔴  | [FR-060](#fr-060-native-windows-and-linux-app-shells)                                          | Native Windows and Linux app shells                                               | 2026-10-19 | Open                      |
 | 🟢  | [FR-061](#fr-061-rename-the-geotab-theme-to-navy)                                              | Rename the Geotab theme to Navy                                                   | 2026-10-19 | Shipped v0.9.7 |
@@ -86,6 +86,8 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Shipped v0.12.0 (2026-10-28, ADR-014) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
 | 🔴  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Open (after v0.14.0) |
+| 🔴  | [FR-078](#fr-078-session-editors--a-terminal-as-an-attributed-member-suggestions-in-the-visual-editor) | Session editors — a terminal as an attributed member, suggestions in the visual editor | 2026-11-17 | Open — Session 6 of the UI Overhaul plan, v1.6.0, ADR-022 |
+| 🔴  | [FR-079](#fr-079-map-editing--open-a-ditamap-as-a-document-and-edit-its-topicref-tree) | Map editing — open a ditamap as a document and edit its topicref tree | 2026-11-17 | Open — candidate after the UI Overhaul arc (after v1.7.0); own ADR |
 
 ---
 
@@ -763,7 +765,7 @@ Side benefit: once a PUT populates `pendingReview` rather than overwriting, the 
 
 **Requested:** 2026-08-04
 **Source:** Kiryl — follow-on to FR-057; the Monaco diff surface is all-or-nothing; the intended end state is per-change review in the visual editor
-**Status:** Open
+**Status:** Open — **re-sequenced 2026-11-17 into the UI Overhaul chain.** Its FR-051 dependency is met (the carrier shipped as ADR-015, v0.13.0). **Slice 1, anchored suggestions** (`POST /api/tabs/:id/suggest` with `{anchor, find, replace}`, no diff algorithm) ships with FR-078 in **Session 6, v1.6.0**. **Slice 2**, the whole-document diff → marks described below, follows as its own session once slice 1 has been used in anger; the structure-aware diff is the hard part and is unchanged by FR-078.
 **Priority:** P2
 **Impact:** High — completes the "AI drafts, human reviews each change" workflow; FR-057 is a waypoint
 **Model weight:** Fable (touches round-trip contract and tracked-changes machinery simultaneously)
@@ -822,7 +824,7 @@ Side benefit: once a PUT populates `pendingReview` rather than overwriting, the 
 
 **Requested:** 2026-10-19
 **Source:** Kiryl — filed when the GitHub repos were made public; the project is no longer macOS-only in audience
-**Status:** Open — **sequenced into the UI Overhaul plan, Session 6 (v1.6.0), ADR-021: Electron shell for Windows (`.exe`), Swift shell kept on macOS; menu-bar and PDF parity included since Electron makes them cheap** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). Linux (AppImage from the same build) is a Sonnet follow-up to file when Windows ships.
+**Status:** Open — **sequenced into the UI Overhaul plan, Session 7 (v1.7.0; was Session 6 / v1.6.0 until FR-078 was inserted on 2026-11-17), ADR-021: Electron shell for Windows (`.exe`), Swift shell kept on macOS; menu-bar and PDF parity included since Electron makes them cheap** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). Linux (AppImage from the same build) is a Sonnet follow-up to file when Windows ships.
 **Priority:** P3
 **Impact:** Medium — the web frontend already runs anywhere Node does, but the native experience (no terminal, port-3001 tab API, `dita://` scheme, menu bar) exists only on macOS
 **Model weight:** Fable (new run-mode per platform — ADR required under the architectural trigger; one context must hold the HTTP server, scheme handler, and JS bridge contracts across platforms)
@@ -1143,7 +1145,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Problem:** Every feature surface lives in a header dropdown, a toolbar, or a modal; there is no persistent place for browsing Heretto, a connected map, search, or review state, and the XML pane takes half the window for every topic whether the writer wants it or not. Adding the Map, Search, Source Control, and Metadata surfaces to this shell would mean four more modals or dropdowns.
 **Signal:** Kiryl, 2026-11-16, with VS Code open beside the app: "DITA Architect will have a sidebar menu similar to this."
-**Smallest slice:** An activity bar (Explorer, Search, Map, Source Control; bottom: Heretto connection, Settings), one side-panel host, a right rail with XML and Metadata folder tabs (both closed by default; a staged API proposal opens the XML tray so it is never invisible), the Explorer view (FR-054's lazy tree + Open Editors), the header shrunk to a title row carrying the tabs, both header dropdowns retired (FR-069 absorbed), browser-mode commands in the Explorer's `…` menu, `Convert`/map rows/`Toggle Metadata Tray` in the native menu. Search, Map, Source Control, and Metadata render placeholder panels in this release.
+**Smallest slice:** An activity bar (Explorer, Search, Map, Source Control; bottom: Heretto connection, Settings), one side-panel host, a right rail of stackable panels, Photoshop-style (XML plus placeholder icons for the six metadata aspects of FR-075; all closed by default; any set open at once; collapse parity with today's XML pane and a Toggle Right Rail; a staged API proposal opens the XML panel so it is never invisible; widened 2026-11-17), the Explorer view (FR-054's lazy tree + Open Editors), the header shrunk to a title row carrying the tabs, both header dropdowns retired (FR-069 absorbed), browser-mode commands in the Explorer's `…` menu, `Convert`/map rows/`Toggle Metadata Tray` in the native menu. Search, Map, Source Control, and Metadata render placeholder panels in this release.
 **Serves:** Writer experience; the home for FR-071/072/073/075/076.
 
 ### Acceptance criteria
@@ -1233,14 +1235,14 @@ Every legacy key migrates once and is removed; a missing or corrupt store yields
 
 ---
 
-## FR-075: Metadata tray — Heretto file metadata (slice 1) and the DITA prolog (slice 2)
+## FR-075: Metadata panels — Topic, Heretto (slice 1), Prolog (slice 2), Conditions, Links on the right rail
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("another tray on the right… DITA concept metadata that can be edited"); decision 2026-11-16: the editable set is what `headless-heretto` can edit
-**Status:** Open — Session 4 of the UI Overhaul plan, **v1.4.0**, **ADR-019**
+**Status:** Open — Session 4 of the UI Overhaul plan, **v1.4.0**, **ADR-019**. **Widened 2026-11-17 from Kiryl's fourth brief (Photoshop's panel column):** the single Metadata tray becomes **aspect panels on the right rail**, Photoshop-style (an icon per aspect, any set open at once stacked vertically, collapsible sections holding the fields): **Topic** (id, type, title, shortdesc, `xml:lang`, root attributes), **Heretto** (slice 1 as below), **Prolog** (slice 2 as below), **Conditions** (`audience`/`platform`/`product`/`otherprops`/`props`/`rev` on the root and the element under the caret), **Links** (where used, dependencies; read-only), and an **AI** placeholder filled by FR-078. Every topic type, every tab (a local tab shows Topic, Prolog, Conditions; Heretto and Links after Save As). One form model (`lib/metadata-panels.ts`) renders every panel; document fields write by byte-exact string splice (`lib/document-splice.ts`), Heretto fields through `lib/heretto-metadata.ts`. Decisions and the full block are in the Obsidian plan (fourth brief; Session 4).
 **Priority:** P2
-**Impact:** High for slice 1 (a new Heretto write path with no server-side history)
-**Model weight:** Opus; Fable if slice 2 ships in the same session
+**Impact:** High (a new Heretto write path with no server-side history, and three panels that edit the document by splice)
+**Model weight:** Fable (was Opus): the splice contract and the Heretto rules in one context
 
 **Problem:** A topic's Heretto metadata (status, Product, custom fields, lock holder, validity) is invisible in the app, and its `<prolog>` is opaque bytes the parser never reads; setting a status means leaving for Heretto's UI or the CLI.
 **Signal:** The brief's ninth item.
@@ -1251,7 +1253,7 @@ Every legacy key migrates once and is removed; a missing or corrupt store yields
 
 ### Acceptance criteria
 
-Plan invariants MD1–MD5: no computed, unchanged, or lock-blocked write ever reaches `fetch`; a read-back mismatch names field, values, and account and the backup exists; a metadata save leaves `xmlContent`, `savedXmlRef`, and dirty flags identical; (slice 2) a prolog edit changes only the `<prolog>` bytes over the 7 corpus topics that have one and validates against the content model; both trays open together, resize, restore. **Probe first** on the sandbox topic with Kiryl's go, restored afterwards.
+Plan invariants MD1–MD7: no computed, unchanged, or lock-blocked write ever reaches `fetch`; a read-back mismatch names field, values, and account and the backup exists; a metadata save leaves `xmlContent`, `savedXmlRef`, and dirty flags identical; every Topic, Prolog, or Conditions edit changes only the bytes of the element or attribute named (asserted over the corpus) and an unedited open-and-close changes nothing; no panel component touches `fetch` or `xmlContent` outside the form model; any subset of panels open, resize, restore, and a local tab's panel set grows after Save As; Links rows come from the two endpoints only and a failure shows "could not check". **Probe first** on the sandbox topic with Kiryl's go, restored afterwards.
 
 ---
 
@@ -1259,19 +1261,19 @@ Plan invariants MD1–MD5: no computed, unchanged, or lock-blocked write ever re
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("users can see the incoming proposed changes and apply them to the local draft or merge them to Heretto"); decision 2026-11-16: incoming = the author's own Heretto copy changing, or a terminal/AI proposal; "merge to Heretto" = a REST save with a conflict check
-**Status:** Open — Session 5 of the UI Overhaul plan, **v1.5.0**, **ADR-020**; **BUG-52 must be decided first** (the Changes list is computed from dirtiness)
+**Status:** Open — Session 5 of the UI Overhaul plan, **v1.5.0**, **ADR-020**; **BUG-52 must be decided first** (Changes are computed from dirtiness). **Rewritten 2026-11-17 from Kiryl's third brief (a VS Code Source Control screenshot):** Source Control is a **local version history with Heretto as the remote**: explicit commits with a message (⌘Enter), one history per topic in DA's own store (not git), drafts autosaved and restored on launch, Push / Pull / **Sync Changes N↓ M↑**, a Graph per topic, and the Heretto context bar above the page retired in favour of a status-bar item. The Proposed row names the proposing session and reserves **Accept as suggestions** for FR-078/FR-058 slice 2; the store is also FR-078's ledger. Decisions and the full block are in the Obsidian plan (third brief table; Session 5).
 **Priority:** P2
 **Impact:** High — gives Save, Refresh, and the API review flow one model and one home
 **Model weight:** Fable (Heretto write path + ADR-008 review flow + dirty semantics + the review carrier, in one context); adversarial review mandatory
 
 **Problem:** Three kinds of difference exist today with three unrelated surfaces: the dirty dot (local vs saved), the red "Updated in Heretto" dot from the remote poll (no way to see or merge it; a dirty tab shows "Changes in both locations" and nothing more), and the API's `pendingReview` (a `ReviewBar` inside the XML pane, invisible once FR-070 closes that tray).
 **Signal:** The brief's fifth item; ADR-008's "two known rough edges".
-**Smallest slice:** `lib/change-sets.ts`, pure over `Tab` + the polled remote copy: **Outgoing** (`savedXmlRef` → `xmlContent`: Save, Discard, diff), **Incoming** (`savedXmlRef` → Heretto's copy: Pull when no outgoing change, diff), **Proposed** (`pendingReview`: Apply, Reject, diff — the review's new home; the XML tray stops auto-opening). A per-tab **Sync** (Pull then Save when no conflict). **Conflict** (outgoing + incoming): Save and Pull disabled; three diffs; Keep mine (typed confirmation naming who last saved, from FR-075's metadata), Take theirs, Resolve in XML. **No automatic three-way merge** in v1 (FR-077). The panel lists every open tab, active first. `PUT /api/tabs/:id/content` is unchanged (ADR-008); a terminal that writes to Heretto directly shows up as Incoming on the next poll. `API.md` explains where a `PUT` appears.
+**Smallest slice:** `lib/history-store.ts` (per topic: `commits.jsonl` with message, author, SHA-256 before/after, `pushed` checksum; `snapshots/`; `drafts/` autosaved and restored on launch) and `lib/change-sets.ts`, pure over `Tab` + the store + the polled remote copy: **Changes** (draft vs last commit: Commit, Discard, diff), **Outgoing ↑** (unpushed commits: Push = today's `handleHerettoSave` on the last commit's bytes, with verify), **Incoming ↓** (Heretto's copy vs the pushed base, plus newer editor revisions from `GET …/history` when it answers: Pull, recorded as a pull commit), **Proposed** (`pendingReview`: Apply, Reject, diff — the review's new home; the XML tray stops auto-opening). **Sync Changes N↓ M↑** per topic (Pull then Push; Commit & Sync when the draft is dirty). **Graph** per topic: commits newest first, `pushed` markers, Heretto editor revisions as remote-only nodes with Compare. **Conflict** (Outgoing or Changes + Incoming): Push, Pull, Sync disabled; three diffs; Keep mine (typed confirmation naming who last saved in Heretto, from FR-075's metadata), Take theirs (snapshots kept), Resolve in XML. **No automatic three-way merge** in v1 (FR-077). The Heretto bar above the page is retired: path and state become a status-bar item, its actions move to the view and the File menu (proposed: ⌘S = Commit, ⇧⌘S = Push). `PUT /api/tabs/:id/content` is unchanged (ADR-008); `POST …/save` records an implicit commit then pushes; a terminal that writes to Heretto directly shows up as Incoming on the next poll. `API.md` explains where each write appears.
 **Serves:** The AI-review loop (moat 1) and safe collaboration with Heretto's own editor.
 
 ### Acceptance criteria
 
-Plan invariants SC1–SC6: the change-set table is pure and exhaustive over (dirty, remote differs, pendingReview); Pull is byte-exact and a suggestion-bearing copy opens in Suggesting mode; Save behaves as today when no incoming change and never reaches `fetch` in a conflict; Keep mine / Take theirs / Resolve in XML do exactly what they say; a `PUT` lands as Proposed with a badge and Apply/Reject re-assert the ADR-008/FR-057 tests; serializer and contract untouched. Re-check ADR-008's deferred "editor read-only while a review is pending".
+Plan invariants SC1–SC9: the change-set table is pure and exhaustive over (draft differs, unpushed commits, remote differs, pendingReview) with correct ↑/↓ counts; a commit's snapshot equals the bytes committed and a corrupt store line never throws; drafts restore byte-exact after a relaunch and are removed on close; Push behaves as today on the last commit's bytes, never pushes uncommitted changes, and never reaches `fetch` in a conflict; Pull is byte-exact, records a pull commit, and a suggestion-bearing copy opens in Suggesting mode; Keep mine / Take theirs / Resolve in XML do exactly what they say; a `PUT` lands as Proposed with the session name and Apply/Reject re-assert the ADR-008/FR-057 tests; every command the retired bar offered is reachable in both run modes and the bar is gone under `dita:` and `http:`; serializer and contract untouched. Re-check ADR-008's deferred "editor read-only while a review is pending".
 
 ---
 
@@ -1292,3 +1294,45 @@ Plan invariants SC1–SC6: the change-set table is pure and exhaustive over (dir
 ### Acceptance criteria
 
 Port the headless-heretto test corpus's shape (random non-overlapping block edits → exact result; overlapping → refusal); a close-together merge is flagged in the UI; a refused merge leaves FR-076's three choices available unchanged.
+
+---
+
+## FR-078: Session editors — a terminal as an attributed member, suggestions in the visual editor
+
+**Requested:** 2026-11-17
+**Source:** Kiryl — second UI-overhaul brief: a terminal session (Claude Code, GIA) as a connectable, disconnectable **member** of the editor with a floating avatar like the Heretto one, whose proposed edits appear in the Lexical editor as suggestions instead of only in the XML diff; `cli-chrome` named as the reference for the connection model. Decisions 2026-11-17 (eight questions answered; the table is in the Obsidian plan's "Second brief"): author = the Heretto login email; AI content marked with `otherprops="ai-authored"`; anchored suggestions first; atomic runs accepted in v1; placed after Source Control, before Electron; session id = label only; marker removed manually only; Suggesting mode while unresolved; `AI_assisted` metadata written by DA.
+**Status:** Open — Session 6 of the UI Overhaul plan, **v1.6.0**, **ADR-022**; carries FR-058 slice 1
+**Priority:** P2
+**Impact:** High — the AI-review loop moves from the XML diff into the visual editor with per-change accept/reject and durable attribution; DA gains the audit trail Heretto's History does not keep for any REST write
+**Model weight:** Fable (round-trip contract + tracked-changes machinery + a new API surface in Swift and TypeScript, in one context); adversarial review mandatory
+
+**Problem:** An AI or CLI can only propose a whole document or a block as an XML diff (ADR-008), reviewed in Monaco, all or nothing; nothing in the app says who proposed it, and once FR-070 closes the XML tray the review is a badge away from invisible. Meanwhile Heretto's own audit layers cannot help: confirmed 2026-11-17 live and against the CCMS API v1 reference guide (rev. I, 2026-11-04), `PUT /rest/all-files/{uuid}/content` takes no parameters, creates no History revision and no Activity entry, and only moves `last-modified` / `__last_modified_by` to the token's account. Every DITA Architect save, human or terminal, is already invisible in Heretto's History tab.
+**Signal:** The second brief; ADR-008's "FR-058 is the better end state"; FR-058's FR-051 dependency met since v0.13.0; the sandbox probes of 2026-11-17 (a REST-written `ct-ins` around `<ph otherprops="ai-authored">` is stored valid, rendered inline by Heretto with an "ai-authored" margin flag, and parsed by DA's existing scanner into a stamped insert mark whose Accept keeps the wrapper and whose Reject restores the bytes).
+**Smallest slice:** (1) **Session identity**: `POST/GET/DELETE /api/sessions`, in-memory, label only; a Sessions avatar in the rail (slot reserved by FR-070) with a popover and Disconnect; writes carry `X-Dita-Session`, an unknown or missing id is "Unknown session", a disconnected id is refused. (2) **Anchored suggestions** (FR-058 slice 1): `POST /api/tabs/:id/suggest {anchor, find, replace}`; `anchor` = a DITA `id` or `{id, child: "p", nth}`; `find` must occur exactly once; the bridge splices Heretto's own `ct-del` / `ct-ins` PIs (one `CHANGE_ID` for a replace) with `<ph otherprops="ai-authored">` around the inserted text and `sessionAuthor()` as author, upstream of the scanner (ADR-015's one-path rule kept); refuses when `ph` is not a valid child or the result fails validation; commits as an `api` update so decision 6 switches the tab to Suggesting; Viewing tabs refuse. Block proposals stay on the XML Proposed path; `insert-section` adds `otherprops="ai-authored"` to the fragment's top-level elements when a session is attached. (3) **Own-ness guard**: an `ai-authored` run is never "own" for merge or retract. (4) **Mark as reviewed**: removes the token by a string splice; nothing removes it automatically. (5) **Ledger**: one JSON line per save/suggest/accept/reject/apply/pull per topic, surfaced in Source Control as a Timeline merged with Heretto's `GET …/history` revisions (undocumented; degrade to "unavailable") and `?revision=` compare. (6) **`AI_assisted`** metadata = whether the saved document contains an `ai-authored` token, written through FR-075's metadata path on every Heretto save; its failure never fails the content save. (7) `API.md` "Sessions", "Suggest", and "Where a write shows up".
+**Serves:** The AI-review loop (moat 1): visible, attributable, per-change; honest audit where Heretto has none.
+**Not in scope (honest exclusions, into ADR-022):** attributing deletions beyond the PI author; block inserts as marks (FR-051 remainder); editing inside an AI-authored run (atomic `<ph>`; follow-up FR for a spliceable `<ph>`); Heretto's Review panel carding REST suggestions (Heretto behaviour); Heretto's History showing DA saves (ask the CSM about the September 2026 commit API); the whole-document diff → marks (FR-058 slice 2).
+
+### Acceptance criteria
+
+Plan invariants SE1–SE8: sessions register, list, and disconnect with the stated refusals and labels while every existing route's tests pass unchanged; a suggest changes only the bytes it names and refuses a non-unique `find` with the count; the written document parses to exactly the marks returned, round-trips byte-identically, Accept keeps `<ph otherprops="ai-authored">`, Reject restores the pre-call bytes; typing at an AI run's edge never merges into it; Editing → Suggesting, Suggesting keeps live marks, Viewing refuses; Save verifies through `stripHerettoClassAttrs` when Heretto adds `class` and sets `AI_assisted` from the document; every event is one ledger row and a failing history endpoint shows "unavailable"; serializer, corpus, R1, fuzz unchanged. Smoke: one real suggest against the sandbox topic viewed in Heretto's editor through `cli-chrome`, restored afterwards.
+
+---
+
+## FR-079: Map editing — open a ditamap as a document and edit its topicref tree
+
+**Requested:** 2026-11-17
+**Source:** Kiryl — "will maps be supported? Is that in the roadmap or not?" during the UI-overhaul amendment. Until now every map capability was read-only: Connect a Map (FR-035 / ADR-013, v0.11.0) reads the mapref tree for keys and validation; the Map view (FR-071, Session 2) will browse it; P3-43 (map discovery) is parked. Nothing opened or edited a map, and `POST /api/load-content` rejects a ditamap.
+**Status:** Open — **candidate for the session after the UI overhaul arc (after v1.7.0)**, not sequenced; needs its own ADR (a second document model next to the topic one)
+**Priority:** P2
+**Impact:** High for writers who maintain publications (today every topicref, navtitle, or key change means leaving for Heretto's map editor); extends the AI-review loop to structure, not only prose
+**Model weight:** Fable (a new document model, a new serializer with byte-exact obligations outside the edited nodes, a new save path, and the API surface for it, in one context)
+
+**Problem:** DITA Architect edits topics. A publication is a map, and the actions a writer takes on it most often (add a topic, reorder, rename a navtitle, define a key, point a topicref at the topic just written) are not possible in the app, so the writer's "finish a topic" workflow always ends in Heretto. A terminal session (FR-078) cannot propose a structural change for the same reason.
+**Signal:** Kiryl's question of 2026-11-17; the Map view (FR-071) will put the whole tree on screen with no way to act on it.
+**Smallest slice:** A **Map tab** (not Lexical): a tree editor over `<topicref>`/`<mapref>`/`<topichead>` with add, remove, reorder, `navtitle`, `href` chosen through the Explorer's folder picker, `keys`, and `format="ditamap"` for submaps; the serializer rewrites only the edited nodes and keeps every other byte (the ADR-012 source-spelling approach applied to a map, pinned by a map byte-stability corpus from `tests/fixtures/maps/`); Save and Replace through the existing REST path with verify-after-write and the content-model gate extended to map elements; `POST /api/load-content` accepts a map into a Map tab; the Map view's Connect/Reload/Disconnect gains **Edit**, which opens the connected map; an edited map that is the connected map refreshes the key registry on save. Source Control (FR-076) treats a map tab like any tab.
+**Serves:** Publication maintenance without leaving the app; the second half of map-aware authoring.
+**Not in scope (first slice):** `<reltable>`, `<ditavalref>`, map-level metadata beyond `<title>`, creating a submap, Lexical editing of a map's prose, and suggestions (tracked marks) on map structure, which Heretto's PI grammar does not model for topicrefs.
+
+### Acceptance criteria
+
+The map corpus round-trips byte-identically unedited; an edit changes only the bytes of the nodes it names (asserted over the Altitude Help Center and User Guide maps, scrubbed); a saved map is fetched back byte-identical except Heretto's own `class` additions; the key registry of a connected map reflects a saved key change without reconnecting; a terminal `POST /api/load-content` with a map opens a Map tab instead of 400. Decision for Kiryl at shaping time: whether a map edit goes through a review surface (Proposed change set) before save, as topic proposals do.
