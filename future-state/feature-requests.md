@@ -574,7 +574,7 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 
 **Requested:** 2026-07-20
 **Source:** Kiryl Rusetski — pain point with existing breadcrumb drill-down navigation
-**Status:** Open
+**Status:** Open — **sequenced into the UI Overhaul plan, Session 1 (v1.1.0), as the Explorer view of the new sidebar** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). The "no persistent sidebar" exclusion below is lifted by ADR-017; the tree is built in the sidebar, and the browser modal shrinks to a folder picker in Session 2.
 **Priority:** Medium (navigation polish, not a blocker)
 **Impact:** Medium (touches every "Open from Heretto" session)
 **Model weight:** Sonnet
@@ -822,7 +822,7 @@ Side benefit: once a PUT populates `pendingReview` rather than overwriting, the 
 
 **Requested:** 2026-10-19
 **Source:** Kiryl — filed when the GitHub repos were made public; the project is no longer macOS-only in audience
-**Status:** Open
+**Status:** Open — **sequenced into the UI Overhaul plan, Session 6 (v1.6.0), ADR-021: Electron shell for Windows (`.exe`), Swift shell kept on macOS; menu-bar and PDF parity included since Electron makes them cheap** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). Linux (AppImage from the same build) is a Sonnet follow-up to file when Windows ships.
 **Priority:** P3
 **Impact:** Medium — the web frontend already runs anywhere Node does, but the native experience (no terminal, port-3001 tab API, `dita://` scheme, menu bar) exists only on macOS
 **Model weight:** Fable (new run-mode per platform — ADR required under the architectural trigger; one context must hold the HTTP server, scheme handler, and JS bridge contracts across platforms)
@@ -1108,7 +1108,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-11-02
 **Source:** Kiryl, during Session 7 (v0.14.0, the native menu bar), looking at the shell's bare menu bar (`DITA Architect · Edit · Window`) next to the header's two dropdowns: "would it make sense from a UI perspective to move the file options and heretto menu to the [menu] bar?"
-**Status:** Open — sequenced after v0.14.0 (depends on ADR-016's File menu existing)
+**Status:** Open — sequenced after v0.14.0 (depends on ADR-016's File menu existing). **Absorbed and widened by the UI Overhaul plan, Session 1 (v1.1.0, ADR-017):** both header dropdowns are retired, not only File Options; the Heretto dropdown's status-indicator role moves to the activity bar's connection icon (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`).
 **Priority:** P2
 **Impact:** Medium. Once the File menu exists, the header's File Options dropdown is a second copy of the same commands in a less conventional place; two homes for one command is the duplication FR-039 warned about.
 **Model weight:** Sonnet
@@ -1129,3 +1129,166 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 2. In browser mode the header is unchanged (a test renders the header under `http:` and `dita:` and asserts the difference).
 3. The ADR-016 wiring test still passes with the Convert row (both halves present).
 4. The Keyboard Shortcuts cheat sheet still lists every menu shortcut once.
+
+---
+
+## FR-070: Workbench layout — activity bar, side panel, right trays, XML tray closed by default
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — the UI overhaul brief (four VS Code screenshots), planned in `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md` (Obsidian), Session 1
+**Status:** Open — Session 1 of the UI Overhaul plan, **v1.1.0**, **ADR-017**
+**Priority:** P1 (every later item in the arc mounts into it)
+**Impact:** High — changes the app's layout model, retires the header dropdowns, changes the default view of every opened topic
+**Model weight:** Fable or Opus (Kiryl's call at session start)
+
+**Problem:** Every feature surface lives in a header dropdown, a toolbar, or a modal; there is no persistent place for browsing Heretto, a connected map, search, or review state, and the XML pane takes half the window for every topic whether the writer wants it or not. Adding the Map, Search, Source Control, and Metadata surfaces to this shell would mean four more modals or dropdowns.
+**Signal:** Kiryl, 2026-11-16, with VS Code open beside the app: "DITA Architect will have a sidebar menu similar to this."
+**Smallest slice:** An activity bar (Explorer, Search, Map, Source Control; bottom: Heretto connection, Settings), one side-panel host, a right rail with XML and Metadata folder tabs (both closed by default; a staged API proposal opens the XML tray so it is never invisible), the Explorer view (FR-054's lazy tree + Open Editors), the header shrunk to a title row carrying the tabs, both header dropdowns retired (FR-069 absorbed), browser-mode commands in the Explorer's `…` menu, `Convert`/map rows/`Toggle Metadata Tray` in the native menu. Search, Map, Source Control, and Metadata render placeholder panels in this release.
+**Serves:** Writer experience; the home for FR-071/072/073/075/076.
+
+### Acceptance criteria
+
+The plan's invariants W1–W6: layout state persists and restores with safe defaults; no load path opens a tray; a pending review on the active tab opens the XML tray; every retired-dropdown command is reachable in both run modes (wiring test + header test under `dita:`/`http:`); the Explorer fetches lazily through `herettoFolderCache`; serializer and round-trip contract untouched. A mock approved by Kiryl precedes any component code.
+
+---
+
+## FR-071: Map view — browse the connected map's topicref tree in the sidebar
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("a user can load up a map and look at all of the options"); supersedes the "ditamap integration" FR-054 pointed to FR-035 for
+**Status:** Open — Session 2 of the UI Overhaul plan, **v1.2.0**, amendment to ADR-013
+**Priority:** P2
+**Impact:** Medium — makes the connected map (ADR-013) visible as a structure, not only as chip states
+**Model weight:** Opus (with FR-072 in the same session)
+
+**Problem:** Connecting a map (v0.11.0) loads 300 maps' worth of keys into a registry the writer never sees; there is no way to browse the publication, open a topic from it, or see which submaps and keys it carries.
+**Signal:** The brief's third item.
+**Smallest slice:** `loadKeyRegistry` records the topicref tree it already walks (`{ tree: MapNode[] }` beside `keys`, no change to chips); a Map panel renders it with navtitles, submaps as expandable nodes, a key count per node, a Keys section, and Connect / Reload / Disconnect at the top; clicking a topicref resolves its href through `resolveHerettoPathResult` and opens the topic; an unresolvable href shows "missing", a network failure "could not check".
+**Serves:** Map-aware authoring; a future home for P3-43 (map discovery) if it is ever unparked.
+
+### Acceptance criteria
+
+Plan invariants M1–M3: the real scrubbed maps in `tests/fixtures/maps/` produce the expected tree (Help Center: 84 map nodes) with `keys` unchanged from ADR-013 I1; connecting, reloading, disconnecting, or expanding changes no byte of any open topic; missing vs could-not-check are distinct states.
+
+---
+
+## FR-072: Heretto search view on the search API
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("Heretto search will be moved to the side as well")
+**Status:** Open — Session 2 of the UI Overhaul plan, **v1.2.0**
+**Priority:** P2
+**Impact:** Medium — replaces a filename-only folder walk with text search over the tenant
+**Model weight:** Opus (with FR-071)
+
+**Problem:** `herettoSearch` walks folders one request at a time and matches filenames only; it lives inside the Open modal. Heretto has a search API (`/ezdnxtgen/api/search`, keywords over text and titles, status/content-type/date filters, facets, paging) that `headless-heretto` has used since 2026-11-13, but the app's proxy forwards only `/heretto-api` → `/rest`.
+**Signal:** The brief's fourth item; FR-054's own success criterion says "search remains available and preferred for named-target discovery".
+**Smallest slice:** A `/heretto-search` proxy prefix in `DITASchemeHandler.swift` and `vite.config.ts` (same Basic auth); a Search panel with a query box and status / content-type / modified / product filters, results grouped by folder path with title, filename, status chip, modified time; paging with a fixed `limit` and an explicit `sort` (the rules headless-heretto recorded). The filename walk stays as "Search filenames in this folder" in the Explorer; the browser modal's search and breadcrumb view are removed and the modal becomes a Save As / Replace folder picker. **Probe first:** confirm the endpoint accepts Basic auth through the proxy and what its request body and hit fields are.
+**Serves:** Navigation speed; removes the slowest interaction in the app.
+
+### Acceptance criteria
+
+Plan invariants S1–S2: one `POST` per search with only the filters set, `limit` constant across pages, 401/403 surfaced as a connection problem; fake-tenant results render and open the right UUID. Risk recorded: the search path is an internal one, less stable than `/rest`, hence the fallback.
+
+---
+
+## FR-073: Appearance profiles — personalised themes as data, built-ins migrated
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("Appearance profiles will be completely overhauled to a modal… create their own personalized appearances, or load from defaults"); decision 2026-11-16: migrate the existing themes
+**Status:** Open — Session 3 of the UI Overhaul plan, **v1.3.0**, **ADR-018** (with FR-074)
+**Priority:** P2
+**Impact:** Medium — every theme surface (CSS, Toolbar dropdown, Monaco, native View menu, `/api/status`, localStorage) changes shape
+**Model weight:** Opus
+
+**Problem:** Six fixed themes, each a 63-variable CSS block, chosen from a toolbar dropdown; a syntax theme chosen separately in the XML pane; the native menu mirrors both lists and a test asserts they stay equal. A writer cannot change one colour, and adding a palette (P3-46 was rolled back on visual grounds) means a CSS block and five code sites.
+**Signal:** The brief's seventh item.
+**Smallest slice:** `AppearanceProfile = { id, name, base, overrides, syntaxTheme, builtIn }` in `lib/appearance.ts`; the six themes become read-only built-ins; a variable registry (`constants/appearance-vars.ts`, 63 names with label + group) with a drift test against `index.css`; overrides applied as inline custom properties over `data-theme={base}`; an Appearance modal (profile list; name, base, syntax theme, grouped colour pickers, live preview; Duplicate / Rename / Delete / Reset / Export / Import JSON); migration of the stored theme + syntax-theme names (keeping `geotab → navy`); the Toolbar theme dropdown and XML-pane syntax dropdown removed; the native Theme submenus replaced by `View ▸ Appearance…` (bridge: `setAppearanceProfile(id)` / `getAppearance()`); `/api/status` keeps `theme` (the base) and adds `appearanceProfile`.
+**Serves:** Personalisation; makes P3-46 (an Altitude palette) a JSON file rather than a code change.
+**Not in scope:** custom Monaco palettes (pick from the 7; file an FR if wanted).
+
+### Acceptance criteria
+
+Plan invariants A1–A6: registry ↔ CSS drift test and no override leak; every legacy stored value lands on the right built-in, legacy keys removed, migration idempotent; one override renders over its base and deleting the active profile falls back; export/import round-trips and refuses unknown variable names; wiring test green with no theme submenu; Monaco follows the profile.
+
+---
+
+## FR-074: Settings store and Settings modal
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("Settings will be moved to the bottom")
+**Status:** Open — Session 3 of the UI Overhaul plan, **v1.3.0** (ADR-018 covers the store); the gear menu itself ships in Session 1
+**Priority:** P2
+**Impact:** Medium — one persisted object replaces seven localStorage keys; the Heretto credentials form moves out of the status modal
+**Model weight:** Opus (same session as FR-073)
+
+**Problem:** Preferences are scattered localStorage keys (`ditaWordWrap`, `ditaSplitWidth`, two theme keys, `dita-architect-last-seen-version`, plus FR-070's layout keys), each read and written where it is used, with no migration story; Heretto credentials are edited inside the "Status" modal.
+**Signal:** The brief's sixth item, and FR-073 needing a place to live.
+**Smallest slice:** `lib/settings.ts`: one versioned object (`{ version, workbench, appearance, editor: { wordWrap, openXmlTrayOnLoad: false, showSyncHint }, lastSeenVersion }`) with one migration function and a test per legacy key; a Settings modal from the gear with General (editor toggles, including **Open the XML tray when a topic opens**, off by default), Appearance (opens FR-073's modal), Heretto (the credentials form, still writing `~/heretto.json`), Keyboard Shortcuts, About.
+**Serves:** Discoverability; the opt-out for FR-070's closed-by-default tray.
+
+### Acceptance criteria
+
+Every legacy key migrates once and is removed; a missing or corrupt store yields defaults with no exception; the credentials form behaves exactly as `HerettoStatusModal`'s does today (its tests re-targeted, not deleted); the connection popover links to it.
+
+---
+
+## FR-075: Metadata tray — Heretto file metadata (slice 1) and the DITA prolog (slice 2)
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("another tray on the right… DITA concept metadata that can be edited"); decision 2026-11-16: the editable set is what `headless-heretto` can edit
+**Status:** Open — Session 4 of the UI Overhaul plan, **v1.4.0**, **ADR-019**
+**Priority:** P2
+**Impact:** High for slice 1 (a new Heretto write path with no server-side history)
+**Model weight:** Opus; Fable if slice 2 ships in the same session
+
+**Problem:** A topic's Heretto metadata (status, Product, custom fields, lock holder, validity) is invisible in the app, and its `<prolog>` is opaque bytes the parser never reads; setting a status means leaving for Heretto's UI or the CLI.
+**Signal:** The brief's ninth item.
+**Smallest slice (slice 1):** For a Heretto-backed tab, the right tray shows read-only computed fields (content type, title, word count, valid, checksum, last modified by/when, lock holder — the fields `set-meta` refuses) and editable `<meta>` fields (`status` as a select over the tenant's facet values, `Product`, tags, every other field the file has, plus "Add field…" with the tenant's known names and a case-collision warning). Saving metadata is its own Save via `PUT /rest/all-files/{uuid}/metadata` (merging), porting `headless-heretto`'s rules into `lib/heretto-metadata.ts`: refuse while a foreign lock is held (`lock-owner` meta and the lock endpoint), send only changed fields, read back and fail loudly on a value that did not stick or a field you did not name changing, back up the previous metadata before every write, treat a lagging read-back as "may have applied". `herettoFile` gains `metadata`.
+**Slice 2 (optional, may be its own release):** a form over `<prolog>` (`author`, `critdates`, `keywords`, `audience`, `prodinfo`, `othermeta`) that edits `xmlContent` by a string splice of the prolog element only, committed as a `code` update; read-only in Suggesting mode.
+**Serves:** Status changes without leaving the editor; the second right tray from the brief.
+**Not in scope:** workflow semantics on `status` (the API runs none), folder metadata, editing `title`/`content-type` through metadata.
+
+### Acceptance criteria
+
+Plan invariants MD1–MD5: no computed, unchanged, or lock-blocked write ever reaches `fetch`; a read-back mismatch names field, values, and account and the backup exists; a metadata save leaves `xmlContent`, `savedXmlRef`, and dirty flags identical; (slice 2) a prolog edit changes only the `<prolog>` bytes over the 7 corpus topics that have one and validates against the content model; both trays open together, resize, restore. **Probe first** on the sandbox topic with Kiryl's go, restored afterwards.
+
+---
+
+## FR-076: Source Control — outgoing, incoming, and proposed change sets per tab
+
+**Requested:** 2026-11-16
+**Source:** Kiryl — UI overhaul brief ("users can see the incoming proposed changes and apply them to the local draft or merge them to Heretto"); decision 2026-11-16: incoming = the author's own Heretto copy changing, or a terminal/AI proposal; "merge to Heretto" = a REST save with a conflict check
+**Status:** Open — Session 5 of the UI Overhaul plan, **v1.5.0**, **ADR-020**; **BUG-52 must be decided first** (the Changes list is computed from dirtiness)
+**Priority:** P2
+**Impact:** High — gives Save, Refresh, and the API review flow one model and one home
+**Model weight:** Fable (Heretto write path + ADR-008 review flow + dirty semantics + the review carrier, in one context); adversarial review mandatory
+
+**Problem:** Three kinds of difference exist today with three unrelated surfaces: the dirty dot (local vs saved), the red "Updated in Heretto" dot from the remote poll (no way to see or merge it; a dirty tab shows "Changes in both locations" and nothing more), and the API's `pendingReview` (a `ReviewBar` inside the XML pane, invisible once FR-070 closes that tray).
+**Signal:** The brief's fifth item; ADR-008's "two known rough edges".
+**Smallest slice:** `lib/change-sets.ts`, pure over `Tab` + the polled remote copy: **Outgoing** (`savedXmlRef` → `xmlContent`: Save, Discard, diff), **Incoming** (`savedXmlRef` → Heretto's copy: Pull when no outgoing change, diff), **Proposed** (`pendingReview`: Apply, Reject, diff — the review's new home; the XML tray stops auto-opening). A per-tab **Sync** (Pull then Save when no conflict). **Conflict** (outgoing + incoming): Save and Pull disabled; three diffs; Keep mine (typed confirmation naming who last saved, from FR-075's metadata), Take theirs, Resolve in XML. **No automatic three-way merge** in v1 (FR-077). The panel lists every open tab, active first. `PUT /api/tabs/:id/content` is unchanged (ADR-008); a terminal that writes to Heretto directly shows up as Incoming on the next poll. `API.md` explains where a `PUT` appears.
+**Serves:** The AI-review loop (moat 1) and safe collaboration with Heretto's own editor.
+
+### Acceptance criteria
+
+Plan invariants SC1–SC6: the change-set table is pure and exhaustive over (dirty, remote differs, pendingReview); Pull is byte-exact and a suggestion-bearing copy opens in Suggesting mode; Save behaves as today when no incoming change and never reaches `fetch` in a conflict; Keep mine / Take theirs / Resolve in XML do exactly what they say; a `PUT` lands as Proposed with a badge and Apply/Reject re-assert the ADR-008/FR-057 tests; serializer and contract untouched. Re-check ADR-008's deferred "editor read-only while a review is pending".
+
+---
+
+## FR-077: Block-level three-way merge for Source Control conflicts
+
+**Requested:** 2026-11-16
+**Source:** Filed from FR-076's honest exclusion; `headless-heretto`'s `heretto_merge.py` is the reference (block-level, content-matched; about 33,000 random cases exact, with a mandatory human review of close-together edits, accepted by Kelly Hains 2026-11-12)
+**Status:** Open — **parked behind FR-076**; unblock when a real conflict is hit more than occasionally
+**Priority:** P3
+**Impact:** Medium — turns FR-076's conflict choice into a proposed merge the writer reviews
+**Model weight:** Fable (a TypeScript port of a merge algorithm whose correctness was established statistically, plus its review protocol as UI)
+
+**Problem:** FR-076 v1 resolves a conflict by choice (mine / theirs / by hand). When the writer's and Heretto's edits are in different blocks, a block-level merge can combine them, which headless-heretto proves on real topics.
+**Signal:** FR-076's exclusion; headless-heretto's merge report format (`CLOSE-TOGETHER EDITS` review) shows what the UI must present.
+**Smallest slice:** Port the block alignment and merge (not the CLI protocol) to `lib/three-way-merge.ts`; in a conflict offer **Merge** that produces a proposed document and a change list flagging adjacent edits; the writer reviews it as a Proposed change set (FR-076's existing surface) before Save. Never writes without review; the limitations headless-heretto lists (content-matched blocks, no entity expansion, single-topic files only) are refusals, not approximations.
+**Serves:** Collaboration with writers using Heretto's editor at the same time.
+
+### Acceptance criteria
+
+Port the headless-heretto test corpus's shape (random non-overlapping block edits → exact result; overlapping → refusal); a close-together merge is flagged in the UI; a refused merge leaves FR-076's three choices available unchanged.
