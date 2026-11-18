@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { Tooltip } from './Tooltip';
 import type { DocumentMode } from '../types/tab';
 import { ConfirmModal } from './ConfirmModal';
+import { Modal } from './Modal';
 import { WRAP_INLINE_COMMAND, UNWRAP_INLINE_COMMAND, WRAP_SHORTCUTS } from './InlineWrapPlugin';
 import { WRAP_TAGS, WRAP_TAG_LABELS, type WrapTag } from '../lib/inline-wrap';
 import { KeyRegistryContext } from './KeyRegistryContext';
@@ -498,20 +499,8 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
 
       {/* Insert Link Modal */}
       {isLinkModalOpen && (
-        <div
-          className="fixed inset-0 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }}
-          onClick={() => setIsLinkModalOpen(false)}
-        >
-          <div
-            className="rounded-xl p-6 shadow-2xl w-[400px]"
-            style={{
-              backgroundColor: 'var(--app-surface)',
-              border: '1px solid var(--app-border-subtle)',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--app-text-primary)' }}>Insert Link</h3>
+        <Modal onClose={() => setIsLinkModalOpen(false)} labelId="link-modal-title" className="rounded-xl p-6 shadow-2xl w-[400px]">
+            <h3 id="link-modal-title" className="text-lg font-bold mb-4" style={{ color: 'var(--app-text-primary)' }}>Insert Link</h3>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
               URL
             </label>
@@ -525,7 +514,6 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
                   e.preventDefault();
                   submitLink();
                 }
-                if (e.key === 'Escape') setIsLinkModalOpen(false);
               }}
               placeholder="https://example.com"
               className="w-full px-3 py-2 rounded-lg text-sm mb-1"
@@ -590,34 +578,12 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
                 Insert Link
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Insert Table Modal */}
       {isTableModalOpen && (
-        <div
-          className="fixed inset-0 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 100 }}
-          onClick={() => setIsTableModalOpen(false)}
-        >
-          <div
-            className="rounded-xl p-6 shadow-2xl w-[400px]"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="table-modal-title"
-            style={{
-              backgroundColor: 'var(--app-surface)',
-              border: '1px solid var(--app-border-subtle)',
-            }}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                setIsTableModalOpen(false);
-              }
-            }}
-          >
+        <Modal onClose={() => setIsTableModalOpen(false)} labelId="table-modal-title" className="rounded-xl p-6 shadow-2xl w-[400px]">
             <h3 id="table-modal-title" className="text-lg font-bold mb-4" style={{ color: 'var(--app-text-primary)' }}>Insert Table</h3>
 
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -734,8 +700,7 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
                 Insert Table
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {/* Suggesting-mode accept/reject-all controls */}

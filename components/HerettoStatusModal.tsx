@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
+import { HerettoCredentialsForm } from './HerettoCredentialsForm';
 
 const HerettoLogo = ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className} style={style}>
@@ -67,94 +68,7 @@ export const HerettoStatusModal = ({
         </button>
       </div>
 
-      {/* Host */}
-      <label htmlFor="heretto-host-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
-        Heretto host
-      </label>
-      <input
-        id="heretto-host-input"
-        autoFocus
-        type="text"
-        value={herettoCredentials.host}
-        onChange={e => setHerettoCredentials(prev => ({ ...prev, host: e.target.value }))}
-        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-4"
-        style={{
-          backgroundColor: 'var(--app-surface-raised)',
-          border: '1px solid var(--app-border-subtle)',
-          color: 'var(--app-text-primary)',
-        }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
-        placeholder="yourcompany.heretto.com"
-        spellCheck={false}
-      />
-
-      {/* Content root folder (FR-062) */}
-      <label htmlFor="heretto-root-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
-        Content root folder UUID
-      </label>
-      <input
-        id="heretto-root-input"
-        type="text"
-        value={herettoCredentials.rootUuid}
-        onChange={e => setHerettoCredentials(prev => ({ ...prev, rootUuid: e.target.value }))}
-        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-1"
-        style={{
-          backgroundColor: 'var(--app-surface-raised)',
-          border: '1px solid var(--app-border-subtle)',
-          color: 'var(--app-text-primary)',
-        }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
-        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        spellCheck={false}
-      />
-      <p className="text-[10px] mb-4" style={{ color: 'var(--app-text-muted)' }}>
-        The folder the browser opens on. Its UUID is the <code>id</code> of your top-level content folder in Heretto&apos;s REST API.
-      </p>
-
-      {/* Email */}
-      <label htmlFor="heretto-email-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
-        Email
-      </label>
-      <input
-        id="heretto-email-input"
-        type="text"
-        value={herettoCredentials.email}
-        onChange={e => setHerettoCredentials(prev => ({ ...prev, email: e.target.value }))}
-        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-4"
-        style={{
-          backgroundColor: 'var(--app-surface-raised)',
-          border: '1px solid var(--app-border-subtle)',
-          color: 'var(--app-text-primary)',
-        }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
-        placeholder="your.name@company.com"
-      />
-
-      {/* Token */}
-      <label htmlFor="heretto-token-input" className="block text-xs font-medium mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>
-        API Token
-      </label>
-      <input
-        id="heretto-token-input"
-        type="password"
-        value={herettoCredentials.token}
-        onChange={e => setHerettoCredentials(prev => ({ ...prev, token: e.target.value }))}
-        className="w-full px-3 py-2 rounded-lg text-sm font-mono outline-none mb-1"
-        style={{
-          backgroundColor: 'var(--app-surface-raised)',
-          border: '1px solid var(--app-border-subtle)',
-          color: 'var(--app-text-primary)',
-        }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'var(--editor-accent)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'var(--app-border-subtle)')}
-        placeholder="Your Heretto API token"
-      />
-      <p className="text-[10px] mb-5" style={{ color: 'var(--app-text-muted)' }}>
-        Stored locally in ~/heretto.json. Never sent to the browser.
-      </p>
+      <HerettoCredentialsForm credentials={herettoCredentials} setCredentials={setHerettoCredentials} />
 
       {/* Actions */}
       <div className="flex gap-2">

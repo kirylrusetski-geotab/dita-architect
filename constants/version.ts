@@ -21,6 +21,44 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.0',
+    date: '2026-11-17',
+    title: 'A workbench: an activity bar with an Explorer that browses Heretto, a right rail of panels, and the XML pane closed until you ask for it.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          'An activity bar on the left, VS Code style. `Explorer` (⌘1) shows your open editors and a lazy folder tree of your Heretto content root: expand a folder to list it, click a topic to open it through the same import check as before. `Search` (⌘2), `Map` (⌘3) and `Source Control` (⌘4) are placeholders that name the release that fills each. Click the active view\'s icon to collapse the side panel; drag its edge to resize it.',
+          'At the bottom of the activity bar: a `Sessions` slot (a terminal icon, empty until v1.6.0), the Heretto connection (a green circled H when connected, grey when not; click it for the host, account and root, `Test connection`, `Credentials…`, and Open, Save, Replace and Disconnect), and `Settings` (Heretto credentials, Keyboard Shortcuts, What\'s New, and the two theme pickers until v1.3.0).',
+          'A right rail of panels. `XML` (⌘\\) rolls out as a half-screen split, exactly where the XML pane used to be, with the same toolbar and footer; drag its divider to resize it, or drag it closed. `Topic`, `Heretto`, `Prolog`, `Conditions`, `Links` and `AI` open as stacked panels in their own column (placeholders until v1.4.0 and v1.6.0). `View ▸ Toggle Right Rail` (⌥⌘\\) hides the whole rail for a full-width page.',
+          'The native View menu lists the four views and a `Panels` submenu with one toggle per panel; the File menu gained `Convert Topic Type…`, `Connect a Map…`, `Reload Map` and `Disconnect Map`.',
+        ],
+      },
+      {
+        heading: 'Changed',
+        items: [
+          'The XML pane used to open with every topic and take half the window. It now stays closed until you open it (⌘\\ or the rail), and opening a topic from Heretto, a local file, the API or a template never opens it. The one exception: when an AI tool proposes a change through the API, the XML split opens itself so the proposal is never invisible, and the tab shows an amber badge until you accept or reject it.',
+          'The 64 px header and the separate tab bar are now one 34 px row: the brand, the version pill and the tabs. The `File Options` and `Heretto` dropdowns are gone. On the Mac their commands are in the menu bar; in a browser they are in the Explorer\'s `…` menu (New Topic, Open Local File, Open from Heretto, Save to Heretto, Save Local Copy, Replace, Export as PDF, Convert Topic Type, Connect a Map, Keyboard Shortcuts). The `Last update` indicator moved to the status bar at the bottom of the page.',
+          'The syntax-theme menu, the Problems panel, and the Insert Link and Insert Table dialogs now use the same keyboard behaviour as every other dialog: Escape closes, Tab stays inside, focus returns to where you were.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'Your layout is remembered between launches: the active view, the side panel\'s width, which panels are open and how big, whether the rail is hidden. The old XML split width carries over. If the stored layout is ever unreadable, the app starts from the defaults instead of failing.',
+          'The Heretto bar above the page (path, saved state, Refresh, Disconnect) stays until v1.5.0, when Source Control takes over its job.',
+          'Closing the XML split hides it rather than unloading it, so when you reopen it your cursor, scroll position and undo history are exactly where you left them.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-017. One layout object (`dita-architect-workbench`) owned by `hooks/useWorkbenchLayout.ts` over a pure model in `lib/workbench-layout.ts`; the regions are components under `components/workbench/`. The XML pane moved into `XmlSplit` unchanged inside (`MonacoDitaEditor`, `SyncManager`, the per-tab Lexical stack and the serializer are untouched; corpus, R1 and the edit fuzz unchanged). Invariants W1 to W7 are pinned: layout round-trips through storage with safe fallbacks; no load path can reach the layout; a pending review opens the split on its rising edge only; every retired command has a native menu row and a browser-mode menu item; the Explorer lists a folder once per expand (one ten-deep path is eleven requests, fake tenant); a closed split keeps every Monaco instance mounted. A fresh-context adversarial review before release found one defect (Reload Map and Disconnect Map had no browser-mode surface) and four weaknesses, all fixed and pinned. Suite: 98 files, 2,431 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.0.0',
     date: '2026-11-03',
     title: 'DITA Architect 1.0: a daily driver. Create any of the four topic types, mark them up, connect a map, and save to Heretto, all without opening Heretto\'s editor or the XML pane.',

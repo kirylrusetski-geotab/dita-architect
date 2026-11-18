@@ -3,6 +3,7 @@ import { DITA_TOPIC_TYPE, type DitaTopicType } from '../constants/dita';
 import { THEME_OPTIONS, type ThemeName } from '../components/Toolbar';
 import { SYNTAX_THEME_OPTIONS, type SyntaxThemeName } from '../components/MonacoDitaEditor';
 import { isNativeApp, nativeApiObject } from './native-api-object';
+import { PANEL_IDS, VIEW_IDS, type PanelId, type ViewId } from './workbench-layout';
 
 /**
  * ADR-016 decision 3 — the menu bridge.
@@ -24,7 +25,14 @@ export const MENU_BRIDGE_METHODS = [
   'openHerettoBrowserModal',
   'openReleaseNotes',
   'openKeyboardShortcuts',
-  'toggleXmlPane',
+  // ADR-017: the workbench. `togglePanel` replaces `toggleXmlPane` (the XML is one of the rail's panels).
+  'togglePanel',
+  'toggleRightRail',
+  'focusView',
+  'openConvertModal',
+  'openConnectMapModal',
+  'reloadMap',
+  'disconnectMap',
   'setTheme',
   'setXmlTheme',
   'getActiveTheme',
@@ -49,7 +57,16 @@ export interface NativeMenuBridgeHandlers {
   openHerettoBrowser: (mode: 'open' | 'save' | 'replace') => Promise<void>;
   openReleaseNotes: () => void;
   openKeyboardShortcuts: () => void;
-  toggleXmlPane: () => void;
+  /** ADR-017: the layout hook's actions, one per View-menu row. */
+  togglePanel: (id: PanelId) => void;
+  toggleRightRail: () => void;
+  focusView: (id: ViewId) => void;
+  /** FR-069's orphan: Convert Topic Type… had no menu-bar home. */
+  openConvertModal: () => void;
+  /** ADR-013's map commands, moved from the retired Heretto dropdown. */
+  openConnectMapModal: () => void;
+  reloadMap: () => void;
+  disconnectMap: () => void;
   setTheme: (name: ThemeName) => void;
   setXmlTheme: (name: SyntaxThemeName) => void;
   getTheme: () => string;
@@ -75,6 +92,12 @@ function isSyntaxThemeName(v: unknown): v is SyntaxThemeName {
 }
 function isExportStatus(v: unknown): v is ExportStatus {
   return typeof v === 'string' && (EXPORT_STATUSES as readonly string[]).includes(v);
+}
+function isPanelId(v: unknown): v is PanelId {
+  return typeof v === 'string' && (PANEL_IDS as readonly string[]).includes(v);
+}
+function isViewId(v: unknown): v is ViewId {
+  return typeof v === 'string' && (VIEW_IDS as readonly string[]).includes(v);
 }
 
 export function registerNativeMenuBridge(handlers: NativeMenuBridgeHandlers): void {
@@ -135,8 +158,40 @@ export function registerNativeMenuBridge(handlers: NativeMenuBridgeHandlers): vo
       return ok();
     },
 
-    toggleXmlPane: (): string => {
-      handlers.toggleXmlPane();
+    togglePanel: (id: unknown): string => {
+      if (!isPanelId(id)) return bad(`Unknown panel "${String(id)}": expected one of ${PANEL_IDS.join(', ')}`);
+      handlers.togglePanel(id);
+      return ok({ panel: id });
+    },
+
+    toggleRightRail: (): string => {
+      handlers.toggleRightRail();
+      return ok();
+    },
+
+    focusView: (id: unknown): string => {
+      if (!isViewId(id)) return bad(`Unknown view "${String(id)}": expected one of ${VIEW_IDS.join(', ')}`);
+      handlers.focusView(id);
+      return ok({ view: id });
+    },
+
+    openConvertModal: (): string => {
+      handlers.openConvertModal();
+      return ok();
+    },
+
+    openConnectMapModal: (): string => {
+      handlers.openConnectMapModal();
+      return ok();
+    },
+
+    reloadMap: (): string => {
+      handlers.reloadMap();
+      return ok();
+    },
+
+    disconnectMap: (): string => {
+      handlers.disconnectMap();
       return ok();
     },
 

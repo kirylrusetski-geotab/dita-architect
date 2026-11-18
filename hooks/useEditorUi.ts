@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Tab } from '../types/tab';
 import type { ThemeName } from '../components/Toolbar';
 import type { SyntaxThemeName } from '../components/MonacoDitaEditor';
@@ -8,8 +8,6 @@ interface UseEditorUiParams {
   activeTabId: string;
   tabs: Tab[];
   setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
-  herettoDropdownRef: React.RefObject<HTMLDivElement | null>;
-  setIsHerettoDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 /**
@@ -27,8 +25,6 @@ export function useEditorUi({
   activeTabId,
   tabs,
   setTabs,
-  herettoDropdownRef,
-  setIsHerettoDropdownOpen,
 }: UseEditorUiParams) {
   const [theme, setTheme] = useState<ThemeName>(() => {
     const stored = localStorage.getItem('dita-architect-theme');
@@ -70,55 +66,10 @@ export function useEditorUi({
     localStorage.setItem('dita-architect-syntax-theme', newTheme);
   }, []);
 
-  const [isSyntaxThemeOpen, setIsSyntaxThemeOpen] = useState(false);
-  const [codeEditorCollapsed, setCodeEditorCollapsed] = useState(false);
-  const syntaxDropdownRef = useRef<HTMLDivElement>(null);
-
-  const [showErrorPanel, setShowErrorPanel] = useState(false);
-  const errorPanelRef = useRef<HTMLDivElement>(null);
-
-  const [isFileOptionsOpen, setIsFileOptionsOpen] = useState(false);
-  const fileOptionsRef = useRef<HTMLDivElement>(null);
-
+  // ADR-017: the header dropdowns, the XML pane's collapse state, its syntax-theme
+  // menu and its Problems panel used to be owned here. The workbench layout hook
+  // owns the pane now and each popover owns its own open state (components/workbench).
   const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
-
-  // Close syntax theme dropdown on outside click (only registered while open)
-  useEffect(() => {
-    if (!isSyntaxThemeOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (syntaxDropdownRef.current && !syntaxDropdownRef.current.contains(e.target as Node)) {
-        setIsSyntaxThemeOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSyntaxThemeOpen]);
-
-  // Close error panel on outside click
-  useEffect(() => {
-    if (!showErrorPanel) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (errorPanelRef.current && !errorPanelRef.current.contains(e.target as Node)) {
-        setShowErrorPanel(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showErrorPanel]);
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (herettoDropdownRef.current && !herettoDropdownRef.current.contains(e.target as Node)) {
-        setIsHerettoDropdownOpen(false);
-      }
-      if (fileOptionsRef.current && !fileOptionsRef.current.contains(e.target as Node)) {
-        setIsFileOptionsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [herettoDropdownRef, setIsHerettoDropdownOpen]);
 
   // Ctrl+Enter to sync between editors (active tab)
   // ? or Cmd+/ to open keyboard shortcuts
@@ -164,17 +115,6 @@ export function useEditorUi({
   return {
     theme,
     syntaxTheme,
-    isSyntaxThemeOpen,
-    setIsSyntaxThemeOpen,
-    codeEditorCollapsed,
-    setCodeEditorCollapsed,
-    syntaxDropdownRef,
-    showErrorPanel,
-    setShowErrorPanel,
-    errorPanelRef,
-    isFileOptionsOpen,
-    setIsFileOptionsOpen,
-    fileOptionsRef,
     isKeyboardShortcutsOpen,
     setIsKeyboardShortcutsOpen,
     handleThemeChange,

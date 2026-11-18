@@ -6,6 +6,18 @@ Shipped work by version (newest first) and the dated changelog. Split out of [BA
 
 ## Completed
 
+### Shipped in v1.1.0 (2026-11-17) — UI Overhaul Session 1: the workbench (ADR-017)
+
+**MINOR bump** — a new layout model. Built directly with Fable from a mock Kiryl approved after two rounds (the XML as its own half-screen split, not a stacked panel; a terminal icon for Sessions; a circled H for Heretto). Smoke: the dev server in Chrome through `cli-chrome` (default state, the split, the split plus two stacked panels, the Heretto popover, a topic opened from the tree through the import check, Insert Link on the shared Modal); the rebuilt native app is Kiryl's click-through (menu rows, ⌘1–⌘4, ⌘\, ⌥⌘\, the Panels submenu). **Adversarial review** (fresh context, 17 throwaway tests): one defect — Reload Map / Disconnect Map had no browser-mode surface (W4) — and four weaknesses (W3 keyed on a boolean, `⌥⌘\` by `e.key` only, Settings sub-pages losing focus, popover above the Modal), all fixed and pinned before release; details in ADR-017's implementation note.
+
+| ID | Item | Type | Resolution |
+|----|------|------|------------|
+| FR-070 | Workbench layout — activity bar, side panel, XML split, metadata panel column, right rail, XML closed by default | Feature | **Shipped.** `lib/workbench-layout.ts` (the pure model: `VIEW_IDS`, `PANEL_IDS`, defaults, a tolerant `parseStoredLayout`, reducers) + `hooks/useWorkbenchLayout.ts` (one persisted object `dita-architect-workbench` v1, the legacy `ditaSplitWidth` migrated once, the W3 rising-edge rule, browser-only key bindings) + `components/workbench/` (`TitleBar`, `ActivityBar` with the Sessions/Heretto/Settings popovers, `SidePanel`, `views/ExplorerView` + `hooks/useFolderTree.ts`, `views/PlaceholderView`, `XmlSplit` — today's pane relocated, Monaco kept mounted when closed — `PanelColumn`, `RightRail`, `Popover`, `panel-registry.ts`). `dita-architect.tsx` 1,633 → 1,085 lines; `useEditorUi` and `useHerettoCms` lose the dropdown and pane state; `HerettoStatusModal` hosts the new `HerettoCredentialsForm`; `BottomToolbar` carries the `Last update` indicator; the Toolbar's Insert Link / Insert Table overlays ride the shared `Modal` (the BUG-52-adjacent BACKLOG note). Native menu: `Convert Topic Type…`, `Connect a Map…`, `Reload Map`, `Disconnect Map`, View ▸ `Explorer`/`Search`/`Map`/`Source Control` (⌘1–⌘4), View ▸ `Panels` (one `togglePanel(id)` row per panel, XML keeps ⌘\), `Toggle Right Rail` (⌥⌘\); `toggleXmlPane` replaced by `togglePanel`. **Fable.** |
+| FR-054 | Heretto folder tree view | Feature | **Shipped via FR-070, in the sidebar rather than the modal** (the exclusion FR-054 recorded is lifted by ADR-017 decision 5). Lazy, through `herettoFolderCache`; one ten-deep path is eleven requests (W5, fake tenant); a topic opens through `handleHerettoOpen` with a search-result-shaped item. The modal keeps its breadcrumb view for Save As / Replace until Session 2. |
+| FR-069 | Retire the header dropdowns | Feature | **Shipped via FR-070, widened:** both dropdowns gone in both run modes (ADR-017 decision 4); Convert and the map rows in the File menu; the Heretto status role on the rail; the Explorer `…` menu for browser mode. |
+
+Tests (written before their code): `tests/workbench-layout.test.ts` (33 — W1 defaults, round trip, every corrupt shape, the split-key migration, the W7 reducers), `tests/use-workbench-layout.test.tsx` (14 — persistence through a real in-memory storage, a throwing storage, the W3 rising edge incl. a review pending at mount and with the rail hidden, the browser-only key bindings), `tests/workbench/xml-split.test.tsx` (9 — the toolbar, close gestures, no Monaco remount across close/reopen, drag math, the ADR-008 review swap), `tests/workbench/explorer-view.test.tsx` (12 — W5 request counts, cache reuse, retry, the open-topic shape, keyboard, Open Editors, the `…` menu's command set), `tests/workbench/chrome.test.tsx` (16 — W4 under `dita:` and `http:`, the three rail popovers, the rail and the panel column), `tests/workbench/w2-load-paths.test.ts` (7 — no load path can reach the layout); `tests/native-menu-wiring.test.ts` and `tests/native-menu-bridge.test.ts` extended for the new rows and methods. The v0.8-era source-grep `tests/p1-format-button-toolbar.test.ts` was replaced by the XmlSplit suite. Suite: 98 files, 2,424 tests.
+
 ### Shipped in v1.0.0 (2026-11-03) — Session 8 of the execution plan: 1.0, the daily driver
 
 **MAJOR bump** — the first and only one per the versioning policy. "1.0 = daily-driver authoring tool": create any of the four topic types from a template, mark it up, connect a map, validate, save to Heretto, suggest — without opening Heretto's own editor or the XML pane (roadmap, decided 2026-07-18).
@@ -655,6 +667,10 @@ Features shipped before the backlog was formalized. Added retroactively for trac
 ## Changelog
 
 Reverse-chronological. Newest day first; within a day, entries read in the order they happened.
+
+### 2026-11-17
+
+- **Session 1 built and v1.1.0 released (Fable).** Mock first (two rounds, Kiryl approved), ADR-017 drafted, then tests first throughout: the layout model and hook (W1, W3, W7), the components (W4, W5, W7), the W2 wiring check, the menu tests extended. The main component shed the header, the tab bar and the XML pane into `components/workbench/`. Dev-server smoke in Chrome; Swift type-checked; adversarial review before release. FR-070, FR-054 and FR-069 marked shipped; the UI overhaul chain's next row is FR-071 + FR-072 (Session 2, Opus).
 
 ### 2026-11-03
 

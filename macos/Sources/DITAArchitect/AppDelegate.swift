@@ -76,13 +76,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         .action(MenuAction(title: "Save to Heretto", key: "s", modifiers: [.command], method: "saveActiveTab", args: [:])),
         .action(MenuAction(title: "Replace in Heretto…", key: "", modifiers: [], method: "openReplaceModal", args: [:])),
         .action(MenuAction(title: "Export as PDF…", key: "", modifiers: [], method: "openExportModal", args: [:])),
+        .action(MenuAction(title: "Convert Topic Type…", key: "", modifiers: [], method: "openConvertModal", args: [:])),
         .separator,
         .action(MenuAction(title: "Connect to Heretto…", key: "", modifiers: [], method: "openHerettoConnectModal", args: [:])),
         .action(MenuAction(title: "Open from Heretto…", key: "", modifiers: [], method: "openHerettoBrowserModal", args: [:])),
+        .separator,
+        // ADR-013's map commands, moved here from the retired Heretto dropdown (ADR-017 decision 4).
+        .action(MenuAction(title: "Connect a Map…", key: "", modifiers: [], method: "openConnectMapModal", args: [:])),
+        .action(MenuAction(title: "Reload Map", key: "", modifiers: [], method: "reloadMap", args: [:])),
+        .action(MenuAction(title: "Disconnect Map", key: "", modifiers: [], method: "disconnectMap", args: [:])),
     ]
 
+    // ADR-017: the workbench. lib/workbench-layout.ts VIEW_IDS, in the same order (⌘1–⌘4).
     private let viewMenuEntries: [MenuEntry] = [
-        .action(MenuAction(title: "Toggle XML Pane", key: "\\", modifiers: [.command], method: "toggleXmlPane", args: [:])),
+        .action(MenuAction(title: "Explorer", key: "1", modifiers: [.command], method: "focusView", args: ["id": "explorer"])),
+        .action(MenuAction(title: "Search", key: "2", modifiers: [.command], method: "focusView", args: ["id": "search"])),
+        .action(MenuAction(title: "Map", key: "3", modifiers: [.command], method: "focusView", args: ["id": "map"])),
+        .action(MenuAction(title: "Source Control", key: "4", modifiers: [.command], method: "focusView", args: ["id": "scm"])),
+        .separator,
+        .action(MenuAction(title: "Toggle Right Rail", key: "\\", modifiers: [.command, .option], method: "toggleRightRail", args: [:])),
+    ]
+
+    // ADR-017: View ▸ Panels. lib/workbench-layout.ts PANEL_IDS, in the same order; XML keeps ⌘\.
+    private let panelEntries: [MenuEntry] = [
+        .action(MenuAction(title: "XML", key: "\\", modifiers: [.command], method: "togglePanel", args: ["id": "xml"])),
+        .separator,
+        .action(MenuAction(title: "Topic", key: "", modifiers: [], method: "togglePanel", args: ["id": "topic"])),
+        .action(MenuAction(title: "Heretto", key: "", modifiers: [], method: "togglePanel", args: ["id": "heretto"])),
+        .action(MenuAction(title: "Prolog", key: "", modifiers: [], method: "togglePanel", args: ["id": "prolog"])),
+        .action(MenuAction(title: "Conditions", key: "", modifiers: [], method: "togglePanel", args: ["id": "conditions"])),
+        .action(MenuAction(title: "Links", key: "", modifiers: [], method: "togglePanel", args: ["id": "links"])),
+        .action(MenuAction(title: "AI", key: "", modifiers: [], method: "togglePanel", args: ["id": "ai"])),
     ]
 
     // components/Toolbar.tsx THEME_OPTIONS, in the same order.
@@ -181,12 +205,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
         editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
 
-        // View menu (P2-40): Toggle XML Pane, Theme submenu, XML Syntax Theme submenu
+        // View menu (P2-40, ADR-017): the four views, Toggle Right Rail, the Panels
+        // submenu, then the Theme and XML Syntax Theme submenus
         let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         mainMenu.addItem(viewItem)
         let viewMenu = NSMenu(title: "View")
         viewItem.submenu = viewMenu
         addEntries(viewMenuEntries, to: viewMenu)
+        viewMenu.addItem(.separator())
+
+        let panelsItem = NSMenuItem(title: "Panels", action: nil, keyEquivalent: "")
+        let panelsMenu = NSMenu(title: "Panels")
+        addEntries(panelEntries, to: panelsMenu)
+        panelsItem.submenu = panelsMenu
+        viewMenu.addItem(panelsItem)
         viewMenu.addItem(.separator())
 
         let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")

@@ -13,6 +13,7 @@ import { createTab } from '../types/tab';
 import { THEME_OPTIONS } from '../components/Toolbar';
 import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
 import { DITA_TOPIC_TYPE } from '../constants/dita';
+import { PANEL_IDS, VIEW_IDS } from '../lib/workbench-layout';
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
@@ -33,7 +34,13 @@ function makeHandlers(): NativeMenuBridgeHandlers & { calls: Record<string, unkn
     openHerettoBrowser: rec('openHerettoBrowser') as unknown as NativeMenuBridgeHandlers['openHerettoBrowser'],
     openReleaseNotes: rec('openReleaseNotes'),
     openKeyboardShortcuts: rec('openKeyboardShortcuts'),
-    toggleXmlPane: rec('toggleXmlPane'),
+    togglePanel: rec('togglePanel') as NativeMenuBridgeHandlers['togglePanel'],
+    toggleRightRail: rec('toggleRightRail'),
+    focusView: rec('focusView') as NativeMenuBridgeHandlers['focusView'],
+    openConvertModal: rec('openConvertModal'),
+    openConnectMapModal: rec('openConnectMapModal'),
+    reloadMap: rec('reloadMap'),
+    disconnectMap: rec('disconnectMap'),
     setTheme: rec('setTheme') as NativeMenuBridgeHandlers['setTheme'],
     setXmlTheme: rec('setXmlTheme') as NativeMenuBridgeHandlers['setXmlTheme'],
     getTheme: () => 'nord',
@@ -137,7 +144,7 @@ describe('each method calls the in-app handler and answers {success, httpStatus}
     expect(h.calls.handleHerettoSave).toEqual([[]]);
   });
 
-  it('openReplaceModal, openExportModal, openHerettoConnectModal, openReleaseNotes, openKeyboardShortcuts, toggleXmlPane', () => {
+  it('the no-argument rows each call their handler once', () => {
     forceNative();
     const h = makeHandlers();
     registerNativeMenuBridge(h);
@@ -147,13 +154,51 @@ describe('each method calls the in-app handler and answers {success, httpStatus}
     ok(api.openHerettoConnectModal());
     ok(api.openReleaseNotes());
     ok(api.openKeyboardShortcuts());
-    ok(api.toggleXmlPane());
+    ok(api.toggleRightRail());
+    ok(api.openConvertModal());
+    ok(api.openConnectMapModal());
+    ok(api.reloadMap());
+    ok(api.disconnectMap());
     expect(h.calls.openReplace).toEqual([[]]);
     expect(h.calls.exportPdf).toEqual([[]]);
     expect(h.calls.openHerettoStatus).toEqual([[]]);
     expect(h.calls.openReleaseNotes).toEqual([[]]);
     expect(h.calls.openKeyboardShortcuts).toEqual([[]]);
-    expect(h.calls.toggleXmlPane).toEqual([[]]);
+    expect(h.calls.toggleRightRail).toEqual([[]]);
+    expect(h.calls.openConvertModal).toEqual([[]]);
+    expect(h.calls.openConnectMapModal).toEqual([[]]);
+    expect(h.calls.reloadMap).toEqual([[]]);
+    expect(h.calls.disconnectMap).toEqual([[]]);
+  });
+
+  it.each([...PANEL_IDS])('togglePanel(%s) toggles that panel (ADR-017)', (id) => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    expect(ok(getApi().togglePanel(id)).panel).toBe(id);
+    expect(h.calls.togglePanel).toEqual([[id]]);
+  });
+
+  it.each([...VIEW_IDS])('focusView(%s) focuses that view (ADR-017)', (id) => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    expect(ok(getApi().focusView(id)).view).toBe(id);
+    expect(h.calls.focusView).toEqual([[id]]);
+  });
+
+  it('togglePanel / focusView reject an unknown id with 400 and never call the handler', () => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    const a = JSON.parse(getApi().togglePanel('metadata'));
+    const b = JSON.parse(getApi().focusView('timeline'));
+    expect(a).toMatchObject({ success: false, httpStatus: 400 });
+    expect(b).toMatchObject({ success: false, httpStatus: 400 });
+    expect(a.error).toMatch(/metadata/);
+    expect(b.error).toMatch(/timeline/);
+    expect(h.calls.togglePanel).toBeUndefined();
+    expect(h.calls.focusView).toBeUndefined();
   });
 
   it('openHerettoBrowserModal opens the browser in open mode', () => {

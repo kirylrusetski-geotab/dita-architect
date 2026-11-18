@@ -112,9 +112,11 @@ On macOS the modifier is ⌘; elsewhere it is Ctrl.
 | ⌘O | Open a local `.dita`/`.xml` file |
 | ⌘W | Close the active tab |
 | ⌘S | Save to Heretto (opens the Save browser for a tab without a Heretto file) |
-| ⌘\\ | Show/hide the XML pane |
+| ⌘\\ | Show/hide the XML split |
+| ⌥⌘\\ | Show/hide the right rail (hiding it closes every panel) |
+| ⌘1 / ⌘2 / ⌘3 / ⌘4 | Explorer / Search / Map / Source Control view (the active view again collapses the side panel) |
 
-File also has Replace in Heretto…, Export as PDF… (a real paginated PDF with page numbers, via a native save panel), Connect to Heretto…, and Open from Heretto…; View has Theme and XML Syntax Theme submenus with a check on the active one. New Troubleshooting topics and Convert Topic Type are reached through the in-app `New`/`Convert` dialogs, which list all four topic types (Convert intentionally does not offer Troubleshooting as a target — see `TopicTypeModal`'s `types` prop).
+File also has Replace in Heretto…, Export as PDF… (a real paginated PDF with page numbers, via a native save panel), Convert Topic Type…, Connect to Heretto…, Open from Heretto…, Connect a Map…, Reload Map and Disconnect Map; View has the four views, a Panels submenu (one toggle per right-rail panel), Toggle Right Rail, and the Theme and XML Syntax Theme submenus with a check on the active one. In a browser (no menu bar) the same commands are in the Explorer view's `…` menu. New Troubleshooting topics and Convert Topic Type are reached through the in-app `New`/`Convert` dialogs, which list all four topic types (Convert intentionally does not offer Troubleshooting as a target — see `TopicTypeModal`'s `types` prop).
 
 ## Supported DITA Elements
 

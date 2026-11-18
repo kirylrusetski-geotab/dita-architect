@@ -19,8 +19,8 @@ export const ContentModelViolationModal = ({ violations, onClose }: ContentModel
     </h3>
     <p className="text-sm mb-4" style={{ color: 'var(--app-text-muted)' }}>
       {violations.length === 1
-        ? 'This topic has one place Heretto would reject. Fix it in the XML pane, then save again.'
-        : `This topic has ${violations.length} places Heretto would reject. Fix them in the XML pane, then save again.`}
+        ? 'This topic has one place Heretto would reject. Fix it in the XML split (⌘\\ opens it), then save again.'
+        : `This topic has ${violations.length} places Heretto would reject. Fix them in the XML split (⌘\\ opens it), then save again.`}
     </p>
 
     <ul className="max-h-64 overflow-y-auto rounded-lg mb-5" style={{ border: '1px solid var(--app-border-subtle)' }}>

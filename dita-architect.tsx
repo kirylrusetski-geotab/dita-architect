@@ -13,10 +13,8 @@ import { createCommand } from 'lexical';
 import { $createTableNode, $createTableRowNode, $createTableCellNode, TableCellHeaderStates } from '@lexical/table';
 import { $getSelection, $isRangeSelection, $createParagraphNode, COMMAND_PRIORITY_EDITOR } from 'lexical';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { MonacoDitaEditor } from './components/MonacoDitaEditor';
 import { Toolbar } from './components/Toolbar';
 import { BottomToolbar } from './components/BottomToolbar';
-import { Tooltip } from './components/Tooltip';
 import { SyncManager } from './components/SyncManager';
 import { TableColumnSizer } from './components/TableColumnSizer';
 import { TableActionMenuPlugin } from './components/TableActionMenuPlugin';
@@ -32,7 +30,7 @@ import { CascadeSeparatorPlugin } from './components/CascadeSeparatorPlugin';
 import { HerettoImageResolverPlugin } from './components/HerettoImageResolverPlugin';
 import { XrefValidationPlugin } from './components/XrefValidationPlugin';
 import { InlineValidationPlugin } from './components/InlineValidationPlugin';
-import { Code, CheckCircle, AlertTriangle, AlertCircle, BookOpen, Save, FolderOpen, RefreshCw, FilePlus, ChevronDown, CloudUpload, FileText, Loader2, X, PanelRightClose, PanelRightOpen, Upload, Code2, Printer, WrapText, Keyboard, Network } from 'lucide-react';
+import { FolderOpen, RefreshCw, CloudUpload, Loader2, X } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { TopicTypeModal } from './components/TopicTypeModal';
 import { SaveTopicModal } from './components/SaveTopicModal';
@@ -45,11 +43,7 @@ import { APP_VERSION } from './constants/version';
 import { ImportVerificationModal } from './components/ImportVerificationModal';
 import { HerettoReplaceModal } from './components/HerettoReplaceModal';
 import { HerettoReplaceBar } from './components/HerettoReplaceBar';
-import { ReviewBar } from './components/ReviewBar';
-import { DiffViewer } from './components/DiffViewer';
 import { ExitEditModeModal } from './components/ExitEditModeModal';
-import { SYNTAX_THEME_OPTIONS } from './components/MonacoDitaEditor';
-import type { XmlError } from './components/MonacoDitaEditor';
 import { formatRelativeTime, formatXml } from './lib/xml-utils';
 import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
@@ -67,6 +61,16 @@ import { ConnectMapModal } from './components/ConnectMapModal';
 import { ContentModelViolationModal } from './components/ContentModelViolationModal';
 import { useExternalLoad } from './hooks/useExternalLoad';
 import { EDITOR_NODES } from './constants/editor-nodes';
+// ADR-017: the workbench
+import { useWorkbenchLayout } from './hooks/useWorkbenchLayout';
+import { TitleBar } from './components/workbench/TitleBar';
+import { ActivityBar } from './components/workbench/ActivityBar';
+import { SidePanel } from './components/workbench/SidePanel';
+import { ExplorerView } from './components/workbench/views/ExplorerView';
+import { PlaceholderView } from './components/workbench/views/PlaceholderView';
+import { RightRail } from './components/workbench/RightRail';
+import { PanelColumn } from './components/workbench/PanelColumn';
+import { XmlSplit } from './components/workbench/XmlSplit';
 
 // --- LEXICAL CONFIGURATION ---
 
@@ -190,34 +194,8 @@ export default function ProfessionalDitaEditor() {
     });
   }, []);
 
-  // Split-pane resize
-  const [leftPaneWidth, setLeftPaneWidth] = useState<number>(() => {
-    const stored = localStorage.getItem('ditaSplitWidth');
-    return stored ? parseFloat(stored) : 50;
-  });
+  // ADR-017: the editor-plus-XML container; the XML split's drag is measured against it.
   const splitContainerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const [isSplitDragging, setIsSplitDragging] = useState(false);
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    setIsSplitDragging(true);
-    const handleMouseMove = (ev: MouseEvent) => {
-      if (!isDraggingRef.current || !splitContainerRef.current) return;
-      const rect = splitContainerRef.current.getBoundingClientRect();
-      const pct = Math.max(20, Math.min(80, ((ev.clientX - rect.left) / rect.width) * 100));
-      setLeftPaneWidth(pct);
-      localStorage.setItem('ditaSplitWidth', String(pct));
-    };
-    const handleMouseUp = () => {
-      isDraggingRef.current = false;
-      setIsSplitDragging(false);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, []);
 
   // Show "What's New" on first launch after a version update
   useEffect(() => {
@@ -266,9 +244,6 @@ export default function ProfessionalDitaEditor() {
     herettoSaveProgress,
     contentModelViolations,
     setContentModelViolations,
-    isHerettoDropdownOpen,
-    setIsHerettoDropdownOpen,
-    herettoDropdownRef,
     herettoSaveFileName,
     setHerettoSaveFileName,
     herettoRefreshing,
@@ -306,6 +281,7 @@ export default function ProfessionalDitaEditor() {
 
   // ADR-013: the connected map's key registry, app-wide; chips read it from context.
   const keyRegistry = useKeyRegistry();
+  const { reload: reloadMap, disconnect: disconnectMap } = keyRegistry;
   const [isConnectMapOpen, setIsConnectMapOpen] = useState(false);
 
   // External content loading hook
@@ -318,17 +294,6 @@ export default function ProfessionalDitaEditor() {
   const {
     theme: appTheme,
     syntaxTheme,
-    isSyntaxThemeOpen,
-    setIsSyntaxThemeOpen,
-    codeEditorCollapsed,
-    setCodeEditorCollapsed,
-    syntaxDropdownRef,
-    showErrorPanel,
-    setShowErrorPanel,
-    errorPanelRef,
-    isFileOptionsOpen,
-    setIsFileOptionsOpen,
-    fileOptionsRef,
     isKeyboardShortcutsOpen,
     setIsKeyboardShortcutsOpen,
     handleThemeChange,
@@ -337,9 +302,11 @@ export default function ProfessionalDitaEditor() {
     activeTabId,
     tabs,
     setTabs,
-    herettoDropdownRef,
-    setIsHerettoDropdownOpen,
   });
+
+  // ADR-017: the one owner of the workbench's layout (W1); W3's rule lives in the hook.
+  const workbench = useWorkbenchLayout({ activeReviewKey: activeTab?.pendingReview ? activeTab.id : null });
+  const { layout } = workbench;
 
   // FR-045/FR-057: accept/reject a pendingReview staged by the API insert or PUT path.
   const handleReviewAccept = useCallback((tabId: string) => {
@@ -480,33 +447,42 @@ export default function ProfessionalDitaEditor() {
   // handler the in-app control calls. Re-registers (merging into the shared
   // __ditaApi object) whenever a handler changes — not on every keystroke.
   const activeHasReplaceTarget = !!activeTab?.herettoReplaceTarget;
+  // The diff modal needs a target; without one, pick it in the browser first.
+  // One handler for the File menu, the Explorer menu and the rail popover (Gate 7).
+  const openReplace = useCallback(() => {
+    if (activeHasReplaceTarget) setIsHerettoReplaceModalOpen(true);
+    else void openHerettoBrowser('replace');
+  }, [activeHasReplaceTarget, openHerettoBrowser]);
+
   useEffect(() => {
     registerNativeMenuBridge({
       getActiveTabId: () => activeTabId,
       handleNewTopic,
       handleCloseTab,
       handleHerettoSave: () => handleHerettoSave(),
-      openReplace: () => {
-        // The diff modal needs a target; without one, pick it in the browser first
-        // (exactly what the Heretto dropdown's "Replace existing..." does).
-        if (activeHasReplaceTarget) setIsHerettoReplaceModalOpen(true);
-        else void openHerettoBrowser('replace');
-      },
+      openReplace,
       exportPdf: handlePrint,
       openHerettoStatus,
       openHerettoBrowser,
       openReleaseNotes: () => setIsReleaseNotesOpen(true),
       openKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
-      toggleXmlPane: () => setCodeEditorCollapsed(prev => !prev),
+      togglePanel: workbench.togglePanel,
+      toggleRightRail: workbench.toggleRail,
+      focusView: workbench.focusView,
+      openConvertModal: () => setIsConvertModalOpen(true),
+      openConnectMapModal: () => setIsConnectMapOpen(true),
+      reloadMap: () => { void reloadMap(); },
+      disconnectMap,
       setTheme: handleThemeChange,
       setXmlTheme: handleSyntaxThemeChange,
       getTheme: () => appTheme,
       getXmlTheme: () => syntaxTheme,
     });
   }, [
-    activeTabId, activeHasReplaceTarget, handleNewTopic, handleCloseTab, handleHerettoSave, openHerettoBrowser,
+    activeTabId, handleNewTopic, handleCloseTab, handleHerettoSave, openHerettoBrowser, openReplace,
     openHerettoStatus, handlePrint, handleThemeChange, handleSyntaxThemeChange, appTheme, syntaxTheme,
-    setIsKeyboardShortcutsOpen, setCodeEditorCollapsed,
+    setIsKeyboardShortcutsOpen, workbench.togglePanel, workbench.toggleRail, workbench.focusView,
+    reloadMap, disconnectMap,
   ]);
 
   // ADR-016 decision 5: the View menu's check marks come from this push.
@@ -729,371 +705,107 @@ export default function ProfessionalDitaEditor() {
         />
       )}
 
-      {/* Top Bar */}
-      <div
-        className="h-16 flex items-center justify-between px-6 shrink-0"
-        style={{
-          backgroundColor: 'var(--app-surface)',
-          borderBottom: '1px solid var(--app-border)',
-          zIndex: 30,
-          position: 'relative',
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 px-2 py-1.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dita-500 to-dita-600 flex items-center justify-center shadow-lg shadow-dita-500/20">
-              <BookOpen className="text-white w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--app-text-primary)' }}>
-                  DITA <span className="text-dita-500">Architect</span>
-                </h2>
-                <button
-                  onClick={() => setIsReleaseNotesOpen(true)}
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors cursor-pointer hover-app"
-                  style={{
-                    color: 'var(--app-text-muted)',
-                    backgroundColor: 'var(--app-surface-raised)',
-                    border: '1px solid var(--app-border-subtle)',
-                  }}
-                  aria-label="View release notes"
-                >
-                  v{APP_VERSION}
-                </button>
-              </div>
-              <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: 'var(--app-text-muted)' }}>
-                <span className={`w-1.5 h-1.5 rounded-full ${activeTab.lastUpdatedBy === 'editor' ? 'bg-purple-500' : activeTab.lastUpdatedBy === 'api' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
-                Last update: {activeTab.lastUpdatedBy === 'editor' ? 'Visual Editor' : activeTab.lastUpdatedBy === 'api' ? 'API' : 'Source Code'}
-                {syncHintVisible && (
-                  <span style={{ opacity: 0.6 }}>&middot; Press Ctrl+Enter to sync between editors</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Open Local File… in the browser (the Explorer menu); the native app uses its NSOpenPanel (ADR-016 decision 4). */}
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".dita,.xml" />
 
-        <div className="flex items-center gap-3">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept=".dita,.xml"
-          />
+      {/* ADR-017 decision 1: the 34 px title row (brand + tab strip). The header dropdowns are gone (decision 4). */}
+      <TitleBar
+        version={APP_VERSION}
+        tabs={tabs.map(t => ({
+          id: t.id,
+          name: t.herettoFile?.name ?? t.localFileName ?? 'Untitled',
+          dirty: t.xmlContent !== t.savedXmlRef.current,
+          pendingReview: !!t.pendingReview,
+        }))}
+        activeTabId={activeTabId}
+        onActivateTab={setActiveTabId}
+        onCloseTab={handleCloseTab}
+        onNewTab={handleNewTab}
+        onOpenReleaseNotes={() => setIsReleaseNotesOpen(true)}
+      />
 
-          {/* File Options dropdown */}
-          <div className="relative" ref={fileOptionsRef}>
-            <button
-              onClick={() => setIsFileOptionsOpen(prev => !prev)}
-              onKeyDown={e => {
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  if (!isFileOptionsOpen) setIsFileOptionsOpen(true);
-                  setTimeout(() => {
-                    const first = fileOptionsRef.current?.querySelector('[role="menuitem"]') as HTMLElement | null;
-                    first?.focus();
-                  }, 0);
-                }
-              }}
-              aria-haspopup="true"
-              aria-expanded={isFileOptionsOpen}
-              className="flex items-center gap-2 px-3 py-1.5 rounded transition-all text-xs font-medium hover-btn hover-text"
-              style={{
-                backgroundColor: 'var(--app-surface-raised)',
-                color: 'var(--app-text-secondary)',
-                border: '1px solid var(--app-border-subtle)',
-              }}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              File Options
-              <ChevronDown className={`w-3 h-3 transition-transform ${isFileOptionsOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isFileOptionsOpen && (
-              <div
-                className="absolute top-full right-0 mt-1 rounded-lg shadow-xl border py-1 z-20"
-                role="menu"
-                onKeyDown={e => {
-                  const items = Array.from(fileOptionsRef.current?.querySelectorAll('[role="menuitem"]') ?? []) as HTMLElement[];
-                  const idx = items.indexOf(e.target as HTMLElement);
-                  if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); }
-                  else if (e.key === 'Escape') { e.preventDefault(); setIsFileOptionsOpen(false); }
-                }}
-                style={{
-                  backgroundColor: 'var(--app-surface-raised)',
-                  borderColor: 'var(--app-border-subtle)',
-                  minWidth: '100%',
-                }}
-              >
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); setIsNewTopicModalOpen(true); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <FilePlus className="w-3.5 h-3.5" />
-                  New
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); handleUploadClick(); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  Open
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); openSaveModal(); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  Save
-                </button>
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); handlePrint(); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print / Export PDF
-                </button>
-                <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); setIsConvertModalOpen(true); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Convert
-                </button>
-                <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
-                <button
-                  role="menuitem"
-                  onClick={() => { setIsFileOptionsOpen(false); setIsKeyboardShortcutsOpen(true); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                  style={{ color: 'var(--app-text-secondary)' }}
-                >
-                  <Keyboard className="w-3.5 h-3.5" />
-                  Keyboard Shortcuts
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Heretto CMS dropdown */}
-          <div className="relative" ref={herettoDropdownRef}>
-            <button
-              onClick={() => setIsHerettoDropdownOpen(prev => !prev)}
-              onKeyDown={e => {
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  if (!isHerettoDropdownOpen) setIsHerettoDropdownOpen(true);
-                  setTimeout(() => {
-                    const first = herettoDropdownRef.current?.querySelector('[role="menuitem"]') as HTMLElement | null;
-                    first?.focus();
-                  }, 0);
-                }
-              }}
-              aria-haspopup="true"
-              aria-expanded={isHerettoDropdownOpen}
-              className="flex items-center gap-2 px-3 py-1.5 rounded shadow-lg transition-all text-xs font-medium hover-heretto"
-              style={{
-                backgroundColor: '#0d9488',
-                color: '#ffffff',
-                border: '1px solid #14b8a6',
-              }}
-            >
-              <HerettoLogo className="w-4 h-4" />
-              Heretto
-              <ChevronDown className={`w-3 h-3 transition-transform ${isHerettoDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isHerettoDropdownOpen && (
-              <div
-                className="absolute top-full right-0 mt-1 rounded-lg shadow-xl border py-1 z-20"
-                role="menu"
-                onKeyDown={e => {
-                  const items = Array.from(herettoDropdownRef.current?.querySelectorAll('[role="menuitem"]') ?? []) as HTMLElement[];
-                  const idx = items.indexOf(e.target as HTMLElement);
-                  if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); }
-                  else if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); }
-                  else if (e.key === 'Escape') { e.preventDefault(); setIsHerettoDropdownOpen(false); }
-                }}
-                style={{
-                  backgroundColor: 'var(--app-surface-raised)',
-                  borderColor: 'var(--app-border-subtle)',
-                  minWidth: '100%',
-                }}
-              >
-                {herettoConnected && (
-                  <>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setIsHerettoDropdownOpen(false); openHerettoBrowser('open'); }}
-                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      Open
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setIsHerettoDropdownOpen(false); handleHerettoSave(); }}
-                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      <CloudUpload className="w-3.5 h-3.5" />
-                      Save
-                    </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => { setIsHerettoDropdownOpen(false); openHerettoBrowser('replace'); }}
-                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      Replace existing...
-                    </button>
-                    <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
-                    {/* P2-27: the key registry's map (ADR-013) */}
-                    <button
-                      role="menuitem"
-                      onClick={() => { setIsHerettoDropdownOpen(false); setIsConnectMapOpen(true); }}
-                      className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                      style={{ color: 'var(--app-text-secondary)' }}
-                    >
-                      <Network className="w-3.5 h-3.5" />
-                      {keyRegistry.connectedMap ? 'Connect a different map…' : 'Connect a Map…'}
-                    </button>
-                    {keyRegistry.connectedMap && (
-                      <>
-                        <button
-                          role="menuitem"
-                          onClick={() => { setIsHerettoDropdownOpen(false); void keyRegistry.reload(); }}
-                          disabled={keyRegistry.loading}
-                          title={keyRegistry.connectedMap.name}
-                          className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app disabled:opacity-50"
-                          style={{ color: 'var(--app-text-secondary)' }}
-                        >
-                          {keyRegistry.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                          Reload map
-                        </button>
-                        <button
-                          role="menuitem"
-                          onClick={() => { setIsHerettoDropdownOpen(false); keyRegistry.disconnect(); }}
-                          className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                          style={{ color: 'var(--app-text-secondary)' }}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Disconnect {keyRegistry.connectedMap.name}
-                        </button>
-                      </>
-                    )}
-                    <div className="my-1 mx-2" style={{ borderTop: '1px solid var(--app-border-subtle)' }} />
-                  </>
-                )}
-                  <button
-                    role="menuitem"
-                    onClick={() => { setIsHerettoDropdownOpen(false); openHerettoStatus(); }}
-                    className="w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap hover-app"
-                    style={{ color: 'var(--app-text-secondary)' }}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: herettoConnected ? '#10b981' : '#ef4444' }}
-                    />
-                    Status
-                  </button>
-                </div>
-              )}
-            </div>
-        </div>
-      </div>
-
-      {/* Tab Bar */}
-      <div
-        className="h-[34px] flex items-end shrink-0 overflow-x-auto tab-bar-no-scrollbar"
-        style={{
-          backgroundColor: 'var(--app-surface)',
-          borderBottom: '1px solid var(--app-border)',
-          scrollbarWidth: 'none',
-        }}
-      >
-        <div className="flex items-end h-full min-w-0">
-          {tabs.map(tab => {
-            const isActive = tab.id === activeTabId;
-            const isDirty = tab.xmlContent !== tab.savedXmlRef.current;
-            const tabName = tab.herettoFile?.name ?? tab.localFileName ?? 'Untitled';
-            return (
-              <div
-                key={tab.id}
-                className="flex items-center gap-1.5 pl-3 pr-1 h-[32px] text-xs font-medium cursor-pointer select-none shrink-0 max-w-[180px] group/tab"
-                style={{
-                  backgroundColor: isActive ? 'var(--editor-canvas-bg)' : 'transparent',
-                  borderTop: isActive ? '2px solid var(--editor-accent)' : '2px solid transparent',
-                  borderRight: '1px solid var(--app-border-subtle)',
-                  color: isActive ? 'var(--app-text-primary)' : 'var(--app-text-muted)',
-                  marginBottom: isActive ? '-1px' : '0',
-                }}
-                onClick={() => setActiveTabId(tab.id)}
-                onMouseEnter={e => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--app-hover)';
-                }}
-                onMouseLeave={e => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {isDirty && (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: 'var(--editor-accent)' }}
-                  />
-                )}
-                <span className="truncate">{tabName}</span>
-                <button
-                  className="p-0.5 rounded opacity-0 group-hover/tab:opacity-100 transition-opacity ml-auto shrink-0 hover-text"
-                  style={{ color: 'var(--app-text-muted)' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCloseTab(tab.id);
-                  }}
-                  title="Close tab"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        <button
-          className="flex items-center justify-center w-[34px] h-[32px] shrink-0 transition-colors hover-app-text"
-          style={{ color: 'var(--app-text-muted)' }}
-          onClick={handleNewTab}
-          title="New tab"
-        >
-          <FilePlus className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Split View Container */}
-      <div className="flex-1 flex overflow-hidden" ref={splitContainerRef}>
-        {/* LEFT: VISUAL EDITOR (Lexical) — one per tab, show/hide */}
-        <div
-          className="flex flex-col min-w-0 min-h-0 relative group"
-          style={{
-            backgroundColor: 'var(--editor-canvas-bg)',
-            borderRight: '1px solid var(--app-border)',
-            flex: codeEditorCollapsed ? '1 1 0%' : `0 0 ${leftPaneWidth}%`,
-            transition: isSplitDragging ? 'none' : 'flex 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+      {/* The main row: activity bar · side panel · editor + XML split · panel column · right rail */}
+      <div className="flex-1 flex overflow-hidden" data-testid="workbench">
+        <ActivityBar
+          activeView={layout.activeView}
+          sidePanelOpen={layout.sidePanelOpen}
+          onFocusView={workbench.focusView}
+          heretto={{
+            connected: herettoConnected,
+            checking: herettoStatusChecking,
+            host: herettoCredentials.host,
+            email: herettoCredentials.email,
+            rootUuid: herettoRootUuid,
+            onTest: () => { void testHerettoConnection(); },
+            onOpenCredentials: () => { void openHerettoStatus(); },
+            onOpenFromHeretto: () => { void openHerettoBrowser('open'); },
+            onSave: () => { void handleHerettoSave(); },
+            onReplace: openReplace,
+            onDisconnect: activeTab.herettoFile ? handleHerettoDisconnect : null,
           }}
-        >
+          settings={{
+            version: APP_VERSION,
+            onOpenCredentials: () => { void openHerettoStatus(); },
+            onKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
+            onReleaseNotes: () => setIsReleaseNotesOpen(true),
+            theme: appTheme,
+            onThemeChange: handleThemeChange,
+            syntaxTheme,
+            onSyntaxThemeChange: handleSyntaxThemeChange,
+          }}
+        />
+
+        {layout.sidePanelOpen && (
+          <SidePanel width={layout.sidePanelWidth} onResize={workbench.setSidePanelWidth}>
+            {layout.activeView === 'explorer' ? (
+              <ExplorerView
+                tabs={tabs.map(t => ({
+                  id: t.id,
+                  name: t.herettoFile?.name ?? t.localFileName ?? 'Untitled',
+                  dirty: t.xmlContent !== t.savedXmlRef.current,
+                  pendingReview: !!t.pendingReview,
+                  herettoUuid: t.herettoFile?.uuid ?? null,
+                }))}
+                activeTabId={activeTabId}
+                onActivateTab={setActiveTabId}
+                onCloseTab={handleCloseTab}
+                herettoConnected={herettoConnected}
+                rootUuid={herettoRootUuid}
+                host={herettoCredentials.host}
+                onOpenTopic={item => { void handleHerettoOpen(item); }}
+                commands={{
+                  onNewTopic: () => setIsNewTopicModalOpen(true),
+                  onOpenLocalFile: handleUploadClick,
+                  onOpenFromHeretto: () => { void openHerettoBrowser('open'); },
+                  onSaveToHeretto: () => { void handleHerettoSave(); },
+                  onSaveLocalCopy: openSaveModal,
+                  onReplace: openReplace,
+                  onExportPdf: handlePrint,
+                  onConvertTopicType: () => setIsConvertModalOpen(true),
+                  onConnectMap: () => setIsConnectMapOpen(true),
+                  connectedMapName: keyRegistry.connectedMap?.name ?? null,
+                  onReloadMap: () => { void reloadMap(); },
+                  onDisconnectMap: disconnectMap,
+                  onKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
+                }}
+              />
+            ) : (
+              <PlaceholderView view={layout.activeView} />
+            )}
+          </SidePanel>
+        )}
+
+        {/* The editor column and the XML split share this container (the split's percentage is of its width). */}
+        <div className="flex-1 flex min-w-0 min-h-0" ref={splitContainerRef} data-testid="editor-split">
+          {/* VISUAL EDITOR (Lexical) — one per tab, show/hide */}
+          <div
+            className="flex flex-col min-w-0 min-h-0 relative group"
+            style={{
+              backgroundColor: 'var(--editor-canvas-bg)',
+              borderRight: layout.panels.xml.open ? '1px solid var(--app-border)' : 'none',
+              flex: '1 1 0%',
+            }}
+          >
           {/* First-run sync hint */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex justify-center">
             <CoachMark />
@@ -1322,310 +1034,47 @@ export default function ProfessionalDitaEditor() {
                   <TableActionMenuPlugin />
                 </div>
                 <ChangeListPanel documentMode={tab.documentMode} xmlContent={tab.xmlContent} />
-                <BottomToolbar />
+                <BottomToolbar lastUpdatedBy={tab.lastUpdatedBy} syncHintVisible={tab.id === activeTabId && syncHintVisible} />
               </div>
             </LexicalComposer>
           ))}
+          </div>
+
+          <XmlSplit
+            open={layout.panels.xml.open}
+            sizePct={layout.panels.xml.size}
+            containerRef={splitContainerRef}
+            onResize={pct => workbench.setPanelSize('xml', pct)}
+            onClose={() => workbench.closePanel('xml')}
+            tabs={tabs}
+            activeTabId={activeTabId}
+            activeTab={activeTab}
+            updateTab={updateTab}
+            appTheme={appTheme}
+            syntaxTheme={syntaxTheme}
+            onSyntaxThemeChange={handleSyntaxThemeChange}
+            wordWrapEnabled={wordWrapEnabled}
+            onToggleWordWrap={toggleWordWrap}
+            currentTopicType={currentTopicType}
+            onFormat={handleFormatClick}
+            onReviewAccept={handleReviewAccept}
+            onReviewReject={handleReviewReject}
+          />
         </div>
 
-        {/* Resize handle between visual and XML panes */}
-        {!codeEditorCollapsed && (
-          <div
-            className="w-1 shrink-0 cursor-col-resize flex flex-col items-center justify-center group/handle transition-colors hover:bg-sky-500/10"
-            onMouseDown={handleDragStart}
-            title="Drag to resize"
-          >
-            <div className="flex flex-col gap-0.5 opacity-0 group-hover/handle:opacity-100 transition-opacity">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-0.5 h-0.5 rounded-full"
-                  style={{ backgroundColor: 'var(--app-text-muted)' }}
-                />
-              ))}
-            </div>
-          </div>
+        {!layout.railHidden && (
+          <>
+            <PanelColumn
+              open={workbench.openStackPanels}
+              panels={layout.panels}
+              width={layout.panelColumnWidth}
+              onResizeColumn={workbench.setPanelColumnWidth}
+              onResizePanel={workbench.setPanelSize}
+              onClose={workbench.closePanel}
+            />
+            <RightRail panels={layout.panels} onToggle={workbench.togglePanel} />
+          </>
         )}
-
-        {/* RIGHT: CODE EDITOR (Monaco) */}
-        <div
-          className="flex flex-col min-w-0 relative"
-          style={{
-            backgroundColor: 'var(--app-bg)',
-            flex: codeEditorCollapsed ? '0 0 36px' : '1 1 0%',
-            transition: 'flex 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Collapsed tab overlay */}
-          <div
-            className="absolute inset-0 flex flex-col items-center z-10"
-            style={{
-              backgroundColor: 'var(--app-surface-raised)',
-              opacity: codeEditorCollapsed ? 1 : 0,
-              pointerEvents: codeEditorCollapsed ? 'auto' : 'none',
-              transition: 'opacity 200ms ease',
-              cursor: 'pointer',
-            }}
-            onClick={() => setCodeEditorCollapsed(false)}
-            aria-label="Expand XML editor"
-          >
-            <Tooltip content="Expand" placement="left">
-              <div className="p-2">
-                <PanelRightOpen className="w-4 h-4" style={{ color: 'var(--app-text-muted)' }} />
-              </div>
-            </Tooltip>
-            <div
-              className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
-              style={{
-                color: 'var(--app-text-muted)',
-                writingMode: 'vertical-rl',
-                transform: 'rotate(180deg)',
-                padding: '8px 0',
-              }}
-            >
-              XML Source
-            </div>
-          </div>
-          {/* XML Toolbar */}
-          <div
-            className="h-10 flex items-center px-4 justify-between shrink-0"
-            style={{
-              backgroundColor: 'var(--app-surface-raised)',
-              borderBottom: '1px solid var(--app-border-subtle)',
-            }}
-          >
-            <div className="relative" ref={syntaxDropdownRef}>
-              <Tooltip content="Syntax theme">
-                <button
-                  onClick={() => setIsSyntaxThemeOpen(prev => !prev)}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      if (!isSyntaxThemeOpen) setIsSyntaxThemeOpen(true);
-                      setTimeout(() => {
-                        const first = syntaxDropdownRef.current?.querySelector('[role="menuitem"]') as HTMLElement | null;
-                        first?.focus();
-                      }, 0);
-                    }
-                  }}
-                  aria-haspopup="true"
-                  aria-expanded={isSyntaxThemeOpen}
-                  aria-label={`Select syntax theme: ${SYNTAX_THEME_OPTIONS.find(t => t.value === syntaxTheme)?.label ?? 'XML Source'}`}
-                  className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest rounded px-2 py-1 transition-colors hover-app"
-                  style={{ color: 'var(--app-text-muted)' }}
-                >
-                  <Code className="w-4 h-4" />
-                  {SYNTAX_THEME_OPTIONS.find(t => t.value === syntaxTheme)?.label ?? 'XML Source'}
-                  <ChevronDown className={`w-3 h-3 transition-transform ${isSyntaxThemeOpen ? 'rotate-180' : ''}`} />
-                </button>
-              </Tooltip>
-
-              {isSyntaxThemeOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 rounded-lg shadow-xl border py-1 min-w-[140px] z-20"
-                  role="menu"
-                  onKeyDown={e => {
-                    const items = Array.from(syntaxDropdownRef.current?.querySelectorAll('[role="menuitem"]') ?? []) as HTMLElement[];
-                    const idx = items.indexOf(e.target as HTMLElement);
-                    if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); }
-                    else if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); }
-                    else if (e.key === 'Escape') { e.preventDefault(); setIsSyntaxThemeOpen(false); }
-                  }}
-                  style={{
-                    backgroundColor: 'var(--app-surface-raised)',
-                    borderColor: 'var(--app-border-subtle)',
-                  }}
-                >
-                  {SYNTAX_THEME_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      role="menuitem"
-                      onClick={() => {
-                        handleSyntaxThemeChange(opt.value);
-                        setIsSyntaxThemeOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-between hover-app"
-                      style={{
-                        color: opt.value === syntaxTheme
-                          ? 'var(--editor-accent, #0ea5e9)'
-                          : 'var(--app-text-secondary)',
-                      }}
-                    >
-                      {opt.label}
-                      {opt.value === syntaxTheme && <span>&#10003;</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {SYNTAX_THEME_OPTIONS.find(o => o.value === syntaxTheme)?.mode === 'light' && appTheme !== 'light' && (
-                <Tooltip content="Daylight is a light syntax theme, pairs best with the Light visual theme">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--editor-note-warning)' }} />
-                </Tooltip>
-              )}
-              <Tooltip content={wordWrapEnabled ? 'Disable word wrap' : 'Enable word wrap'}>
-                <button
-                  onClick={toggleWordWrap}
-                  className="p-1 rounded transition-colors hover-app-text"
-                  style={{ color: wordWrapEnabled ? 'var(--editor-accent)' : 'var(--app-text-muted)' }}
-                  aria-label="Toggle word wrap"
-                  aria-pressed={wordWrapEnabled}
-                >
-                  <WrapText className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
-              {currentTopicType && currentTopicType !== 'undefined' && (
-                <Tooltip content={`${currentTopicType.charAt(0).toUpperCase() + currentTopicType.slice(1)} topic`} placement="bottom">
-                  <div
-                    className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider"
-                    style={{
-                      backgroundColor: `var(--badge-${currentTopicType}-bg, var(--app-surface-raised))`,
-                      border: `1px solid var(--badge-${currentTopicType}-border, var(--app-border-subtle))`,
-                      color: `var(--badge-${currentTopicType}-text, var(--app-text-muted))`,
-                    }}
-                  >
-                    {currentTopicType}
-                  </div>
-                </Tooltip>
-              )}
-              <Tooltip content="Format XML (Shift+Alt+F)">
-                <button
-                  onClick={handleFormatClick}
-                  className="p-1 rounded transition-colors hover-app-text"
-                  style={{ color: 'var(--app-text-muted)' }}
-                  aria-label="Format XML"
-                >
-                  <Code2 className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
-              <Tooltip content="Collapse">
-                <button
-                  onClick={() => setCodeEditorCollapsed(true)}
-                  className="p-1 rounded transition-colors hover-app-text"
-                  style={{ color: 'var(--app-text-muted)' }}
-                  aria-label="Collapse XML editor"
-                >
-                  <PanelRightClose className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Monaco editors — one per tab, show/hide. A pendingReview (FR-045)
-              swaps the editor for a read-only Monaco diff + Accept/Reject bar. */}
-          {tabs.map(tab => (
-            <div
-              key={tab.id}
-              className="flex-1 overflow-hidden pt-2"
-              style={{ display: tab.id === activeTabId ? 'flex' : 'none', flexDirection: 'column' }}
-            >
-              {tab.pendingReview ? (
-                <>
-                  <ReviewBar
-                    sourceLabel={tab.pendingReview.sourceLabel}
-                    onAccept={() => handleReviewAccept(tab.id)}
-                    onReject={() => handleReviewReject(tab.id)}
-                  />
-                  <DiffViewer
-                    originalContent={tab.pendingReview.baseXml}
-                    modifiedContent={tab.pendingReview.proposedXml}
-                    originalLabel="Current"
-                    modifiedLabel={tab.pendingReview.sourceLabel ?? 'Proposed'}
-                    grow
-                  />
-                </>
-              ) : (
-                <MonacoDitaEditor
-                  value={tab.xmlContent}
-                  onChange={(newXml: string) => updateTab(tab.id, { xmlContent: newXml, lastUpdatedBy: 'code' })}
-                  onValidation={(hasErrors: boolean, errors?: XmlError[]) => {
-                    updateTab(tab.id, { hasXmlErrors: hasErrors, xmlErrors: errors || [] });
-                    if (!hasErrors) setShowErrorPanel(false);
-                  }}
-                  editorTheme={appTheme}
-                  syntaxTheme={syntaxTheme}
-                  wordWrapEnabled={wordWrapEnabled}
-                  onEditorReady={(api) => { tab.monacoApiRef.current = api; }}
-                  onFormat={handleFormatClick}
-                />
-              )}
-            </div>
-          ))}
-
-          {/* Code Status Footer */}
-          <div
-            className="h-8 flex items-center px-4 justify-between text-[10px] font-mono relative"
-            style={{
-              backgroundColor: 'var(--app-surface)',
-              borderTop: '1px solid var(--app-border)',
-              color: 'var(--app-text-muted)',
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <span>UTF-8</span>
-              <span>DITA 1.3</span>
-            </div>
-            <button
-              className={`flex items-center gap-1.5 ${activeTab.hasXmlErrors ? 'text-red-400 hover:text-red-300' : 'text-emerald-500'}`}
-              style={{ cursor: activeTab.hasXmlErrors ? 'pointer' : 'default', background: 'none', border: 'none', font: 'inherit', fontSize: 'inherit' }}
-              onClick={() => { if (activeTab.hasXmlErrors) setShowErrorPanel(prev => !prev); }}
-            >
-              {activeTab.hasXmlErrors ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-              {activeTab.hasXmlErrors ? `${activeTab.xmlErrors.filter(e => e.severity === 'error').length} Error${activeTab.xmlErrors.filter(e => e.severity === 'error').length !== 1 ? 's' : ''}` : 'Valid XML'}
-            </button>
-
-            {/* Error details panel */}
-            {showErrorPanel && activeTab.xmlErrors.length > 0 && (
-              <div
-                ref={errorPanelRef}
-                className="absolute bottom-full right-0 mb-1 w-[420px] max-h-64 overflow-y-auto rounded shadow-lg text-xs font-mono z-50"
-                style={{
-                  backgroundColor: 'var(--app-surface-raised)',
-                  border: '1px solid var(--app-border)',
-                  color: 'var(--app-text-secondary)',
-                }}
-              >
-                <div
-                  className="px-3 py-2 font-semibold text-[11px] uppercase tracking-wider sticky top-0"
-                  style={{
-                    backgroundColor: 'var(--app-surface-raised)',
-                    borderBottom: '1px solid var(--app-border)',
-                    color: 'var(--app-text-muted)',
-                  }}
-                >
-                  Problems
-                </div>
-                {activeTab.xmlErrors.map((err, idx) => (
-                  <button
-                    key={idx}
-                    className="w-full text-left px-3 py-2 flex items-start gap-2 transition-colors hover-app"
-                    style={{ borderBottom: '1px solid var(--app-border-subtle)' }}
-                    onClick={() => {
-                      activeTab.monacoApiRef.current?.revealLine(err.line, err.column);
-                      setShowErrorPanel(false);
-                    }}
-                  >
-                    {err.severity === 'error'
-                      ? <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                      : <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />
-                    }
-                    <div className="flex-1 min-w-0">
-                      <div className="leading-snug" style={{ color: err.severity === 'error' ? '#f87171' : '#fbbf24' }}>
-                        {err.message}
-                      </div>
-                      <div className="mt-0.5" style={{ color: 'var(--app-text-muted)' }}>
-                        Line {err.line}, Column {err.column}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
     </KeyRegistryContext.Provider>

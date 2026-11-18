@@ -16,6 +16,7 @@ import { KEYBOARD_SHORTCUTS } from '../constants/keyboard-shortcuts';
 import { THEME_OPTIONS } from '../components/Toolbar';
 import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
 import { DITA_TOPIC_TYPE } from '../constants/dita';
+import { PANEL_IDS, VIEW_IDS } from '../lib/workbench-layout';
 
 const SWIFT = readFileSync(join(__dirname, '..', 'macos', 'Sources', 'DITAArchitect', 'AppDelegate.swift'), 'utf-8');
 
@@ -78,8 +79,10 @@ describe('ADR-016 I1 — every menu item has both halves', () => {
 
   it('the Swift table parses (the regex and the table have not drifted apart)', () => {
     // P2-39 File menu: 3 new-topic items, Open, Close, Save, Replace, Export, Connect, Open from Heretto (10)
-    // P2-41 app menu: What's New, Keyboard Shortcuts (2); P2-40 View: Toggle XML Pane (1) + 6 themes + 7 syntax themes
-    expect(rows.length).toBeGreaterThanOrEqual(10 + 2 + 1 + 6 + 7);
+    // ADR-017 File: Convert Topic Type, Connect a Map, Reload Map, Disconnect Map (4)
+    // P2-41 app menu: What's New, Keyboard Shortcuts (2)
+    // ADR-017 View: 4 views + Toggle Right Rail (5), Panels submenu (7); P2-40: 6 themes + 7 syntax themes
+    expect(rows.length).toBeGreaterThanOrEqual(10 + 4 + 2 + 5 + 7 + 6 + 7);
     // Every MenuAction( in the file must have parsed — a row written across two
     // lines, or with its arguments reordered, would otherwise vanish silently
     // once the table grows past the minimum above (adversarial review, finding 5).
@@ -113,15 +116,34 @@ describe('ADR-016 I1 — every menu item has both halves', () => {
     }
   });
 
+  /** The one string argument of a row (`args: ["name": "dark"]`, `args: ["id": "xml"]`). */
+  const argOf = (row: SwiftRow, key: string) => {
+    const m = SWIFT.match(new RegExp(`MenuAction\\(title: "${row.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]*args: \\["${key}": "([^"]+)"\\]`));
+    return m?.[1];
+  };
+
   it('the Theme and XML Syntax Theme submenus list exactly the app\'s theme options, in order (I4)', () => {
-    const argOf = (row: SwiftRow) => {
-      const m = SWIFT.match(new RegExp(`MenuAction\\(title: "${row.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]*args: \\["name": "([^"]+)"\\]`));
-      return m?.[1];
-    };
-    const themeRows = rows.filter(r => r.method === 'setTheme').map(argOf);
-    const syntaxRows = rows.filter(r => r.method === 'setXmlTheme').map(argOf);
+    const themeRows = rows.filter(r => r.method === 'setTheme').map(r => argOf(r, 'name'));
+    const syntaxRows = rows.filter(r => r.method === 'setXmlTheme').map(r => argOf(r, 'name'));
     expect(themeRows).toEqual(THEME_OPTIONS.map(o => o.value));
     expect(syntaxRows).toEqual(SYNTAX_THEME_OPTIONS.map(o => o.value));
+  });
+
+  it('ADR-017 W4: View ▸ Panels has one togglePanel row per rail panel, in rail order', () => {
+    const panelRows = rows.filter(r => r.method === 'togglePanel').map(r => argOf(r, 'id'));
+    expect(panelRows).toEqual([...PANEL_IDS]);
+  });
+
+  it('ADR-017 W4: the View menu has one focusView row per view, in activity-bar order', () => {
+    const viewRows = rows.filter(r => r.method === 'focusView').map(r => argOf(r, 'id'));
+    expect(viewRows).toEqual([...VIEW_IDS]);
+  });
+
+  it('ADR-017 W4: the commands the retired header dropdowns offered each have a menu row', () => {
+    const methods = new Set(rows.map(r => r.method));
+    for (const m of ['openConvertModal', 'openConnectMapModal', 'reloadMap', 'disconnectMap', 'toggleRightRail', 'openHerettoBrowserModal', 'saveActiveTab', 'openReplaceModal', 'openExportModal', 'openHerettoConnectModal', 'openKeyboardShortcuts']) {
+      expect(methods.has(m), `no menu row calls ${m}`).toBe(true);
+    }
   });
 
   it('the table is the only way a menu item reaches the bridge — no per-item selector calls __ditaApi', () => {
@@ -145,7 +167,12 @@ describe('ADR-016 I2 — the P2-39 / P2-40 shortcuts, and no collision with the 
     ['New Reference', '⌥⌘N'],
     ['Close Tab', '⌘W'],
     ['Save to Heretto', '⌘S'],
-    ['Toggle XML Pane', '⌘\\'],
+    ['XML', '⌘\\'],
+    ['Toggle Right Rail', '⌥⌘\\'],
+    ['Explorer', '⌘1'],
+    ['Search', '⌘2'],
+    ['Map', '⌘3'],
+    ['Source Control', '⌘4'],
   ])('"%s" is %s', (title, shortcut) => {
     const row = byTitle(title);
     expect(row, `no menu row titled "${title}"`).toBeDefined();

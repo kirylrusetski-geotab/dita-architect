@@ -53,8 +53,6 @@ export function useHerettoCms({
   // FR-067 / ADR-014: a blocked Save to Heretto has no existing feedback
   // surface of its own (unlike Replace's own modal), so it gets this one.
   const [contentModelViolations, setContentModelViolations] = useState<ContentModelViolation[] | null>(null);
-  const [isHerettoDropdownOpen, setIsHerettoDropdownOpen] = useState(false);
-  const herettoDropdownRef = useRef<HTMLDivElement>(null);
   const [herettoSaveFileName, setHerettoSaveFileName] = useState('');
   const [herettoRefreshing, setHerettoRefreshing] = useState(false);
   // P2-25: session-only memory of the last successfully saved folder location
@@ -867,9 +865,6 @@ export function useHerettoCms({
     herettoSaveProgress,
     contentModelViolations,
     setContentModelViolations,
-    isHerettoDropdownOpen,
-    setIsHerettoDropdownOpen,
-    herettoDropdownRef,
     herettoSaveFileName,
     setHerettoSaveFileName,
     herettoRefreshing,

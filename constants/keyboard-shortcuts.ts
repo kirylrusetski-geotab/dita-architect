@@ -86,6 +86,32 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   {
     category: MENU_SHORTCUT_CATEGORY,
     keys: ['⌘\\'],
-    description: 'Show or hide the XML pane',
+    description: 'Show or hide the XML split',
+  },
+  // ADR-017 — the workbench (View menu in the native app; the same keys on window in the browser).
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌥⌘\\'],
+    description: 'Show or hide the right rail (hiding it closes every panel)',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘1'],
+    description: 'Explorer view (again: collapse the side panel)',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘2'],
+    description: 'Search view',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘3'],
+    description: 'Map view',
+  },
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘4'],
+    description: 'Source Control view',
   },
 ];

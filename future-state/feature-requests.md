@@ -70,7 +70,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟡  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Carrier slice shipped v0.13.0 (2026-11-02, ADR-015); format marks, block merges, residuals open |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
-| 🔴  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
+| 🟢  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
 | 🟢  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Closed 2026-10-20 — already shipped (`GET /api/tabs/:id/content`, v0.3.3) |
 | 🟢  | FR-056                                                                                          | API content loads flush into suggesting mode                                      | 2026-08-04 | Shipped v0.9.2            |
 | 🟢  | FR-057                                                                                          | API whole-document replace rendered as a reviewable diff                          | 2026-08-04 | Shipped v0.9.3            |
@@ -85,7 +85,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
 | 🟢  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Shipped v0.12.0 (2026-10-28, ADR-014) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
-| 🔴  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Open (after v0.14.0) |
+| 🟢  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Open (after v0.14.0) |
 | 🔴  | [FR-078](#fr-078-session-editors--a-terminal-as-an-attributed-member-suggestions-in-the-visual-editor) | Session editors — a terminal as an attributed member, suggestions in the visual editor | 2026-11-17 | Open — Session 6 of the UI Overhaul plan, v1.6.0, ADR-022 |
 | 🔴  | [FR-079](#fr-079-map-editing--open-a-ditamap-as-a-document-and-edit-its-topicref-tree) | Map editing — open a ditamap as a document and edit its topicref tree | 2026-11-17 | Open — candidate after the UI Overhaul arc (after v1.7.0); own ADR |
 
@@ -576,7 +576,7 @@ Slices are independent; either can ship alone. Slice 1 is Swift-heavy with a one
 
 **Requested:** 2026-07-20
 **Source:** Kiryl Rusetski — pain point with existing breadcrumb drill-down navigation
-**Status:** Open — **sequenced into the UI Overhaul plan, Session 1 (v1.1.0), as the Explorer view of the new sidebar** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). The "no persistent sidebar" exclusion below is lifted by ADR-017; the tree is built in the sidebar, and the browser modal shrinks to a folder picker in Session 2.
+**Status:** Shipped in v1.1.0 (2026-11-17) via FR-070 — **built in the sidebar, not the modal**: the Explorer view's lazy tree (`hooks/useFolderTree.ts`, `components/workbench/views/ExplorerView.tsx`) through `herettoFolderCache`, with Open Editors above it; a topic click goes through the same import-verification flow as the modal. The browser modal keeps its breadcrumb view for Save As and Replace-target picking until Session 2. Originally: **sequenced into the UI Overhaul plan, Session 1 (v1.1.0), as the Explorer view of the new sidebar** (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`). The "no persistent sidebar" exclusion below is lifted by ADR-017; the tree is built in the sidebar, and the browser modal shrinks to a folder picker in Session 2.
 **Priority:** Medium (navigation polish, not a blocker)
 **Impact:** Medium (touches every "Open from Heretto" session)
 **Model weight:** Sonnet
@@ -1110,7 +1110,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-11-02
 **Source:** Kiryl, during Session 7 (v0.14.0, the native menu bar), looking at the shell's bare menu bar (`DITA Architect · Edit · Window`) next to the header's two dropdowns: "would it make sense from a UI perspective to move the file options and heretto menu to the [menu] bar?"
-**Status:** Open — sequenced after v0.14.0 (depends on ADR-016's File menu existing). **Absorbed and widened by the UI Overhaul plan, Session 1 (v1.1.0, ADR-017):** both header dropdowns are retired, not only File Options; the Heretto dropdown's status-indicator role moves to the activity bar's connection icon (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`).
+**Status:** Shipped in v1.1.0 (2026-11-17) via FR-070, widened as ADR-017 decision 4 says: both header dropdowns are gone in both run modes; Convert Topic Type… and the map rows joined the File menu; the Heretto dropdown's status role is the activity bar's connection icon and popover; browser mode reaches every command through the Explorer `…` menu. Originally: sequenced after v0.14.0 (depends on ADR-016's File menu existing). **Absorbed and widened by the UI Overhaul plan, Session 1 (v1.1.0, ADR-017):** both header dropdowns are retired, not only File Options; the Heretto dropdown's status-indicator role moves to the activity bar's connection icon (Obsidian: `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md`).
 **Priority:** P2
 **Impact:** Medium. Once the File menu exists, the header's File Options dropdown is a second copy of the same commands in a less conventional place; two homes for one command is the duplication FR-039 warned about.
 **Model weight:** Sonnet
@@ -1138,7 +1138,7 @@ Toast copy, per the P1-13 UX note: `1 link in the visual editor has no matching 
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — the UI overhaul brief (four VS Code screenshots), planned in `Execution Plan — UI Overhaul, v1.1 to v1.6 (2026-11-16).md` (Obsidian), Session 1
-**Status:** Open — Session 1 of the UI Overhaul plan, **v1.1.0**, **ADR-017**
+**Status:** Shipped in v1.1.0 (2026-11-17) — Session 1 of the UI Overhaul plan, **ADR-017**. Built as the approved mock had it after two rounds: the XML is its own half-screen split (not one of the stacked panels), the six metadata aspects stack in a separate column, the Sessions slot is a traced terminal, the Heretto icon a grey or green circled H. The header's two dropdowns are gone; the Explorer `…` menu carries their commands in browser mode and the native menu gained Convert Topic Type, the map rows, View ▸ Explorer/Search/Map/Source Control (⌘1–⌘4), View ▸ Panels and Toggle Right Rail (⌥⌘\). W1–W7 pinned in `tests/workbench-layout.test.ts`, `tests/use-workbench-layout.test.tsx`, `tests/workbench/*`. Absorbs FR-054 and FR-069.
 **Priority:** P1 (every later item in the arc mounts into it)
 **Impact:** High — changes the app's layout model, retires the header dropdowns, changes the default view of every opened topic
 **Model weight:** Fable or Opus (Kiryl's call at session start)

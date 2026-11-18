@@ -1502,3 +1502,175 @@ and is re-exported by the bridge; the menu-bridge effect no longer re-registers 
 version only (the bundle's build number is never bumped). Not changed: `openLocalFile` reads UTF-8
 only (UTF-16 gives an accurate alert); the `.dita` UTType is a dynamic type, so the open panel filters
 `.dita` and `.xml` but not `.ditamap` (maps are unsupported anyway).
+
+## ADR-017 — The workbench: activity bar, side panel, an XML split and a metadata panel column, one layout state
+
+**Date:** 2026-11-17 · **Status:** Accepted (shipped in v1.1.0, 2026-11-17 — Execution Plan — UI Overhaul, Session 1: FR-070, absorbing FR-054 and FR-069; mock approved by Kiryl the same day after two rounds; see the implementation note at the end)
+
+**Context** — At v1.0.0 the app's chrome is a 64 px header (brand, a sync indicator, and two dropdowns:
+File Options and Heretto), a 34 px tab bar, and a two-pane split (visual editor, XML pane) whose XML
+side is open by default and collapses to a 36 px strip. Every document command lives in the two
+dropdowns (and, since ADR-016, in the native menu); Heretto browsing is a modal; there is no place for
+a view (Map, Search, Source Control) or for per-topic metadata. Kiryl's brief (2026-11-16, four VS Code
+screenshots) asks for a VS Code-style **activity bar** and **side panel**, the Heretto connection and
+Settings at the bottom of the rail, the **XML pane closed by default**, and a right-hand place for
+editable metadata; the fourth brief (2026-11-17, Photoshop) makes the right-hand place a **column of
+stackable aspect panels** behind a 36 px rail of icons; the second brief reserves a **Sessions** slot
+in the rail for FR-078. Round 2 of the mock (2026-11-17) changed one thing: **the XML is not one of
+the stacked panels** — it rolls out as its own split covering half the screen, draggable left and
+right, exactly as today's pane does, while the metadata icons open a separate stacked column beside it.
+Six later sessions mount into this layout, so the model has to be right once. The architectural trigger
+fires: a new layout model, a new state owner, a retired surface (the header dropdowns), a changed
+default (the XML pane), and new native menu rows. `dita-architect.tsx` (1,633 lines) and `Toolbar.tsx`
+(777) hold the layout today; FR-054 (a persistent folder tree) was refused for want of an ADR; FR-069
+asked to retire the File Options dropdown in the native app.
+
+**Decision**
+
+1. **The layout is seven regions, left to right and top to bottom, owned by one hook.** A 34 px
+   **title row** (brand + version pill + the tab strip; the old 64 px header and the separate tab bar
+   are gone) above a main row of: **activity bar** (48 px) · **side panel** (200–480 px, default 280)
+   · **editor column** (the per-tab Lexical stack, unchanged inside: toolbar, the Heretto context bar
+   until Session 5, page, status bar) · **XML split** (a percentage of the editor-plus-XML width,
+   20–85, default 50) · **metadata panel column** (240–600 px, default 360; the open aspect panels
+   stacked vertically with draggable dividers) · **right rail** (36 px: XML, then Topic, Heretto,
+   Prolog, Conditions, Links, AI). `hooks/useWorkbenchLayout.ts` owns every piece of that state —
+   `activeView`, `sidePanelOpen`, `sidePanelWidth`, `panels: Record<PanelId, {open, size}>`
+   (`xml`'s size is the split percentage; a stack panel's size is its flex weight), `panelOrder` (the
+   stack), `panelColumnWidth`, `railHidden` — persisted as **one versioned object** under
+   `dita-architect-workbench` (`{v: 1, …}`). It replaces the unpersisted `codeEditorCollapsed` and the
+   `ditaSplitWidth` key (migrated once: the stored left-pane percentage becomes `100 − n` for the XML
+   split, then the old key is removed). Session 3's settings store (ADR-018) will absorb this object;
+   until then it is the second of the app's persisted objects, and the only layout one.
+2. **The XML split and the metadata stack are different things on one rail.** The XML icon (and `⌘\`)
+   toggles the split; a metadata icon toggles its panel in the stack. Both may be open at once (Kiryl:
+   "it can look messy, but it's not intended to be used this way"); nothing in the model prevents it
+   and nothing in the UI encourages it. Collapse parity with today's pane (Kiryl, 2026-11-17): the
+   split closes from its rail icon, its close control, `⌘\`, or a divider dragged below its minimum;
+   a stack panel closes from its rail icon, its close control, or a divider dragged below 120 px. A
+   closed XML split keeps its Monaco editors **mounted** (the column is hidden, not unmounted), so a
+   reopen restores cursor, scroll, undo stack and width with no re-parse — as the 36 px strip does
+   today. **Toggle Right Rail** (`⌥⌘\`, View menu, bridge method) hides the rail for a full-width
+   page; hiding it closes every panel and the split, and `⌘\` while hidden shows the rail and opens
+   the split.
+3. **Everything right of the editor is closed by default, and no load path opens it.** Opening a topic
+   from Heretto, a local file, the API (`loadContent`), the dev-server queue, or a template leaves
+   every panel exactly as it was (W2). The one exception is the rule that **a staged proposal is never
+   invisible**: when `pendingReview` is set on the active tab, the hook opens the XML split (where the
+   `ReviewBar` and `DiffViewer` live, ADR-008) and a tab whose review is pending shows an amber badge in
+   the tab strip and in Open Editors (W3); clearing the review leaves the split as the author left it.
+   Session 5 moves the review's home to Source Control; until then this is the rule.
+4. **The header's two dropdowns are retired (FR-069, widened).** Their commands are reachable by
+   command set, not by surface (ADR-016's Gate 3 wording): in the native app through the menu bar,
+   which gains the rows it lacked — `Convert Topic Type…` (File), `Connect a Map…` / `Reload Map` /
+   `Disconnect Map` (File, moved from the dropdown), a **View ▸ Panels** submenu (one toggle row per
+   panel, XML included, each a `togglePanel(id)` call with the id as the row's argument, plus
+   `Toggle Right Rail`), and **View ▸ Explorer / Search / Map / Source Control** (`⌘1`–`⌘4`,
+   `focusView(id)`); in the browser (port 3000, no menu bar) through the Explorer view's `…` menu
+   (New Topic, Open Local File, Open from Heretto, Save to Heretto, Save Local Copy, Replace, Export as PDF, Convert, Connect a
+   Map, Keyboard Shortcuts). The Heretto dropdown's second job — the connection indicator — moves to
+   the rail's connection icon (decision 6). The header's "Last update" indicator moves to the editor's
+   status bar. ADR-016 decision 1's sentence "the Heretto dropdown stays in the header permanently" is
+   superseded by this decision; the placement rule itself stands.
+5. **The Explorer view is FR-054's tree, built in the side panel.** FR-054 excluded a persistent
+   sidebar for want of an ADR; this is that ADR. The view has an **Open Editors** section (every tab:
+   dirty dot, pending-review badge, close on hover; click activates) above a lazy folder tree rooted at
+   `rootUuid`: a folder is listed on first expand only, through `herettoFolderCache` and the existing
+   `parseHerettoFolder`, so a tree with one expanded ten-deep path makes exactly eleven listing requests
+   (W5). Clicking a topic calls the existing `handleHerettoOpen` with a search-result-shaped item
+   (`path`, `ancestorUuids`) so the tab's `herettoFile` carries the right path and ancestors, through
+   the same import-verification flow as the modal. The `HerettoBrowserModal` stays for Save As and
+   Replace-target picking in this release (Session 2 shrinks it). Search, Map and Source Control render
+   a placeholder view naming the release that fills them, so the rail is complete from day one.
+6. **The rail's bottom cluster.** A **Sessions** slot (a traced terminal icon; "No sessions connected";
+   FR-078 fills it in v1.6.0), the **Heretto connection** (a grey circle with a grey H when
+   disconnected, a green circle with a white H when connected; click opens a popover with the state,
+   host, account, root, `Test connection`, `Open Settings…`, and the dropdown's commands — Open from
+   Heretto, Save, Replace, Disconnect), and **Settings** (a menu: Settings…, Keyboard Shortcuts, What's
+   New, and — until Session 3 — the Theme and Syntax theme pickers). `HerettoStatusModal` is split into
+   the popover and a `HerettoCredentialsForm` the modal keeps hosting (Session 3's Settings modal takes
+   the form over). Popovers and menus share one `Popover` component (click outside, Escape, arrow keys,
+   `role="menu"`, focus returned to the opener), which also replaces the Toolbar's hand-rolled Insert
+   Link / Insert Table overlays (the BACKLOG note under BUG-52), since the Toolbar is being split anyway.
+7. **Shortcuts fire from one place per run mode.** In the native app the menu bar owns `⌘1`–`⌘4`,
+   `⌘\` and `⌥⌘\` (key equivalents are consumed before the web view sees them); in the browser the
+   hook installs the same bindings on `window`. The hook never installs them under `dita:`, so a key
+   cannot fire twice. All of them are in `constants/keyboard-shortcuts.ts` and the wiring test
+   (ADR-016 I2) checks them against the Swift table.
+8. **Extraction, not accretion.** The title row, the XML pane (toolbar, per-tab Monaco stack, footer,
+   error panel) and the rail components move out of `dita-architect.tsx` into `components/workbench/`
+   (`TitleBar`, `ActivityBar`, `SidePanel`, `views/*`, `XmlSplit`, `PanelColumn`, `RightRail`, the
+   popovers); `MonacoDitaEditor`, `SyncManager`, the per-tab `LexicalComposer` show/hide loop and the
+   serializer are untouched (W6).
+
+**Invariants** (the plan's W1–W7; tests first)
+
+- **W1** Layout state round-trips through `localStorage` and restores on launch: active view, side
+  panel open/width, each panel's open state, size and order, the column width, `railHidden`. A corrupt
+  or missing value falls back to the defaults (Explorer, 280 px, every panel closed, rail shown) with
+  no exception; an unknown panel id in stored state is dropped; the legacy `ditaSplitWidth` migrates.
+- **W2** Every load path — `loadContent`, the dev-server queue, Heretto open/refresh, a local file, a
+  template — leaves every panel in its current state and never opens the XML split.
+- **W3** `pendingReview` on the active tab opens the XML split; on a background tab it badges the tab
+  instead; clearing it leaves the split as the author left it.
+- **W4** Every command the two retired dropdowns offered is reachable in both run modes: the native
+  rows (wiring test extended with Convert, the Panels submenu, Toggle Right Rail, the four view rows,
+  the map rows) and the Explorer `…` menu under `http:`; the header renders without either dropdown
+  under both `dita:` and `http:`.
+- **W5** The Explorer fetches a folder only on first expand, through `herettoFolderCache`; one
+  expanded ten-deep path is exactly eleven listing requests (fake tenant).
+- **W6** Nothing here changes the serializer or the round-trip contract: corpus, R1 and the edit fuzz
+  unchanged.
+- **W7** Collapse parity: each close gesture closes the split (or panel) and leaves only the rail; a
+  reopen restores the persisted width and the same Monaco instance (no remount, no re-parse); Toggle
+  Right Rail hides and shows the rail with every panel forced closed; all of it survives a relaunch.
+
+**Consequences** — The app gets the frame every later session needs (views, panels, a rail slot for
+sessions) and loses two dropdowns and 30 px of header. Costs, named: the XML pane is no longer visible
+on open, so the first-run coach mark and the "Press Ctrl+Enter to sync" hint matter more (both stay);
+the Heretto context bar above the page is now the second Heretto surface (bar + rail icon) until
+Session 5 retires it; the Explorer's lazy tree duplicates nothing but shares the five-minute folder
+cache with the modal and the image resolver, so a folder renamed in Heretto shows stale for up to five
+minutes in all three; a user who relied on `⌘\` to toggle today's pane finds the same key doing the
+same thing; the layout object is a second persisted object until ADR-018 folds it in.
+
+**Alternatives considered** — **(A) XML as one of the stacked panels** (the plan's wording until the
+mock's round 2) — rejected by Kiryl: the XML is a working surface the author reads alongside the page,
+half the screen wide, not a 360 px aspect panel. **(B) Keep the header dropdowns in browser mode only**
+— rejected: two chromes to maintain and test; the Explorer `…` menu is the one browser-mode surface.
+**(C) Unmount the XML column on close** — rejected: W7 (Monaco state) and today's behaviour; the cost
+is one hidden column. **(D) Several `localStorage` keys** (one per layout field, as the app does
+today) — rejected: seven keys that must be validated together are one object; ADR-018 will fold it
+into the settings store. **(E) A side-by-side pair of right trays** (the plan's first wording) —
+superseded by the fourth brief's N panels. **(F) Build the tree inside the browser modal** (FR-054 as
+filed) — rejected: the brief asks for a persistent Explorer; the modal shrinks in Session 2.
+
+**Implementation note (2026-11-17, after the adversarial review — Build discipline rule 7).** A
+fresh-context reviewer read the ADR and the whole diff, wrote 17 throwaway tests (all deleted), and
+could not falsify W1, W2, W5, W6, W7 at the component level, decision 5's open-topic shape, or decision
+7 (one `⌘\` handler, nothing installed under `dita:`). It found **one defect and four weaknesses**, all
+fixed before release and each pinned by a test:
+
+1. **W4 was false in browser mode:** `Reload Map` and `Disconnect Map` had native rows but no browser
+   surface. The Explorer `…` menu now shows them while a map is connected and labels the connect row
+   "Connect a different map…" then, as the retired dropdown did.
+2. **W3 tracked a boolean, so switching between two tabs that both held a review (after closing the
+   split on the first) opened nothing.** The hook now keys the edge on the reviewing tab's id
+   (`activeReviewKey`): a new reviewing tab opens the split; the same review closed by the author stays
+   closed; going back to a plain tab changes nothing.
+3. **`⌥⌘\` in the browser compared `e.key` only**, which Option can change on some layouts; the handler
+   also accepts `e.code === 'Backslash'`.
+4. **The Settings menu's Theme / Syntax theme sub-pages dropped keyboard focus** when their content
+   swapped; `Popover` takes a `focusKey` and refocuses the first item when it changes.
+5. **Layering:** `Popover` sat above the shared `Modal` and both answered Escape. The popover is now
+   `z-40` (below the Modal's `z-50`, above the title row and the editor toolbar) and ignores Escape while
+   an `aria-modal` dialog is open, so the modal closes first.
+
+Nits taken: the coach mark and the content-model modal said "XML pane"; both now say "XML split (⌘\
+opens it)". The legacy `ditaSplitWidth` is honoured even when the new workbench object is corrupt (it
+was discarded before), and the parser carries a comment that a v2 shape belongs to ADR-018. Recorded,
+not changed: the Insert Link / Insert Table dialogs no longer close on a backdrop click (the shared
+Modal never did; Escape and Cancel do, like every other dialog); the Explorer `…` menu also renders in
+the native app (a second route to Convert and the map rows, which ADR-016's command-set rule allows);
+Monaco's scroll position across a hide/show is the one W7 claim only the native click-through settles.
+
