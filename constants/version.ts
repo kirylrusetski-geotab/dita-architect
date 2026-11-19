@@ -21,6 +21,28 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.1',
+    date: '2026-11-19',
+    title: 'Change any appearance profile in place, then keep your changes as a profile of your own.',
+    sections: [
+      {
+        heading: 'Changed',
+        items: [
+          'Built-in profiles are editable now. Open `Appearance…`, pick Dark, Light or any other built-in, and change a colour, the theme it starts from or its XML syntax theme. The first change makes an unsaved copy named after the profile, such as `Light (edited)`; the app follows it as you work. The built-in itself never changes.',
+          'When you select `Done`, press Escape, pick another profile, or use `Duplicate` or `Import…` with unsaved edits, a question appears: `Save as new profile` (named, `Light custom` by default, and it becomes your active profile), `Discard changes` (back to the built-in exactly as it was), or `Cancel` (stay and keep editing). Nothing is saved until you choose to.',
+          'Closing the panel any other way, or quitting, discards an unsaved copy. Your own profiles still change in place, with no question.',
+          '`Duplicate to edit` is gone from a built-in\'s footer, since you no longer need a copy first. `Duplicate` in the profile list still makes one.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'FR-082, amending ADR-018 decision 1. The edit lives in `useAppearance` as an in-memory draft that is never part of the stored settings; the profile model\'s functions are unchanged, and a built-in is still refused by them, so the draft is a custom profile made on the first edit. Suite: 114 files, 2,695 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-11-19',
     title: 'Make the app look the way you want: appearance profiles you can edit, share and switch, and one Settings window for everything else.',

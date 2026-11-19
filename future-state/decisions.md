@@ -1912,3 +1912,18 @@ makes a fresh one) also opens the split; Import ignores unknown top-level keys; 
 options are buttons without arrow-key navigation; a non-string `lastSeenVersion` reopens What's New.
 Consolidation items are BACKLOG debt rows ("ADR-018 debt").
 
+**Amendment (2026-11-19, v1.3.1 — FR-082).** Decision 1's "the only way to make a custom profile is Duplicate
+or Import" is amended: **a built-in can be edited, and the edit becomes a custom profile when the writer
+says so.** The first change to a built-in (a colour, the base, the syntax theme) starts a **draft**: a
+custom profile named "<built-in> (edited)", held in memory by `useAppearance`, applied live and shown as
+active, but never part of the stored slice (so a relaunch never sees one, and the built-in is never
+changed, which is decision 1's reason). The pure model is unchanged and still refuses an edit to a
+built-in; the hook makes the draft copy first. Leaving the draft (Done, Escape, another profile, Duplicate,
+Import) asks **Save as new profile** (named, "<built-in> custom" by default, unique-ified as every name is;
+the new profile becomes active) / **Discard changes** (the app returns to the stored active profile with no
+override left on `<html>`) / **Cancel**; the drawer drops the draft when it unmounts by any other route.
+Selecting a profile through the bridge (`setAppearanceProfile`) also drops a draft. Editing a custom profile
+keeps saving in place. Invariants: `tests/use-appearance-draft.test.tsx` (the draft, save, discard, no-leak,
+relaunch) and the FR-082 block of `tests/workbench/appearance-drawer.test.tsx` (the prompt through the real
+drawer).
+

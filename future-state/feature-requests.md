@@ -98,7 +98,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🔴  | [FR-079](#fr-079-map-editing--open-a-ditamap-as-a-document-and-edit-its-topicref-tree) | Map editing — open a ditamap as a document and edit its topicref tree | 2026-11-17 | Open — candidate after the UI Overhaul arc (after v1.7.0); own ADR |
 | 🔴  | [FR-080](#fr-080-map-reading-view--the-maps-topics-in-sequence-on-one-page) | Map reading view — the map's topics in sequence on one page | 2026-11-19 | Open — parked next to FR-079 (after v1.7.0); own ADR |
 | 🔴  | [FR-081](#fr-081-custom-xml-syntax-colours-in-an-appearance-profile) | Custom XML syntax colours in an appearance profile | 2026-11-19 | Open — not sequenced (filed from Session 3) |
-| 🔴  | [FR-082](#fr-082-edit-a-built-in-appearance-profile-and-save-the-result-as-your-own) | Edit a built-in appearance profile and save the result as your own | 2026-11-19 | Open — candidate for a v1.3.x patch (roadmap); amends ADR-018 decision 1 |
+| 🟢  | [FR-082](#fr-082-edit-a-built-in-appearance-profile-and-save-the-result-as-your-own) | Edit a built-in appearance profile and save the result as your own | 2026-11-19 | Shipped v1.3.1 (2026-11-19); amends ADR-018 decision 1 |
 
 ---
 
@@ -1395,7 +1395,7 @@ A profile with one syntax override renders that colour in the XML split and ever
 
 **Requested:** 2026-11-19
 **Source:** Kiryl, reviewing the v1.3.0 Appearance drawer: "Users can make changes to the defaulted themes, which are then saved as custom themes. If they make a change and select Done, a modal loads with the option to save the edited theme as a custom one."
-**Status:** Open — filed 2026-11-19; on the roadmap as a candidate for a v1.3.x patch after v1.3.0 ships (Kiryl places it). Amends ADR-018 decision 1 ("the only way to make one is Duplicate or Import").
+**Status:** Shipped (v1.3.1, 2026-11-19). Amends ADR-018 decision 1 ("the only way to make one is Duplicate or Import"): Save as new profile from an edited built-in is the third way.
 **Priority:** P2
 **Impact:** Medium — removes the extra step (Duplicate, then edit) between seeing a built-in and adjusting it, which is the common case
 **Model weight:** Sonnet (one draft state and one modal over the existing model; the pure functions in `lib/appearance.ts` already do the work). Opus only if the draft must survive a relaunch.

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Lock, Check, Copy, Upload, Download, Trash2, RotateCcw, ChevronDown, Info, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Lock, Check, CircleDot, Copy, Upload, Download, Trash2, RotateCcw, ChevronDown, Info, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
 import { Modal } from './Modal';
 import {
   APPEARANCE_GROUPS, APPEARANCE_VARS, type AppearanceGroup, type AppearanceVar,
@@ -11,6 +11,7 @@ import {
 } from '../lib/appearance';
 import type { AppearanceApi } from '../hooks/useAppearance';
 import { saveTextFile, safeFileName } from '../lib/native-file';
+import { DRAFT_ID } from '../hooks/useAppearance';
 import { SYNTAX_RULES, MONACO_BG } from '../lib/monaco-themes';
 
 interface AppearanceDrawerProps {
@@ -134,7 +135,7 @@ const XmlPreview = ({ p }: { p: AppearanceProfile }) => {
  * applies at once through `useAppearance`.
  */
 export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps) => {
-  const { active: p, state } = appearance;
+  const { active: p, state, draft } = appearance;
   const [filter, setFilter] = useState('');
   const [onlyChangedSetting, setOnlyChanged] = useState(false);
   const [open, setOpen] = useState<Record<AppearanceGroup, boolean>>(() => Object.fromEntries(APPEARANCE_GROUPS.map((g, i) => [g, i === 0])) as Record<AppearanceGroup, boolean>);
@@ -142,39 +143,73 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
-  const ro = p.builtIn;
+  // FR-082: a built-in view is editable too; the first edit starts an unsaved draft (see useAppearance).
+  const isBuiltIn = p.builtIn;
   // Review finding: on a built-in (no overrides, the box disabled) "Changed only" would hide every row.
-  const onlyChanged = onlyChangedSetting && !ro;
+  const onlyChanged = onlyChangedSetting && !isBuiltIn;
   // The name field is a draft committed on Enter, blur, or closing the drawer (review: Escape
   // unmounts the input without a blur), and it follows the stored name, which a rename that
   // collides changes ("Light" → "Light 2").
   const [nameDraft, setNameDraft] = useState(p.name);
   useEffect(() => { setNameDraft(p.name); }, [p.id, p.name]);
   const commitName = () => {
-    if (ro) return;
+    if (isBuiltIn) return;
     if (nameDraft.trim() && nameDraft !== p.name) appearance.update(p.id, { name: nameDraft });
     else setNameDraft(p.name);
   };
-  const close = () => { commitName(); onClose(); };
   const changedCount = Object.keys(p.overrides).length;
 
-  const select = (id: string) => { setNotice(null); setConfirmDelete(false); appearance.selectProfile(id); };
-  const duplicate = () => {
-    setNotice(null);
-    if (appearance.duplicate(p.id)) setTimeout(() => { nameRef.current?.focus(); nameRef.current?.select(); }, 0);
+  // FR-082: anything that would leave an unsaved draft (Done, Escape, another profile, Duplicate, Import)
+  // asks first: Save as new profile / Discard changes / Cancel. `then` runs once the draft is settled.
+  const [leaving, setLeaving] = useState<{ then: () => void } | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const guard = (then: () => void) => {
+    if (!draft) { then(); return; }
+    setSaveName(`${draft.sourceName} custom`);
+    setLeaving({ then });
   };
+  const resolveSave = () => {
+    const id = appearance.saveDraft(saveName);
+    if (!id) return; // an empty name keeps the sheet open
+    const then = leaving!.then;
+    setLeaving(null);
+    then();
+  };
+  const resolveDiscard = () => {
+    appearance.discardDraft();
+    const then = leaving!.then;
+    setLeaving(null);
+    then();
+  };
+  const cancelLeaving = () => setLeaving(null);
+  // Escape cancels the question first; only then does it close the drawer.
+  const close = () => {
+    if (leaving) { cancelLeaving(); return; }
+    commitName();
+    guard(onClose);
+  };
+  // Closing the drawer by any other route (the gear's Settings…, a menu row) must not strand a draft.
+  const discardRef = useRef(appearance.discardDraft);
+  discardRef.current = appearance.discardDraft;
+  useEffect(() => () => discardRef.current(), []);
+
+  const select = (id: string) => guard(() => { setNotice(null); setConfirmDelete(false); appearance.selectProfile(id); });
+  const duplicate = () => guard(() => {
+    setNotice(null);
+    if (appearance.duplicate(appearance.active.id)) setTimeout(() => { nameRef.current?.focus(); nameRef.current?.select(); }, 0);
+  });
   const doExport = () => {
     const text = appearance.exportText(p.id);
     if (!text) return;
     const how = saveTextFile(safeFileName(p.name, '.json'), text);
     setNotice({ kind: 'ok', title: how === 'native' ? `Choose where to save ${p.name}.` : `Exported ${p.name}.` });
   };
-  const doImport = async (file: File) => {
+  const doImport = (file: File) => guard(async () => {
     const res = appearance.importText(await file.text());
     setNotice(res.ok
       ? { kind: 'ok', title: `Imported ${res.profile.name} from ${file.name} and switched to it.` }
       : { kind: 'error', title: `Couldn't import ${file.name}. Nothing was imported.`, detail: res.errors });
-  };
+  });
   const doDelete = () => {
     const name = p.name;
     appearance.remove(p.id);
@@ -188,6 +223,9 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
     && (!onlyChanged || p.overrides[v.name] !== undefined)
     && (!q || `${v.label} ${v.name}`.toLowerCase().includes(q)));
   const mine = state.profiles;
+  // A stable key for the rows while a draft replaces the built-in as the active profile (a remount
+  // mid-edit would close the native colour picker).
+  const viewKey = draft?.sourceId ?? p.id;
 
   const row = (x: AppearanceProfile) => {
     const isActive = x.id === p.id;
@@ -203,6 +241,7 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
       >
         <Dots p={x} />
         <span className="flex-1 truncate">{x.name}</span>
+        {x.id === DRAFT_ID ? <CircleDot className="w-3 h-3" aria-label="unsaved" style={{ color: 'var(--editor-accent)' }} /> : null}
         {isActive ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--editor-accent)' }} /> : x.builtIn ? <Lock className="w-3 h-3" style={{ color: 'var(--app-text-muted)' }} /> : null}
       </button>
     );
@@ -261,19 +300,26 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
             <div className="flex items-center gap-2 mb-3.5">
               <h5 className="text-[15px] font-bold m-0 truncate" style={{ color: 'var(--app-text-primary)' }}>{p.name}</h5>
               <span className="text-[10px] font-semibold px-2 py-px rounded-full inline-flex items-center gap-1" style={{ border: '1px solid var(--app-border-subtle)', backgroundColor: 'var(--app-surface-raised)', color: 'var(--app-text-muted)' }}>
-                {ro && <Lock className="w-2.5 h-2.5" />}{ro ? 'Built-in' : 'My profile'}
+                {isBuiltIn && <Lock className="w-2.5 h-2.5" />}{isBuiltIn ? 'Built-in' : draft ? 'Unsaved edits' : 'My profile'}
               </span>
               <span className="text-[10px] font-semibold px-2 py-px rounded-full" style={{ border: '1px solid var(--app-border-subtle)', color: 'var(--editor-accent)' }}>In use</span>
             </div>
 
-            {ro && (
+            {isBuiltIn && (
               <div className="flex gap-2.5 px-3 py-2.5 rounded-lg text-[11.5px] leading-normal mb-3.5" style={{ border: '1px solid var(--app-border-subtle)', backgroundColor: 'var(--app-surface-raised)' }}>
                 <Info className="w-4 h-4 shrink-0 mt-px" style={{ color: 'var(--editor-accent)' }} />
-                <div>{builtInDescription(p)}. Built-in profiles can't be changed, so an update to the app can improve them without overwriting your work. <b>Duplicate</b> this one to make your own copy, then change anything.</div>
+                <div>{builtInDescription(p)}. A built-in profile itself never changes, so an update to the app can improve it without overwriting your work. Change anything here and it becomes an unsaved copy: when you are done, you can save it as your own profile.</div>
               </div>
             )}
 
-            {!ro && (
+            {draft && (
+              <div className="flex gap-2.5 px-3 py-2.5 rounded-lg text-[11.5px] leading-normal mb-3.5" role="status" style={{ border: '1px solid var(--app-border-subtle)', backgroundColor: 'var(--app-surface-raised)' }}>
+                <Info className="w-4 h-4 shrink-0 mt-px" style={{ color: 'var(--editor-accent)' }} />
+                <div>Unsaved copy of <b>{draft.sourceName}</b>. Select <b>Done</b> to save it as your own profile or discard it.</div>
+              </div>
+            )}
+
+            {!isBuiltIn && (
               <div className="flex flex-col gap-1.5 mb-3">
                 <label htmlFor="appearance-name" className="text-[11px] font-semibold" style={{ color: 'var(--app-text-secondary)' }}>Name</label>
                 <input
@@ -292,13 +338,13 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
             <div className="grid grid-cols-2 gap-2.5">
               <div className="flex flex-col gap-1.5 mb-3">
                 <label htmlFor="appearance-base" className="text-[11px] font-semibold" style={{ color: 'var(--app-text-secondary)' }}>Start from</label>
-                <select id="appearance-base" disabled={ro} value={p.base} onChange={e => appearance.update(p.id, { base: e.target.value as ThemeName })} className="h-[30px] px-2 rounded-md text-xs" style={inputStyle}>
+                <select id="appearance-base" value={p.base} onChange={e => appearance.update(p.id, { base: e.target.value as ThemeName })} className="h-[30px] px-2 rounded-md text-xs" style={inputStyle}>
                   {THEME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5 mb-3">
                 <label htmlFor="appearance-syntax" className="text-[11px] font-semibold" style={{ color: 'var(--app-text-secondary)' }}>XML syntax theme</label>
-                <select id="appearance-syntax" disabled={ro} value={p.syntaxTheme} onChange={e => appearance.update(p.id, { syntaxTheme: e.target.value as SyntaxThemeName })} className="h-[30px] px-2 rounded-md text-xs" style={inputStyle}>
+                <select id="appearance-syntax" value={p.syntaxTheme} onChange={e => appearance.update(p.id, { syntaxTheme: e.target.value as SyntaxThemeName })} className="h-[30px] px-2 rounded-md text-xs" style={inputStyle}>
                   {SYNTAX_THEME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}{o.mode === 'light' ? ' (light)' : ''}</option>)}
                 </select>
               </div>
@@ -316,7 +362,7 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
             <div className="flex gap-2 items-center mt-1 mb-2">
               <input aria-label="Filter colours" placeholder="Filter colours" value={filter} onChange={e => setFilter(e.target.value)} className="flex-1 h-7 px-2.5 rounded-md text-xs outline-none" style={inputStyle} />
               <label className="inline-flex items-center gap-1.5 text-[11px] whitespace-nowrap" style={{ color: 'var(--app-text-muted)' }}>
-                <input type="checkbox" checked={onlyChanged} disabled={ro} onChange={e => setOnlyChanged(e.target.checked)} />Changed only
+                <input type="checkbox" checked={onlyChanged} disabled={isBuiltIn} onChange={e => setOnlyChanged(e.target.checked)} />Changed only
               </label>
             </div>
 
@@ -339,7 +385,7 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
                     <span className="ml-auto text-[10px] font-semibold" style={{ color: changed ? 'var(--editor-accent)' : 'var(--app-text-muted)' }}>{changed ? `${changed} changed · ` : ''}{total}</span>
                   </button>
                   {isOpen && rows.map(v => (
-                    <VarRow key={`${p.id}:${v.name}`} p={p} name={v.name} label={v.label} kind={v.kind} readOnly={ro} onSet={value => appearance.setOverride(p.id, v.name, value)} />
+                    <VarRow key={`${viewKey}:${v.name}`} p={p} name={v.name} label={v.label} kind={v.kind} readOnly={false} onSet={value => appearance.setOverride(p.id, v.name, value)} />
                   ))}
                 </div>
               );
@@ -356,11 +402,11 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
           )}
 
           <footer className="shrink-0 flex flex-wrap items-center gap-2 px-3.5 py-2.5" style={{ borderTop: '1px solid var(--app-border)' }}>
-            {ro ? (
+            {isBuiltIn ? (
               <>
                 <button className={btn} style={btnStyle} onClick={doExport}><Download className="w-3.5 h-3.5" />Export…</button>
                 <span className="flex-1" />
-                <button className={btn} style={primaryStyle} onClick={duplicate}><Copy className="w-3.5 h-3.5" />Duplicate to edit</button>
+                <button className={btn} style={primaryStyle} onClick={close}>Done</button>
               </>
             ) : (
               <>
@@ -368,7 +414,9 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
                   <RotateCcw className="w-3.5 h-3.5" />Reset to {themeLabel(p.base)}{changedCount ? ` (${changedCount})` : ''}
                 </button>
                 <button className={btn} style={btnStyle} onClick={doExport}><Download className="w-3.5 h-3.5" />Export…</button>
-                <button className={btn} style={{ ...btnStyle, color: '#ef4444' }} onClick={() => setConfirmDelete(true)}><Trash2 className="w-3.5 h-3.5" />Delete</button>
+                {draft
+                  ? <button className={btn} style={{ ...btnStyle, color: '#ef4444' }} onClick={() => appearance.discardDraft()}><Trash2 className="w-3.5 h-3.5" />Discard changes</button>
+                  : <button className={btn} style={{ ...btnStyle, color: '#ef4444' }} onClick={() => setConfirmDelete(true)}><Trash2 className="w-3.5 h-3.5" />Delete</button>}
                 <span className="flex-1" />
                 <button className={btn} style={primaryStyle} onClick={close}>Done</button>
               </>
@@ -376,6 +424,47 @@ export const AppearanceDrawer = ({ appearance, onClose }: AppearanceDrawerProps)
           </footer>
         </div>
       </div>
+      {leaving && draft && (
+        <div className="absolute inset-0 z-10 grid place-items-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.38)' }} data-testid="save-draft-sheet">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-draft-title"
+            className="w-full max-w-[420px] rounded-xl p-5 shadow-2xl"
+            style={{ backgroundColor: 'var(--app-surface)', border: '1px solid var(--app-border-subtle)' }}
+            onKeyDown={e => {
+              if (e.key !== 'Tab') return;
+              const f = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button, input')).filter(x => !(x as HTMLButtonElement).disabled);
+              if (!f.length) return;
+              e.stopPropagation();
+              const first = f[0], last = f[f.length - 1];
+              if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+              else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }}
+          >
+            <h3 id="save-draft-title" className="text-sm font-bold m-0 mb-1" style={{ color: 'var(--app-text-primary)' }}>Save your changes as a new profile?</h3>
+            <p className="text-[11.5px] leading-normal m-0 mb-3" style={{ color: 'var(--app-text-muted)' }}>
+              You changed a copy of <b>{draft.sourceName}</b>. {draft.sourceName} itself stays as it is.
+            </p>
+            <label htmlFor="save-draft-name" className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--app-text-secondary)' }}>Name</label>
+            <input
+              id="save-draft-name"
+              autoFocus
+              value={saveName}
+              onChange={e => setSaveName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); resolveSave(); } }}
+              className="w-full h-[30px] px-2.5 rounded-md text-xs outline-none mb-4"
+              style={inputStyle}
+            />
+            <div className="flex items-center gap-2">
+              <button className={btn} style={{ ...btnStyle, color: '#ef4444' }} onClick={resolveDiscard}>Discard changes</button>
+              <span className="flex-1" />
+              <button className={btn} style={btnStyle} onClick={cancelLeaving}>Cancel</button>
+              <button className={btn} style={primaryStyle} disabled={!saveName.trim()} onClick={resolveSave}>Save as new profile</button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 };

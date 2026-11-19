@@ -71,7 +71,7 @@ describe('useAppearance', () => {
     expect(stored()).toEqual({ activeProfileId: 'builtin:light', profiles: [] });
   });
 
-  it('setOverride says whether the value was accepted; a refused value changes nothing', () => {
+  it('setOverride says whether the value was accepted; a refused value changes nothing; a built-in starts a draft', () => {
     const { result } = renderHook(() => useAppearance());
     let id: string | null = null;
     act(() => { id = result.current.duplicate('builtin:dark'); });
@@ -79,8 +79,10 @@ describe('useAppearance', () => {
     act(() => { accepted = result.current.setOverride(id!, '--app-bg', 'url(x)'); });
     expect(accepted).toBe(false);
     expect(result.current.active.overrides).toEqual({});
+    // FR-082: a built-in is no longer refused; the edit starts an unsaved draft (tests/use-appearance-draft.test.tsx).
     act(() => { accepted = result.current.setOverride('builtin:dark', '--app-bg', '#000000'); });
-    expect(accepted).toBe(false);
+    expect(accepted).toBe(true);
+    expect(result.current.draft).toEqual({ sourceId: 'builtin:dark', sourceName: 'Dark' });
   });
 
   it('import adds and activates; a refused import leaves the state alone; export of any profile is the file', () => {
