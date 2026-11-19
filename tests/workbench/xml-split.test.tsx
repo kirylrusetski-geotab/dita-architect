@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // ADR-017 W7 — the XML split keeps today's pane behaviour: its toolbar
-// (syntax theme, word wrap, Format, close), one Monaco editor per tab, the
+// (word wrap, Format, close; the syntax theme moved to the appearance profile, ADR-018), one Monaco editor per tab, the
 // ReviewBar + DiffViewer when a review is pending (ADR-008), and — the point
 // of W7 — a closed split hides the column without unmounting a single editor,
 // so a reopen is the same Monaco instance (cursor, scroll, undo stack intact).
@@ -48,7 +48,6 @@ function renderSplit(overrides: Partial<React.ComponentProps<typeof XmlSplit>> =
     updateTab: vi.fn(),
     appTheme: 'dark',
     syntaxTheme: 'material',
-    onSyntaxThemeChange: vi.fn(),
     wordWrapEnabled: false,
     onToggleWordWrap: vi.fn(),
     currentTopicType: 'concept',
@@ -86,15 +85,20 @@ describe('the toolbar', () => {
     expect(props.onToggleWordWrap).toHaveBeenCalledTimes(1);
   });
 
-  it('the syntax-theme menu lists every option and selects through onSyntaxThemeChange', async () => {
-    const { props } = renderSplit();
-    fireEvent.click(screen.getByRole('button', { name: /Select syntax theme/ }));
-    const menu = await screen.findByRole('menu', { name: 'Syntax theme' });
-    const items = menu.querySelectorAll('[role="menuitem"]');
-    expect(items.length).toBe(7);
-    fireEvent.click(screen.getByRole('menuitem', { name: /Dracula/ }));
-    expect(props.onSyntaxThemeChange).toHaveBeenCalledWith('dracula');
+  it('ADR-018: no syntax-theme menu (the syntax theme is part of the appearance profile); the toolbar is labelled XML', () => {
+    renderSplit();
+    expect(screen.queryByRole('button', { name: /syntax theme/i })).toBeNull();
     expect(screen.queryByRole('menu', { name: 'Syntax theme' })).toBeNull();
+    expect(screen.getByText('XML')).toBeInTheDocument();
+  });
+
+  it('a syntax theme that does not match the profile\'s base is flagged, in both directions', () => {
+    const { rerenderWith } = renderSplit({ appTheme: 'dark', syntaxTheme: 'daylight' });
+    expect(screen.getByText(/Daylight does not match this profile's dark page/)).toBeInTheDocument();
+    rerenderWith({ appTheme: 'light', syntaxTheme: 'monokai' });
+    expect(screen.getByText(/Monokai does not match this profile's light page/)).toBeInTheDocument();
+    rerenderWith({ appTheme: 'light', syntaxTheme: 'daylight' });
+    expect(screen.queryByText(/does not match this profile/)).toBeNull();
   });
 
   it('shows the topic-type badge and the footer status', () => {

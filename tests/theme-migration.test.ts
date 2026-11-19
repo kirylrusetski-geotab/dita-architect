@@ -1,10 +1,10 @@
 // FR-061 — the "geotab" theme was renamed "navy". A stored legacy preference
-// must resolve to the new name so existing users keep their palette; the
-// hook's initializer also rewrites localStorage (covered by inspection of
-// useEditorUi; the pure resolver is pinned here).
+// must resolve to the new name so existing users keep their palette. Since
+// v1.3.0 the settings store's one-time migration applies it (ADR-018 decision 8).
 import { describe, it, expect } from 'vitest';
-import { resolveStoredTheme } from '../hooks/useEditorUi';
-import { THEME_OPTIONS, THEME_DESCRIPTIONS } from '../components/Toolbar';
+// ADR-018: the resolver moved with the theme names to lib/appearance.ts; the settings
+// store's migration (tests/settings-store.test.ts) is what calls it now.
+import { resolveStoredTheme, THEME_OPTIONS, THEME_DESCRIPTIONS } from '../lib/appearance';
 
 describe('FR-061: theme rename geotab → navy', () => {
   it('maps the legacy stored value to navy', () => {

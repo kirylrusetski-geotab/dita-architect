@@ -13,8 +13,6 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { MENU_BRIDGE_METHODS, MENU_SHORTCUT_CATEGORY } from '../lib/native-menu-bridge';
 import { KEYBOARD_SHORTCUTS } from '../constants/keyboard-shortcuts';
-import { THEME_OPTIONS } from '../components/Toolbar';
-import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
 import { DITA_TOPIC_TYPE } from '../constants/dita';
 import { PANEL_IDS, VIEW_IDS } from '../lib/workbench-layout';
 
@@ -67,9 +65,10 @@ function swiftShortcut(row: SwiftRow): string {
   return normalizeShortcut(`${mods}${row.key}`);
 }
 
-// Methods on the bridge that are not menu items: a Swift → JS callback and a
-// getter the smoke uses. Everything else must be reachable from a menu row.
-const NOT_MENU_ITEMS = new Set(['exportFinished', 'getActiveTheme']);
+// Methods on the bridge that are not menu items: a Swift → JS callback, and the
+// appearance setter and getter the smoke uses (ADR-018 decision 11).
+// Everything else must be reachable from a menu row.
+const NOT_MENU_ITEMS = new Set(['exportFinished', 'setAppearanceProfile', 'getAppearance']);
 // A menu row may also call the tab API's loader (ADR-007) — Open Local File… is
 // native (NSOpenPanel) and hands the file to loadContent (ADR-016 decision 4).
 const TAB_API_METHODS_A_ROW_MAY_CALL = new Set(['loadContent']);
@@ -81,8 +80,9 @@ describe('ADR-016 I1 — every menu item has both halves', () => {
     // P2-39 File menu: 3 new-topic items, Open, Close, Save, Replace, Export, Connect, Open from Heretto (10)
     // ADR-017 File: Convert Topic Type, Connect a Map, Reload Map, Disconnect Map (4)
     // P2-41 app menu: What's New, Keyboard Shortcuts (2)
-    // ADR-017 View: 4 views + Toggle Right Rail (5), Panels submenu (7); P2-40: 6 themes + 7 syntax themes
-    expect(rows.length).toBeGreaterThanOrEqual(10 + 4 + 2 + 5 + 7 + 6 + 7);
+    // ADR-017 View: 4 views + Toggle Right Rail (5), Panels submenu (7)
+    // ADR-018: app menu Settings… (1), View ▸ Appearance… (1); the 6 + 7 theme rows are gone
+    expect(rows.length).toBeGreaterThanOrEqual(10 + 4 + 2 + 5 + 7 + 1 + 1);
     // Every MenuAction( in the file must have parsed — a row written across two
     // lines, or with its arguments reordered, would otherwise vanish silently
     // once the table grows past the minimum above (adversarial review, finding 5).
@@ -122,11 +122,24 @@ describe('ADR-016 I1 — every menu item has both halves', () => {
     return m?.[1];
   };
 
-  it('the Theme and XML Syntax Theme submenus list exactly the app\'s theme options, in order (I4)', () => {
-    const themeRows = rows.filter(r => r.method === 'setTheme').map(r => argOf(r, 'name'));
-    const syntaxRows = rows.filter(r => r.method === 'setXmlTheme').map(r => argOf(r, 'name'));
-    expect(themeRows).toEqual(THEME_OPTIONS.map(o => o.value));
-    expect(syntaxRows).toEqual(SYNTAX_THEME_OPTIONS.map(o => o.value));
+  it('ADR-018 A5: no Theme or XML Syntax Theme submenu, no check-mark machinery, no ditaUi push', () => {
+    expect(rows.some(r => r.method === 'setTheme' || r.method === 'setXmlTheme')).toBe(false);
+    expect(SWIFT).not.toMatch(/NSMenuItem\(title: "(Theme|XML Syntax Theme)"/);
+    expect(SWIFT).not.toMatch(/menuNeedsUpdate|UiState|ditaUi|check: \./);
+    const webView = readFileSync(join(__dirname, '..', 'macos', 'Sources', 'DITAArchitect', 'WebViewController.swift'), 'utf-8');
+    expect(webView).not.toMatch(/ditaUi/);
+  });
+
+  it('ADR-018 A5: DITA Architect ▸ Settings… is ⌘, (openSettings) and View ▸ Appearance… opens the drawer', () => {
+    const settings = rows.find(r => r.title === 'Settings…');
+    expect(settings).toMatchObject({ key: ',', modifiers: ['.command'], method: 'openSettings' });
+    const appearance = rows.find(r => r.title === 'Appearance…');
+    expect(appearance).toMatchObject({ key: '', method: 'openAppearance' });
+    // The Settings row is in the app menu's table, the Appearance row in the View menu's.
+    const appTable = SWIFT.slice(SWIFT.indexOf('appMenuEntries: [MenuEntry]'), SWIFT.indexOf('fileMenuEntries: [MenuEntry]'));
+    expect(appTable).toContain('method: "openSettings"');
+    const viewTable = SWIFT.slice(SWIFT.indexOf('viewMenuEntries: [MenuEntry]'), SWIFT.indexOf('panelEntries: [MenuEntry]'));
+    expect(viewTable).toContain('method: "openAppearance"');
   });
 
   it('ADR-017 W4: View ▸ Panels has one togglePanel row per rail panel, in rail order', () => {
@@ -173,6 +186,7 @@ describe('ADR-016 I2 — the P2-39 / P2-40 shortcuts, and no collision with the 
     ['Search', '⌘2'],
     ['Map', '⌘3'],
     ['Source Control', '⌘4'],
+    ['Settings…', '⌘,'],
   ])('"%s" is %s', (title, shortcut) => {
     const row = byTitle(title);
     expect(row, `no menu row titled "${title}"`).toBeDefined();

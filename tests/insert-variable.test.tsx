@@ -230,7 +230,7 @@ describe('FR-066 AC1: the Insert Variable button needs a connected map', () => {
   const renderToolbar = (reg: KeyRegistry | null) => render(
     <KeyRegistryContext.Provider value={reg}>
       <LexicalComposer initialConfig={{ namespace: 'tb', nodes: EDITOR_NODES, onError: (e: Error) => { throw e; }, theme: {} }}>
-        <Toolbar currentTheme="dark" onThemeChange={vi.fn()} />
+        <Toolbar />
       </LexicalComposer>
     </KeyRegistryContext.Provider>,
   );

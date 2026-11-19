@@ -1,6 +1,6 @@
 import React from 'react';
 import { Keyboard } from 'lucide-react';
-import { KEYBOARD_SHORTCUTS } from '../constants/keyboard-shortcuts';
+import { ShortcutList } from './ShortcutList';
 import { Modal } from './Modal';
 
 interface KeyboardShortcutsModalProps {
@@ -8,8 +8,6 @@ interface KeyboardShortcutsModalProps {
 }
 
 export const KeyboardShortcutsModal = ({ onClose }: KeyboardShortcutsModalProps) => {
-  const categories = Array.from(new Set(KEYBOARD_SHORTCUTS.map(s => s.category)));
-
   return (
     <Modal onClose={onClose} labelId="keyboard-shortcuts-title" className="rounded-xl p-6 w-[480px] max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
@@ -25,48 +23,9 @@ export const KeyboardShortcutsModal = ({ onClose }: KeyboardShortcutsModalProps)
           </div>
         </div>
 
-        {/* Shortcut list */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-          {categories.map(category => (
-            <div key={category}>
-              <h4
-                className="text-[10px] font-semibold uppercase tracking-wider mb-2"
-                style={{ color: 'var(--app-text-muted)' }}
-              >
-                {category}
-              </h4>
-              <div className="space-y-1.5">
-                {KEYBOARD_SHORTCUTS.filter(s => s.category === category).map((shortcut, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-4 px-3 py-2 rounded-lg text-sm"
-                    style={{ backgroundColor: 'var(--app-surface-raised)' }}
-                  >
-                    <span style={{ color: 'var(--app-text-secondary)' }}>{shortcut.description}</span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {shortcut.keys.map((key, ki) => (
-                        <React.Fragment key={ki}>
-                          {ki > 0 && (
-                            <span className="text-[10px]" style={{ color: 'var(--app-text-muted)' }}>or</span>
-                          )}
-                          <kbd
-                            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold"
-                            style={{
-                              backgroundColor: 'var(--app-surface)',
-                              border: '1px solid var(--app-border)',
-                              color: 'var(--app-text-primary)',
-                            }}
-                          >
-                            {key}
-                          </kbd>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        {/* Shortcut list (shared with Settings ▸ Keyboard Shortcuts, ADR-018) */}
+        <div className="flex-1 overflow-y-auto pr-1">
+          <ShortcutList />
         </div>
 
         {/* Footer */}

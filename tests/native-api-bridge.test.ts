@@ -70,7 +70,7 @@ function makeHandlers(tab: Tab) {
     getTabs: () => tabs,
     getActiveTabId: () => tab.id,
     getHerettoConnected: () => false,
-    getTheme: () => 'dark',
+    getAppearance: () => ({ id: 'builtin:dark', name: 'Dark', base: 'dark' }),
     handleHerettoSave: vi.fn().mockResolvedValue(undefined),
     setActiveTabId: vi.fn(),
   };

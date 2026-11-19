@@ -1724,3 +1724,191 @@ Modal never did; Escape and Cancel do, like every other dialog); the Explorer `�
 the native app (a second route to Convert and the map rows, which ADR-016's command-set rule allows);
 Monaco's scroll position across a hide/show is the one W7 claim only the native click-through settles.
 
+
+---
+
+## ADR-018 — Appearance profiles as data, and one versioned settings store
+
+**Date:** 2026-11-19 · **Status:** Accepted (shipped in v1.3.0, 2026-11-19 — Execution Plan — UI Overhaul, Session 3: FR-073 + FR-074; mock approved by Kiryl 2026-11-19 with every default; see the implementation note at the end)
+
+**Context** — At v1.2.0 the look of the app is two names: an app theme (one of six `[data-theme]` blocks
+in `index.css`, 63 custom properties each, the dark block on `:root`) and a Monaco syntax theme (one of
+seven token palettes in `MonacoDitaEditor.tsx`, whose editor background comes from a separate per-theme
+table, `bgColors`). They are chosen in four places that must agree: the Toolbar's theme dropdown, the
+XML split's syntax dropdown, the Settings gear's two sub-pages (ADR-017 decision 6, "until Session 3"),
+and the native View menu's two submenus, whose check marks come from a `ditaUi` script-message push
+(ADR-016 decision 5) because the menu cannot ask the web app synchronously. A writer cannot change one
+colour; P3-46 (an Altitude palette) was rolled back on visual grounds and would have needed a CSS block
+and five code sites. Preferences are seven loose `localStorage` keys, each read and written where it is
+used: `ditaWordWrap`, `ditaSplitWidth` (already migrated into the workbench object by ADR-017),
+`dita-architect-theme`, `dita-architect-syntax-theme`, `dita-architect-last-seen-version`,
+`dita-architect-workbench` (ADR-017's layout object, "until ADR-018 folds it in") and
+`dita-architect-coach-sync-hint`. Heretto credentials are edited in a "Heretto Status" modal. Kiryl's
+brief asks for appearance profiles in a modal ("create their own personalised appearances, or load from
+defaults"), migrating the existing themes, and for Settings at the bottom of the rail. Facts found while
+shaping (2026-11-19): two of the 63 variables are not colours (`--editor-page-shadow` is a box-shadow,
+`--editor-page-border` a border shorthand) and many colours are `rgba()`; `data-theme` sits on the app's
+root `<div>`, so the two portalled `+` menus (`InsertElementMenu`, `InsertElementPlugin`, rendered into
+`document.body`) have never received a non-dark theme; six built-ins cannot represent the 42 stored
+theme × syntax pairs one-to-one. The architectural trigger fires: a new data model, a persisted-state
+contract change, a changed native menu surface, and a changed API field.
+
+**Decision**
+
+1. **A profile is one look, as data.** `AppearanceProfile = { id, name, base: ThemeName, syntaxTheme:
+   SyntaxThemeName, overrides: Partial<Record<AppearanceVar, string>>, builtIn }` in
+   `lib/appearance.ts`. The syntax theme is part of the profile (Kiryl, 2026-11-19). The six themes are
+   six **built-in profiles** (`builtin:<theme>`), read-only, never stored, so an app update can improve
+   them; Light pairs with Daylight and the other five with Material. A built-in may also be a **palette**:
+   a theme plus overrides, with no CSS block of its own (v1.3.0 ships one, **Warm paper** = Light plus
+   four colours, Kiryl's pick from the mock, 2026-11-19). Custom profiles are stored; the
+   only way to make one is **Duplicate** (from a built-in or another profile) or **Import**. The app's
+   theme names, labels and descriptions and the syntax theme list move to `lib/appearance.ts`, their one
+   home (the Toolbar and Monaco import them).
+2. **The variable registry is the contract.** `constants/appearance-vars.ts` lists the 63 variables, each
+   with a label, a group (App chrome · Editor canvas · Body element bars · Toolbar and status bar · Notes
+   · Topic badges · Validation · Scrollbars) and a kind (`color`, `shadow`, `border`). A drift test (A1)
+   asserts the registry equals the `:root` block of `index.css` and that every `[data-theme]` block
+   defines exactly that set. Adding a variable to the CSS without the registry, or the reverse, fails.
+3. **Applying a profile is `data-theme` plus inline custom properties, on `<html>`.** `applyProfile`
+   sets `data-theme = base` on `document.documentElement`, removes every registry variable from its
+   inline style, then sets the profile's overrides; an override wins over the base by the cascade and
+   `index.css` is untouched. It runs once before React renders (no flash of the dark theme) and on every
+   change. Moving the attribute from the app's root `<div>` to `<html>` gives `body` and the portalled
+   menus the theme too (a latent bug fixed in passing); `body`'s hard-coded dark colours become the
+   variables. Monaco receives `{ base, syntaxTheme }` as today; overrides do not reach the XML split's
+   background, and custom Monaco palettes are out of scope (Kiryl, 2026-11-19; filed as an FR).
+4. **Values are checked before they are applied, stored or imported.** A colour value must be a hex
+   colour, `rgb()`/`rgba()`/`hsl()`/`hsla()`, or `transparent`; a shadow or border value must use only
+   the characters those grammars need, and `url(`, `expression(`, `;`, `{`, `}`, `<` and `\` are refused
+   anywhere. The editor's colour picker writes hex and keeps an existing alpha (`#rrggbb` + the old
+   alpha → `rgba()`).
+5. **Export and import are a JSON file with a fixed shape.** `{ "format": "dita-architect-appearance",
+   "version": 1, "name", "base", "syntaxTheme", "overrides" }`, keys in that order, overrides in registry
+   order, two-space indent, trailing newline, so export → import → export is byte-identical (A4). Import
+   refuses the whole file, naming every problem, when the format or version is wrong, the base or syntax
+   theme is unknown, a value fails decision 4, or **an override names a variable this version does not
+   have** — never a silent drop. An imported or duplicated name that is taken gets " 2", " 3", ….
+6. **Deleting the active profile falls back to its base's built-in.** A stored `activeProfileId` that
+   names nothing (a profile deleted elsewhere, a corrupt store) resolves the same way, or to Dark when
+   even the base is unknown (A3).
+7. **One versioned settings store.** `lib/settings.ts` owns one `localStorage` value,
+   `dita-architect-settings`: `{ version: 1, workbench, appearance: { activeProfileId, profiles },
+   editor: { wordWrap, openXmlTrayOnLoad, showSyncHint }, lastSeenVersion }`. Each slice is parsed on
+   its own and a bad slice falls back to its defaults without touching the others; the layout slice is
+   ADR-017's object, parsed by `parseStoredLayout` as before. Consumers keep their own React state and
+   write their slice through `updateSettings`. The connected map (`dita-architect-connected-map`) is
+   **not** a setting: it is session state owned by `useKeyRegistry` (ADR-013) and stays where it is.
+8. **The seven legacy keys migrate once, in one function.** When the store is absent, `migrateLegacy`
+   reads them all and builds the store: the theme through `resolveStoredTheme` (the `geotab → navy`
+   rule kept, garbage → Dark); the syntax theme validated, a missing one taking the base's built-in
+   pairing; **the pair lands on the built-in that matches it, or else on a migrated custom profile of
+   exactly that pair** (named "Nord, Dracula XML"), so nothing a writer sees changes (Kiryl, 2026-11-19);
+   `ditaWordWrap === 'true'`; the coach mark's key present → `showSyncHint: false`; the last-seen
+   version; the workbench object (with the legacy `ditaSplitWidth` rule ADR-017 defined). The legacy
+   keys are removed only **after the store was written and read back**; a second run finds the store
+   and does nothing (A2). A user who never changed anything lands on Dark with Material, as today.
+9. **Settings is a modal with five pages; Appearance is a drawer.** The gear menu becomes Settings… ·
+   Appearance… · Keyboard Shortcuts · What's New (the theme sub-pages go). The **Settings modal**
+   (shared `Modal`, dimmed) has General (Open the XML split when a topic opens — off by default, the
+   opt-out for ADR-017 decision 3 — XML word wrap, Show the sync hint, Restore defaults), Appearance (the
+   active profile and a button to the drawer), **Heretto** (the connection state, Test, and
+   `HerettoCredentialsForm`, writing `~/heretto.json` as before; `HerettoStatusModal` is retired and the
+   rail's Credentials… and File ▸ Connect to Heretto… open this page), Keyboard Shortcuts (the cheat
+   sheet's list, shared with the ⌘/ modal) and About. The **Appearance drawer** is a modal for focus and
+   Escape but does not dim: it docks on the right under the title row and leaves the app visible as the
+   live preview. Clicking a profile switches to it; edits apply as they are made. The Toolbar's theme
+   dropdown and the XML split's syntax dropdown are removed (one home); the split keeps its warning when
+   a light syntax theme sits on a dark base, now shown in the drawer.
+10. **"Open the XML split when a topic opens" lives in the main component, not in any loader.** When
+    the setting is on and a tab id appears that was not there before (any load path: Heretto, local
+    file, API, template, new topic), the main component opens the XML split. No loader learns about
+    the layout, so ADR-017's W2 wiring test still holds; with the setting off (the default) W2 holds
+    behaviourally too.
+11. **The native menu loses two submenus and gains two rows.** View ▸ Theme and View ▸ XML Syntax Theme
+    go, with their check marks, `MenuAction.Check`, `menuNeedsUpdate`, the `UiState` cache and the
+    `ditaUi` message (`lib/native-ui-state.ts` deleted): a fixed table cannot list custom profiles, and
+    with no check marks there is nothing to push. **View ▸ Appearance…** (`openAppearance`) and
+    **DITA Architect ▸ Settings… ⌘,** (`openSettings`) are added. The bridge's `setTheme`, `setXmlTheme`
+    and `getActiveTheme` become `setAppearanceProfile(id)` (400 naming the known ids on an unknown one)
+    and `getAppearance()` (the active profile and the list), so the smoke and the API keep a
+    programmatic path. `GET /api/status` keeps `theme` (now the active profile's base) and adds
+    `appearanceProfile: { id, name }`; `API.md` says so.
+12. **Files in and out of the native web view** (added during the build, 2026-11-19: Import and Export
+    would otherwise do nothing in the native app, whose `WKWebView` had no UI delegate and no download
+    handling). `FileBridge.swift` is the web view's `WKUIDelegate`: `<input type="file">` shows an
+    `NSOpenPanel` and hands the chosen file to the page, as a browser does (it does not filter by the
+    input's `accept`; Import refuses anything that is not a profile). Export posts `{fileName, text}` to a
+    new `ditaSaveFile` script message (`lib/native-file.ts`, the `ditaPrint` pattern of ADR-016 decision
+    6), which shows an `NSSavePanel` and writes the text as UTF-8 only where the writer chose; in the
+    browser the same call is an ordinary download.
+
+**Invariants** (the plan's A1–A6, plus the store; tests first)
+
+- **A1** Registry ↔ CSS drift (decision 2); applying a built-in leaves no inline custom property on
+  `<html>` and sets `data-theme` to its base; applying a custom profile and then a built-in leaves no
+  override behind.
+- **A2** Migration: each of the six stored theme names × each of the seven stored syntax themes lands on
+  the matching built-in or on a custom profile of that exact pair; a stored `geotab` lands on Navy;
+  missing or garbage values land on Dark/Material; every legacy key is gone afterwards; a second run is
+  a no-op; a store that cannot be written leaves the legacy keys in place.
+- **A3** A custom profile with one override renders that variable and every other from its base;
+  deleting the active profile falls back to its base's built-in; an unknown stored id resolves the same.
+- **A4** Export → import → export is byte-identical; an import naming an unknown variable is refused
+  with that name; a bad value, base, syntax theme, format or version is refused with the reason.
+- **A5** The native menu wiring test passes with the new rows and no theme submenu; `/api/status`
+  reports the active profile; the bridge's two appearance methods answer as decided.
+- **A6** Monaco's theme follows the profile on every switch (`monaco-theme-config` and the `theme-*`
+  suites retargeted, not deleted).
+- **ST1** The settings store: a missing or corrupt value yields defaults with no exception; a bad slice
+  does not reset a good one; every legacy key has its own migration test; the credentials form behaves
+  as `HerettoStatusModal`'s did (its tests retargeted).
+
+**Consequences** — A palette is a JSON file Kiryl can author (P3-46's unblock condition is unchanged,
+but it no longer needs code), and one colour can change without touching the CSS. The app has one
+persisted object for preferences instead of seven keys. Costs, named: the two shells' storage is
+separate (the native app's `dita://` origin and the dev server's `http://localhost:3000` each have their
+own store; export/import is the way across); the native View menu no longer shows which look is active;
+an override can make text unreadable, and nothing checks contrast (Reset to base is one click); Monaco's
+background keeps following the base only; a custom profile's base can be changed after the fact, which
+keeps its overrides on a different palette (every one of them: switching back loses nothing). Stored
+overrides that a later version's registry or value check refuses are dropped on read (import refuses
+them loudly; the store is tolerant by design), so removing a variable from the registry is a migration
+decision for that release. In the browser, two windows on one store sync the appearance slice through
+the `storage` event; the layout and editor slices stay last-writer-wins.
+
+**Alternatives considered** — **(A) One `[data-theme]` block generated per custom profile** —
+rejected: a stylesheet written at run time is a second CSS source, and inline properties do the same
+with no generated code. **(B) Separate theme and syntax choices, as today** — rejected by Kiryl's
+decision (one profile = one look); the drawer still lets a profile pair any base with any syntax theme.
+**(C) Land every unmatched stored pair on the base's built-in** — rejected by Kiryl: it would silently
+change the XML colours of anyone who had paired them differently. **(D) List profiles in the native View
+menu** — rejected: the table is fixed (ADR-016 decision 2) and a dynamic submenu needs a second channel
+to the shell. **(E) Keep the theme pickers in the Settings modal itself** — rejected: the modal dims the
+app, which hides the preview the brief asks for. **(F) Fold the connected map into the store** —
+rejected: it is ADR-013's session state, not a preference, and its restore path is already tested.
+
+**Implementation note (2026-11-19, after the adversarial review — Build discipline rule 7 and the
+per-minor consolidation pass).** A fresh-context reviewer read the ADR and the whole diff, wrote 14
+throwaway probes (deleted), and could not falsify A1 (every `index.css` value passes its own check and
+gets a picker; applying clears every registry variable), A4's safety (`url(` in any spelling, `;`,
+`!important` refused), A2 (write failure keeps the legacy keys; read-back; second run a no-op), A3, A5,
+A6, Gate 3 by command set, W1–W7 or W2. It found **four defects**, fixed and pinned in
+`tests/session3-review-findings.test.tsx`: "Changed only" stayed on (and disabled) on a built-in,
+hiding every row; the name field kept the typed name after a colliding rename stored "Light 2"; two
+user-facing strings sent writers to the retired Heretto Status modal; decision 12 was cited in code but
+missing here (added above). **Weaknesses fixed:** two browser windows erased each other's new profiles
+(the hook now takes another window's write from the `storage` event); an unreadable store was replaced
+with no copy kept (it is now copied to `dita-architect-settings.unreadable` first); an older app
+overwrote a newer version's store, dropping its unknown slices (a store with a higher `version` is read
+and never written); a base change dropped overrides equal to the new base, contradicting the
+Consequences (it now keeps them all); the drawer's overlay started under the title row, so tabs could be
+switched or closed behind an `aria-modal` dialog (the transparent overlay now covers the whole window);
+a typed name was lost when Escape closed the drawer (closing commits it); an unknown stored syntax theme
+migrated to the Light pairing instead of the Material v1.2.0 showed; switching Settings pages refilled
+the credentials form, discarding typed values (once per opening now); `#rrggbbaa` had no picker.
+**Recorded, not changed:** with "Open the XML split when a topic opens" on, closing the last tab (which
+makes a fresh one) also opens the split; Import ignores unknown top-level keys; the profile list's
+options are buttons without arrow-key navigation; a non-string `lastSeenVersion` reopens What's New.
+Consolidation items are BACKLOG debt rows ("ADR-018 debt").
+

@@ -34,7 +34,8 @@ import { FolderOpen, RefreshCw, CloudUpload, Loader2, X } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { TopicTypeModal } from './components/TopicTypeModal';
 import { SaveTopicModal } from './components/SaveTopicModal';
-import { HerettoStatusModal } from './components/HerettoStatusModal';
+import { SettingsModal } from './components/SettingsModal';
+import { AppearanceDrawer } from './components/AppearanceDrawer';
 import { HerettoBrowserModal } from './components/HerettoBrowserModal';
 import { ReleaseNotesModal } from './components/ReleaseNotesModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
@@ -49,7 +50,9 @@ import { generatePrintHtml, derivePrintTitle } from './lib/dita-print';
 import { registerNativeApiBridge } from './lib/native-api-bridge';
 import { registerNativeMenuBridge } from './lib/native-menu-bridge';
 import { postNativePrint } from './lib/native-print';
-import { pushNativeUiState } from './lib/native-ui-state';
+import { useAppearance } from './hooks/useAppearance';
+import { defaultSettings, loadSettings, updateSettings, type EditorSettings, type SettingsPage } from './lib/settings';
+import { addedIds } from './lib/workbench-layout';
 import { useEditorUi } from './hooks/useEditorUi';
 import { useTabManager } from './hooks/useTabManager';
 import { createTab, type DocumentMode } from './types/tab';
@@ -190,26 +193,35 @@ export default function ProfessionalDitaEditor() {
   const [exitSuggestingConfirm, setExitSuggestingConfirm] = useState<{ tabId: string; targetMode: DocumentMode } | null>(null);
   const [isHerettoReplaceModalOpen, setIsHerettoReplaceModalOpen] = useState(false);
 
-  const [wordWrapEnabled, setWordWrapEnabled] = useState<boolean>(() =>
-    localStorage.getItem('ditaWordWrap') === 'true'
-  );
-  const toggleWordWrap = useCallback(() => {
-    setWordWrapEnabled(prev => {
-      const next = !prev;
-      localStorage.setItem('ditaWordWrap', String(next));
-      return next;
-    });
+  // ADR-018: the editor options are the settings store's `editor` slice (word wrap,
+  // open the XML split on load, the sync hint), persisted on every change.
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>(() => loadSettings().editor);
+  const editorSettingsLoaded = useRef(false);
+  useEffect(() => {
+    if (!editorSettingsLoaded.current) { editorSettingsLoaded.current = true; return; }
+    updateSettings(st => ({ ...st, editor: editorSettings }));
+  }, [editorSettings]);
+  const changeEditorSettings = useCallback((patch: Partial<EditorSettings>) => {
+    setEditorSettings(prev => ({ ...prev, ...patch }));
   }, []);
+  const wordWrapEnabled = editorSettings.wordWrap;
+  const toggleWordWrap = useCallback(() => {
+    setEditorSettings(prev => ({ ...prev, wordWrap: !prev.wordWrap }));
+  }, []);
+
+  // ADR-018 decision 9: the Settings modal (a page, or closed) and the Appearance drawer.
+  const [settingsPage, setSettingsPage] = useState<SettingsPage | null>(null);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const appearance = useAppearance();
 
   // ADR-017: the editor-plus-XML container; the XML split's drag is measured against it.
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
   // Show "What's New" on first launch after a version update
   useEffect(() => {
-    const lastSeenVersion = localStorage.getItem('dita-architect-last-seen-version');
-    if (lastSeenVersion !== APP_VERSION) {
+    if (loadSettings().lastSeenVersion !== APP_VERSION) {
       setIsReleaseNotesOpen(true);
-      localStorage.setItem('dita-architect-last-seen-version', APP_VERSION);
+      updateSettings(st => ({ ...st, lastSeenVersion: APP_VERSION }));
     }
   }, []);
 
@@ -232,8 +244,6 @@ export default function ProfessionalDitaEditor() {
   });
 
   const {
-    isHerettoStatusOpen,
-    setIsHerettoStatusOpen,
     herettoCredentials,
     setHerettoCredentials,
     herettoStatusChecking,
@@ -259,7 +269,7 @@ export default function ProfessionalDitaEditor() {
     herettoSearchAbortRef,
     importVerification,
     setImportVerification,
-    openHerettoStatus,
+    loadHerettoCredentials,
     testHerettoConnection,
     saveHerettoCredentials,
     herettoNavigate,
@@ -295,13 +305,13 @@ export default function ProfessionalDitaEditor() {
     setActiveTabId,
   });
 
+  // ADR-018: the look is the active appearance profile (its base drives Monaco's background).
+  const appTheme = appearance.active.base;
+  const syntaxTheme = appearance.active.syntaxTheme;
+
   const {
-    theme: appTheme,
-    syntaxTheme,
     isKeyboardShortcutsOpen,
     setIsKeyboardShortcutsOpen,
-    handleThemeChange,
-    handleSyntaxThemeChange,
   } = useEditorUi({
     activeTabId,
     tabs,
@@ -311,6 +321,45 @@ export default function ProfessionalDitaEditor() {
   // ADR-017: the one owner of the workbench's layout (W1); W3's rule lives in the hook.
   const workbench = useWorkbenchLayout({ activeReviewKey: activeTab?.pendingReview ? activeTab.id : null });
   const { layout } = workbench;
+
+  // ADR-018 decision 10: "Open the XML split when a topic opens" — a tab id that was
+  // not there before opens the split. The loaders never learn about the layout (W2).
+  const knownTabIds = useRef<Set<string> | null>(null);
+  const { openPanel } = workbench;
+  useEffect(() => {
+    const ids = new Set(tabs.map(t => t.id));
+    const prev = knownTabIds.current;
+    knownTabIds.current = ids;
+    if (prev !== null && editorSettings.openXmlTrayOnLoad && addedIds(prev, ids).length > 0) openPanel('xml');
+  }, [tabs, editorSettings.openXmlTrayOnLoad, openPanel]);
+
+  // The credentials form is filled from ~/heretto.json once per opening of Settings, the first
+  // time the Heretto page shows (review finding: refilling on every page switch threw away
+  // what the writer had typed and not saved).
+  const credentialsLoaded = useRef(false);
+  const showSettingsPage = useCallback((page: SettingsPage) => {
+    if (page === 'heretto' && !credentialsLoaded.current) {
+      credentialsLoaded.current = true;
+      void loadHerettoCredentials();
+    }
+    setSettingsPage(page);
+  }, [loadHerettoCredentials]);
+  const closeSettings = useCallback(() => { credentialsLoaded.current = false; setSettingsPage(null); }, []);
+  const openSettings = useCallback((page: SettingsPage = 'general') => {
+    setIsAppearanceOpen(false);
+    showSettingsPage(page);
+  }, [showSettingsPage]);
+  const openHerettoStatus = useCallback(async () => { openSettings('heretto'); }, [openSettings]);
+  const openAppearance = useCallback(() => {
+    closeSettings();
+    setIsAppearanceOpen(true);
+  }, [closeSettings]);
+  const { resetLayout } = workbench;
+  const restoreDefaultSettings = useCallback(() => {
+    setEditorSettings(defaultSettings().editor);
+    resetLayout();
+    toast.success('Settings restored to their defaults');
+  }, [resetLayout]);
 
   // FR-045/FR-057: accept/reject a pendingReview staged by the API insert or PUT path.
   const handleReviewAccept = useCallback((tabId: string) => {
@@ -349,13 +398,13 @@ export default function ProfessionalDitaEditor() {
       getTabs: () => tabs,
       getActiveTabId: () => activeTabId,
       getHerettoConnected: () => herettoConnected,
-      getTheme: () => appTheme,
+      getAppearance: () => ({ id: appearance.active.id, name: appearance.active.name, base: appearance.active.base }),
       updateTab,
       handleHerettoSave,
       setTabs,
       setActiveTabId,
     });
-  }, [tabs, activeTabId, herettoConnected, appTheme, updateTab, handleHerettoSave, setTabs, setActiveTabId]);
+  }, [tabs, activeTabId, herettoConnected, appearance.active, updateTab, handleHerettoSave, setTabs, setActiveTabId]);
 
   const {
     fileInputRef,
@@ -510,22 +559,20 @@ export default function ProfessionalDitaEditor() {
       openConnectMapModal: () => setIsConnectMapOpen(true),
       reloadMap: () => { void reloadMap(); },
       disconnectMap,
-      setTheme: handleThemeChange,
-      setXmlTheme: handleSyntaxThemeChange,
-      getTheme: () => appTheme,
-      getXmlTheme: () => syntaxTheme,
+      openSettings,
+      openAppearance,
+      selectAppearanceProfile: appearance.selectProfile,
+      getAppearance: () => ({
+        active: { id: appearance.active.id, name: appearance.active.name, base: appearance.active.base, syntaxTheme: appearance.active.syntaxTheme, builtIn: appearance.active.builtIn },
+        profiles: appearance.profiles.map(p => ({ id: p.id, name: p.name, builtIn: p.builtIn })),
+      }),
     });
   }, [
     activeTabId, handleNewTopic, handleCloseTab, handleHerettoSave, openHerettoBrowser, openReplace,
-    openHerettoStatus, handlePrint, handleThemeChange, handleSyntaxThemeChange, appTheme, syntaxTheme,
+    openHerettoStatus, handlePrint, openSettings, openAppearance, appearance.selectProfile, appearance.active, appearance.profiles,
     setIsKeyboardShortcutsOpen, workbench.togglePanel, workbench.toggleRail, workbench.focusView,
     reloadMap, disconnectMap, openFromHeretto,
   ]);
-
-  // ADR-016 decision 5: the View menu's check marks come from this push.
-  useEffect(() => {
-    pushNativeUiState({ theme: appTheme, syntaxTheme });
-  }, [appTheme, syntaxTheme]);
 
   const handleFormatClick = () => {
     const monacoApiRef = activeTab.monacoApiRef;
@@ -547,7 +594,8 @@ export default function ProfessionalDitaEditor() {
 
   return (
     <KeyRegistryContext.Provider value={keyRegistry.registry}>
-    <div className="h-screen flex flex-col overflow-hidden" data-theme={appTheme} style={{ backgroundColor: 'var(--app-bg)' }}>
+    {/* ADR-018 decision 3: data-theme and the profile's overrides are on <html> (useAppearance), so portals get them too. */}
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--app-bg)' }}>
       {/* Drop overlay */}
       {isDragOver && (
         <div
@@ -569,18 +617,32 @@ export default function ProfessionalDitaEditor() {
         </div>
       )}
 
-      {/* Heretto Status Modal */}
-      {isHerettoStatusOpen && (
-        <HerettoStatusModal
-          herettoConnected={herettoConnected}
-          herettoStatusChecking={herettoStatusChecking}
-          herettoCredentials={herettoCredentials}
-          setHerettoCredentials={setHerettoCredentials}
-          testHerettoConnection={testHerettoConnection}
-          saveHerettoCredentials={saveHerettoCredentials}
-          onClose={() => setIsHerettoStatusOpen(false)}
+      {/* ADR-018 decision 9: Settings (the credentials form moved here from the retired Heretto Status modal) */}
+      {settingsPage && (
+        <SettingsModal
+          page={settingsPage}
+          onPageChange={showSettingsPage}
+          onClose={closeSettings}
+          editor={editorSettings}
+          onEditorChange={changeEditorSettings}
+          onRestoreDefaults={restoreDefaultSettings}
+          profile={appearance.active}
+          onOpenAppearance={openAppearance}
+          heretto={{
+            connected: herettoConnected,
+            checking: herettoStatusChecking,
+            credentials: herettoCredentials,
+            setCredentials: setHerettoCredentials,
+            onTest: () => { void testHerettoConnection(); },
+            onSave: () => { void saveHerettoCredentials(); },
+          }}
+          version={APP_VERSION}
+          onOpenReleaseNotes={() => { closeSettings(); setIsReleaseNotesOpen(true); }}
         />
       )}
+
+      {/* ADR-018 decision 9: Appearance, a drawer that leaves the app visible as the preview */}
+      {isAppearanceOpen && <AppearanceDrawer appearance={appearance} onClose={() => setIsAppearanceOpen(false)} />}
 
       {/* Connect a Map (P2-27) — also the failure modal for a failed connect or reload */}
       {(isConnectMapOpen || keyRegistry.error) && (
@@ -761,7 +823,7 @@ export default function ProfessionalDitaEditor() {
             email: herettoCredentials.email,
             rootUuid: herettoRootUuid,
             onTest: () => { void testHerettoConnection(); },
-            onOpenCredentials: () => { void openHerettoStatus(); },
+            onOpenCredentials: () => openSettings('heretto'),
             onOpenFromHeretto: openFromHeretto,
             onSave: () => { void handleHerettoSave(); },
             onReplace: openReplace,
@@ -769,13 +831,11 @@ export default function ProfessionalDitaEditor() {
           }}
           settings={{
             version: APP_VERSION,
-            onOpenCredentials: () => { void openHerettoStatus(); },
+            onOpenSettings: () => openSettings('general'),
+            onOpenAppearance: openAppearance,
+            profileName: appearance.active.name,
             onKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
             onReleaseNotes: () => setIsReleaseNotesOpen(true),
-            theme: appTheme,
-            onThemeChange: handleThemeChange,
-            syntaxTheme,
-            onSyntaxThemeChange: handleSyntaxThemeChange,
           }}
         />
 
@@ -825,7 +885,7 @@ export default function ProfessionalDitaEditor() {
                 currentFolder={activeFolder}
                 focusRequest={searchFocusRequest}
                 onOpenHit={openSearchHit}
-                onOpenCredentials={() => { void openHerettoStatus(); }}
+                onOpenCredentials={() => openSettings('heretto')}
                 onTestConnection={() => { void testHerettoConnection(); }}
               />
             </div>
@@ -859,7 +919,7 @@ export default function ProfessionalDitaEditor() {
           >
           {/* First-run sync hint */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex justify-center">
-            <CoachMark />
+            <CoachMark show={editorSettings.showSyncHint} onDismiss={() => changeEditorSettings({ showSyncHint: false })} />
           </div>
           {tabs.map(tab => (
             <LexicalComposer key={tab.id} initialConfig={{ ...editorConfig, namespace: `DitaEditor-${tab.id}` }}>
@@ -868,8 +928,6 @@ export default function ProfessionalDitaEditor() {
                 style={{ display: tab.id === activeTabId ? 'flex' : 'none' }}
               >
                 <Toolbar
-                  currentTheme={appTheme}
-                  onThemeChange={handleThemeChange}
                   documentMode={tab.documentMode}
                   onModeChange={(mode) => {
                     if (mode === tab.documentMode) return;
@@ -1103,7 +1161,6 @@ export default function ProfessionalDitaEditor() {
             updateTab={updateTab}
             appTheme={appTheme}
             syntaxTheme={syntaxTheme}
-            onSyntaxThemeChange={handleSyntaxThemeChange}
             wordWrapEnabled={wordWrapEnabled}
             onToggleWordWrap={toggleWordWrap}
             currentTopicType={currentTopicType}

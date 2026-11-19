@@ -59,7 +59,7 @@ function makeAsyncHandlers(tab: Tab) {
     updateTab: vi.fn(),
     getActiveTabId: () => tab.id,
     getHerettoConnected: () => false,
-    getTheme: () => 'dark',
+    getAppearance: () => ({ id: 'builtin:dark', name: 'Dark', base: 'dark' }),
     handleHerettoSave: vi.fn().mockResolvedValue(undefined),
     setActiveTabId: vi.fn(),
   };

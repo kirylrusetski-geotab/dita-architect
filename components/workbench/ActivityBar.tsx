@@ -1,11 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { SquareTerminal, Settings, RefreshCw, Loader2, FolderOpen, CloudUpload, Upload, X, Keyboard, Gift, Palette, Code, ChevronRight, ChevronLeft, KeyRound } from 'lucide-react';
+import { SquareTerminal, Settings, RefreshCw, Loader2, FolderOpen, CloudUpload, Upload, X, Keyboard, Gift, Palette, SlidersHorizontal } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import { Popover, MenuItem, MenuDivider, MenuHeading } from './Popover';
 import { VIEW_META } from './panel-registry';
 import { VIEW_IDS, type ViewId } from '../../lib/workbench-layout';
-import { THEME_OPTIONS, type ThemeName } from '../Toolbar';
-import { SYNTAX_THEME_OPTIONS, type SyntaxThemeName } from '../MonacoDitaEditor';
 
 export interface HerettoRailProps {
   connected: boolean;
@@ -22,15 +20,15 @@ export interface HerettoRailProps {
   onDisconnect: (() => void) | null;
 }
 
+/** ADR-018 decision 9: the gear menu is Settings… · Appearance… · Keyboard Shortcuts · What's New. */
 export interface SettingsRailProps {
   version: string;
-  onOpenCredentials: () => void;
+  onOpenSettings: () => void;
+  onOpenAppearance: () => void;
+  /** The active appearance profile's name, shown beside Appearance…. */
+  profileName: string;
   onKeyboardShortcuts: () => void;
   onReleaseNotes: () => void;
-  theme: ThemeName;
-  onThemeChange: (t: ThemeName) => void;
-  syntaxTheme: SyntaxThemeName;
-  onSyntaxThemeChange: (t: SyntaxThemeName) => void;
 }
 
 interface ActivityBarProps {
@@ -52,16 +50,14 @@ const shortId = (uuid: string): string => (uuid.length > 14 ? `${uuid.slice(0, 8
  */
 export const ActivityBar = ({ activeView, sidePanelOpen, onFocusView, heretto, settings }: ActivityBarProps) => {
   const [openPop, setOpenPop] = useState<'sessions' | 'heretto' | 'settings' | null>(null);
-  const [settingsPage, setSettingsPage] = useState<'root' | 'theme' | 'syntax'>('root');
   const sessionsRef = useRef<HTMLButtonElement>(null);
   const herettoRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
 
   const toggle = (which: 'sessions' | 'heretto' | 'settings') => {
-    setSettingsPage('root');
     setOpenPop(prev => (prev === which ? null : which));
   };
-  const close = () => { setOpenPop(null); setSettingsPage('root'); };
+  const close = () => { setOpenPop(null); };
   const run = (fn: () => void) => () => { close(); fn(); };
 
   return (
@@ -208,48 +204,17 @@ export const ActivityBar = ({ activeView, sidePanelOpen, onFocusView, heretto, s
         )}
       </Popover>
 
-      <Popover open={openPop === 'settings'} onClose={close} anchorRef={settingsRef} placement="right-end" role="menu" ariaLabel="Settings" width={240} focusKey={settingsPage}>
-        {settingsPage === 'root' && (
-          <>
-            <MenuItem icon={<KeyRound />} label="Heretto Credentials…" onSelect={run(settings.onOpenCredentials)} />
-            <MenuItem icon={<Keyboard />} label="Keyboard Shortcuts" shortcut="⌘/" onSelect={run(settings.onKeyboardShortcuts)} />
-            <MenuItem icon={<Gift />} label={`What's New in v${settings.version}`} onSelect={run(settings.onReleaseNotes)} />
-            <MenuDivider />
-            <MenuItem
-              icon={<Palette />}
-              label="Theme"
-              trailing={<span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--app-text-muted)' }}>{THEME_OPTIONS.find(o => o.value === settings.theme)?.label}<ChevronRight className="w-3 h-3" /></span>}
-              onSelect={() => setSettingsPage('theme')}
-            />
-            <MenuItem
-              icon={<Code />}
-              label="Syntax theme"
-              trailing={<span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--app-text-muted)' }}>{SYNTAX_THEME_OPTIONS.find(o => o.value === settings.syntaxTheme)?.label}<ChevronRight className="w-3 h-3" /></span>}
-              onSelect={() => setSettingsPage('syntax')}
-            />
-            <p className="px-3 pt-1.5 pb-1 m-0 text-[10px] leading-relaxed" style={{ color: 'var(--app-text-muted)' }}>
-              The theme pickers live here until v1.3.0's Appearance profiles.
-            </p>
-          </>
-        )}
-        {settingsPage === 'theme' && (
-          <>
-            <MenuItem icon={<ChevronLeft />} label="Theme" onSelect={() => setSettingsPage('root')} />
-            <MenuDivider />
-            {THEME_OPTIONS.map(o => (
-              <MenuItem key={o.value} label={o.label} active={o.value === settings.theme} trailing={o.value === settings.theme ? <span>&#10003;</span> : undefined} onSelect={run(() => settings.onThemeChange(o.value))} />
-            ))}
-          </>
-        )}
-        {settingsPage === 'syntax' && (
-          <>
-            <MenuItem icon={<ChevronLeft />} label="Syntax theme" onSelect={() => setSettingsPage('root')} />
-            <MenuDivider />
-            {SYNTAX_THEME_OPTIONS.map(o => (
-              <MenuItem key={o.value} label={o.label} active={o.value === settings.syntaxTheme} trailing={o.value === settings.syntaxTheme ? <span>&#10003;</span> : undefined} onSelect={run(() => settings.onSyntaxThemeChange(o.value))} />
-            ))}
-          </>
-        )}
+      <Popover open={openPop === 'settings'} onClose={close} anchorRef={settingsRef} placement="right-end" role="menu" ariaLabel="Settings" width={250}>
+        <MenuItem icon={<SlidersHorizontal />} label="Settings…" shortcut="⌘," onSelect={run(settings.onOpenSettings)} />
+        <MenuItem
+          icon={<Palette />}
+          label="Appearance…"
+          trailing={<span className="text-[11px] truncate max-w-[90px]" style={{ color: 'var(--app-text-muted)' }}>{settings.profileName}</span>}
+          onSelect={run(settings.onOpenAppearance)}
+        />
+        <MenuDivider />
+        <MenuItem icon={<Keyboard />} label="Keyboard Shortcuts" shortcut="⌘/" onSelect={run(settings.onKeyboardShortcuts)} />
+        <MenuItem icon={<Gift />} label={`What's New in v${settings.version}`} onSelect={run(settings.onReleaseNotes)} />
       </Popover>
     </nav>
   );

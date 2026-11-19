@@ -11,9 +11,10 @@
   --color-dita-900: #0c4a6e;
 }
 
+/* ADR-018: data-theme and the profile's overrides sit on <html>, so body follows the theme. */
 body {
-  background-color: #111111;
-  color: #d4d4d4;
+  background-color: var(--app-bg);
+  color: var(--app-text-secondary);
 }
 
 /* --- Theme CSS Custom Properties --- */

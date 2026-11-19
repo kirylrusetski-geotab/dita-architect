@@ -9,7 +9,6 @@ import UniformTypeIdentifiers
 /// argument order — title, key, modifiers, method, args — and add nothing
 /// before `method`. Every row shares one selector, `runMenuAction(_:)`.
 struct MenuAction {
-    enum Check { case none, theme(String), syntaxTheme(String) }
     enum Native { case bridge, openPanel }
 
     let title: String
@@ -19,7 +18,6 @@ struct MenuAction {
     /// Ordered — passed to the JS method in exactly this order (a dictionary would
     /// sort them; adversarial review, finding 2).
     let args: KeyValuePairs<String, String>
-    var check: Check = .none
     var native: Native = .bridge
 }
 
@@ -28,39 +26,22 @@ enum MenuEntry {
     case separator
 }
 
-// MARK: – View state pushed by the web app (ADR-016 decision 5)
-
-/// The last `{theme, syntaxTheme}` the web app pushed through the `ditaUi`
-/// message. `menuNeedsUpdate` reads it synchronously to set check marks.
-final class UiState {
-    var theme: String = ""
-    var syntaxTheme: String = ""
-}
-
-final class UiStateBridge: NSObject, WKScriptMessageHandler {
-    private let state: UiState
-    init(state: UiState) { self.state = state }
-
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let body = message.body as? [String: Any] else { return }
-        if let theme = body["theme"] as? String { state.theme = theme }
-        if let syntax = body["syntaxTheme"] as? String { state.syntaxTheme = syntax }
-    }
-}
-
 // MARK: – App delegate
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindow: NSWindow?
     private var jsBridge: JSBridge?
     private var httpServer: HttpServer?
-    private let uiState = UiState()
     private let printExporter = PrintExporter()
+    private let fileBridge = FileBridge()
 
     // The web app's method names below are registered by lib/native-menu-bridge.ts
     // (and loadContent by lib/native-api-bridge.ts, ADR-007).
 
     private let appMenuEntries: [MenuEntry] = [
+        // ADR-018 decision 11: Settings opens on General.
+        .action(MenuAction(title: "Settings…", key: ",", modifiers: [.command], method: "openSettings", args: [:])),
+        .separator,
         .action(MenuAction(title: "What's New…", key: "", modifiers: [], method: "openReleaseNotes", args: [:])),
         .action(MenuAction(title: "Keyboard Shortcuts…", key: "", modifiers: [], method: "openKeyboardShortcuts", args: [:])),
     ]
@@ -95,6 +76,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         .action(MenuAction(title: "Source Control", key: "4", modifiers: [.command], method: "focusView", args: ["id": "scm"])),
         .separator,
         .action(MenuAction(title: "Toggle Right Rail", key: "\\", modifiers: [.command, .option], method: "toggleRightRail", args: [:])),
+        .separator,
+        // ADR-018 decision 11: one row replaces the Theme and XML Syntax Theme submenus.
+        .action(MenuAction(title: "Appearance…", key: "", modifiers: [], method: "openAppearance", args: [:])),
     ]
 
     // ADR-017: View ▸ Panels. lib/workbench-layout.ts PANEL_IDS, in the same order; XML keeps ⌘\.
@@ -109,31 +93,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         .action(MenuAction(title: "AI", key: "", modifiers: [], method: "togglePanel", args: ["id": "ai"])),
     ]
 
-    // components/Toolbar.tsx THEME_OPTIONS, in the same order.
-    private let themeEntries: [MenuEntry] = [
-        .action(MenuAction(title: "Dark", key: "", modifiers: [], method: "setTheme", args: ["name": "dark"], check: .theme("dark"))),
-        .action(MenuAction(title: "Light", key: "", modifiers: [], method: "setTheme", args: ["name": "light"], check: .theme("light"))),
-        .action(MenuAction(title: "Claude", key: "", modifiers: [], method: "setTheme", args: ["name": "claude"], check: .theme("claude"))),
-        .action(MenuAction(title: "Nord", key: "", modifiers: [], method: "setTheme", args: ["name": "nord"], check: .theme("nord"))),
-        .action(MenuAction(title: "Solarized", key: "", modifiers: [], method: "setTheme", args: ["name": "solarized"], check: .theme("solarized"))),
-        .action(MenuAction(title: "Navy", key: "", modifiers: [], method: "setTheme", args: ["name": "navy"], check: .theme("navy"))),
-    ]
-
-    // components/MonacoDitaEditor.tsx SYNTAX_THEME_OPTIONS, in the same order.
-    private let syntaxThemeEntries: [MenuEntry] = [
-        .action(MenuAction(title: "Material", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "material"], check: .syntaxTheme("material"))),
-        .action(MenuAction(title: "GitHub", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "github"], check: .syntaxTheme("github"))),
-        .action(MenuAction(title: "Monokai", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "monokai"], check: .syntaxTheme("monokai"))),
-        .action(MenuAction(title: "Dracula", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "dracula"], check: .syntaxTheme("dracula"))),
-        .action(MenuAction(title: "One Dark", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "one-dark"], check: .syntaxTheme("one-dark"))),
-        .action(MenuAction(title: "Catppuccin", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "catppuccin"], check: .syntaxTheme("catppuccin"))),
-        .action(MenuAction(title: "Daylight", key: "", modifiers: [], method: "setXmlTheme", args: ["name": "daylight"], check: .syntaxTheme("daylight"))),
-    ]
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
 
-        let webView = WebViewController.makeWebView(uiState: uiState, printExporter: printExporter)
+        let webView = WebViewController.makeWebView(printExporter: printExporter, fileBridge: fileBridge)
 
         // Start the local HTTP API server (port 3001)
         let bridge = JSBridge(webView: webView)
@@ -154,6 +117,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.center()
         mainWindow = window
         printExporter.hostWindow = window
+        fileBridge.hostWindow = window
 
         DispatchQueue.main.async {
             NSApp.activate(ignoringOtherApps: true)
@@ -205,8 +169,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
         editMenu.addItem(NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "Z"))
 
-        // View menu (P2-40, ADR-017): the four views, Toggle Right Rail, the Panels
-        // submenu, then the Theme and XML Syntax Theme submenus
+        // View menu (P2-40, ADR-017, ADR-018): the four views, Toggle Right Rail,
+        // Appearance…, then the Panels submenu
         let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         mainMenu.addItem(viewItem)
         let viewMenu = NSMenu(title: "View")
@@ -219,21 +183,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addEntries(panelEntries, to: panelsMenu)
         panelsItem.submenu = panelsMenu
         viewMenu.addItem(panelsItem)
-        viewMenu.addItem(.separator())
-
-        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
-        let themeMenu = NSMenu(title: "Theme")
-        themeMenu.delegate = self
-        addEntries(themeEntries, to: themeMenu)
-        themeItem.submenu = themeMenu
-        viewMenu.addItem(themeItem)
-
-        let syntaxItem = NSMenuItem(title: "XML Syntax Theme", action: nil, keyEquivalent: "")
-        let syntaxMenu = NSMenu(title: "XML Syntax Theme")
-        syntaxMenu.delegate = self
-        addEntries(syntaxThemeEntries, to: syntaxMenu)
-        syntaxItem.submenu = syntaxMenu
-        viewMenu.addItem(syntaxItem)
 
         // Window menu
         let windowItem = NSMenuItem(title: "Window", action: nil, keyEquivalent: "")
@@ -258,19 +207,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 item.target = self
                 item.representedObject = action
                 menu.addItem(item)
-            }
-        }
-    }
-
-    // MARK: – NSMenuDelegate: check marks from the pushed view state (decision 5)
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        for item in menu.items {
-            guard let action = item.representedObject as? MenuAction else { continue }
-            switch action.check {
-            case .none: break
-            case .theme(let name): item.state = (name == uiState.theme) ? .on : .off
-            case .syntaxTheme(let name): item.state = (name == uiState.syntaxTheme) ? .on : .off
             }
         }
     }

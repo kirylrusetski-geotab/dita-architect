@@ -21,6 +21,47 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.3.0',
+    date: '2026-11-19',
+    title: 'Make the app look the way you want: appearance profiles you can edit, share and switch, and one Settings window for everything else.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          '`Appearance…` (the gear at the bottom of the activity bar, or View ▸ Appearance… in the macOS app) opens a panel on the right. The app stays visible beside it, so every change shows as you make it.',
+          'The six themes are now built-in profiles: Dark, Light, Claude, Nord, Solarized and Navy. A seventh, Warm paper, is Light on a warm page with a brown accent. Click one to switch to it. Built-in profiles can\'t be changed; select `Duplicate` to make your own copy, then change any of its 63 colours (grouped as App chrome, Editor canvas, Body element bars, Toolbar and status bar, Notes, Topic badges, Validation and Scrollbars), the theme it starts from and its XML syntax theme. `Reset` puts a colour back; `Delete` removes your profile and returns you to the built-in it started from.',
+          '`Export…` saves a profile as a JSON file and `Import…` adds one, so you can back up a look or share it. A file that names a colour this version does not have, or a value that is not a colour, is refused with the reason, and nothing is imported.',
+          '`Settings…` (⌘, in the macOS app) has five pages: General, Appearance, Heretto (your host, content root, email and API token, with `Test`), Keyboard Shortcuts and About.',
+          'Settings ▸ General ▸ `Open the XML split when a topic opens`: turn it on to see the XML beside every topic you open. It is off by default, as in v1.1.0 and v1.2.0.',
+        ],
+      },
+      {
+        heading: 'Changed',
+        items: [
+          'The theme dropdown in the editor toolbar and the syntax-theme menu in the XML split\'s toolbar are gone. Both choices are part of a profile now, in Appearance. In the macOS app, the View menu\'s Theme and XML Syntax Theme submenus are replaced by View ▸ Appearance….',
+          'Your theme and XML syntax theme carry over. If you had paired them in a way no built-in profile does (Nord with the Dracula XML theme, say), you get a profile named after the pair, so nothing you see changes. Your word wrap, panel layout and the sync hint\'s state carry over too.',
+          'The Heretto Status window is gone: `Credentials…` in the Heretto popover opens Settings ▸ Heretto, which does the same job.',
+          'The XML split warns when its syntax theme does not match the page: a dark XML theme on the Light base now gets the same warning a light one on a dark base always did.',
+          'The `+` insert menu now uses the colours of your theme. It used to show dark colours in every theme.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'The macOS app and the browser version keep separate settings and profiles. Export a profile from one and import it into the other.',
+          'Your colour changes apply to the whole app except the XML split, which takes its colours from the profile\'s XML syntax theme and its starting theme.',
+          'Nothing checks that your colours stay readable. `Reset` puts any one back, and `Reset to <theme>` puts them all back.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-018. A profile is data, `{ id, name, base, syntaxTheme, overrides, builtIn }`, applied as `data-theme` plus inline custom properties on `<html>`. The 63-variable registry is tested against every theme block of `index.css`, and the base values are read from the CSS itself, not a copy. One versioned settings object, `dita-architect-settings`, replaces seven `localStorage` keys, which migrate once and are removed only after the new value reads back. An unreadable store is kept aside before it is replaced, and a store from a newer version is never overwritten. `/api/status` keeps `theme` (the profile\'s base) and adds `appearanceProfile`. The menu bridge\'s `setTheme`, `setXmlTheme` and `getActiveTheme` are replaced by `setAppearanceProfile` and `getAppearance`, and the native shell answers file inputs and saves through a new file bridge. A fresh-context adversarial review before release found four defects and a set of weaknesses, all fixed and pinned. Suite: 113 files, 2,675 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-11-19',
     title: 'Search Heretto by what a topic says, not only by its file name, and browse the connected map\'s whole tree in the side panel.',

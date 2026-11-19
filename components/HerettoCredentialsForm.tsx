@@ -19,9 +19,9 @@ const focus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style
 const blur = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = 'var(--app-border-subtle)'; };
 
 /**
- * ADR-017 decision 6: the four credential fields (host, content root, email,
- * token), split out of `HerettoStatusModal` so the status modal keeps hosting
- * them now and Session 3's Settings modal can host them later without a copy.
+ * The four credential fields (host, content root, email, token). Split out of
+ * the Heretto Status modal by ADR-017 decision 6; since ADR-018 their one home
+ * is Settings ▸ Heretto (the status modal is retired).
  */
 export const HerettoCredentialsForm = ({ credentials, setCredentials, autoFocus = true }: HerettoCredentialsFormProps) => (
   <>

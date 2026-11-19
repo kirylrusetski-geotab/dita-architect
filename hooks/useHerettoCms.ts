@@ -30,15 +30,14 @@ export function useHerettoCms({
   setActiveTabId,
   setConfirmModal,
 }: UseHerettoCmsParams) {
-  // --- Heretto Status modal ---
-  const [isHerettoStatusOpen, setIsHerettoStatusOpen] = useState(false);
+  // --- Heretto connection and credentials (the form is Settings ▸ Heretto, ADR-018) ---
   const [herettoCredentials, setHerettoCredentials] = useState({ host: '', rootUuid: '', email: '', token: '' });
   const [herettoStatusChecking, setHerettoStatusChecking] = useState(false);
   // FR-062: the effective content-root folder UUID (what browse/search/probe use).
   // Loaded from /heretto-credentials on mount; updated when credentials are saved.
   // Empty until loaded, or when the user has not configured one yet.
   const [herettoRootUuid, setHerettoRootUuid] = useState('');
-  const ROOT_UUID_HINT = 'Set the Heretto content root folder UUID in Heretto Status first';
+  const ROOT_UUID_HINT = 'Set the Heretto content root folder UUID in Settings ▸ Heretto first';
 
   // --- Heretto CMS state (shared across tabs) ---
   const [isHerettoBrowserOpen, setIsHerettoBrowserOpen] = useState(false);
@@ -103,8 +102,11 @@ export function useHerettoCms({
     return () => { abort.abort(); };
   }, [herettoRootUuid]);
 
-  const openHerettoStatus = useCallback(async () => {
-    setIsHerettoStatusOpen(true);
+  /**
+   * Fill the credentials form from ~/heretto.json (ADR-018: the form lives in
+   * Settings ▸ Heretto; the caller opens that page). The token is never returned.
+   */
+  const loadHerettoCredentials = useCallback(async () => {
     try {
       const res = await fetch('/heretto-credentials', { signal: withTimeout() });
       if (res.ok) {
@@ -216,7 +218,7 @@ export function useHerettoCms({
           pollFailCountRef.current++;
           if (pollFailCountRef.current === 3) {
             toast.error(res.status === 401 || res.status === 403
-              ? 'Heretto credentials may have expired. Reconnect in Heretto Status'
+              ? 'Heretto credentials may have expired. Check them in Settings ▸ Heretto'
               : `Heretto sync check failing (HTTP ${res.status})`);
           }
           schedule();
@@ -802,8 +804,6 @@ export function useHerettoCms({
   }, [activeTab, setTabs]);
 
   return {
-    isHerettoStatusOpen,
-    setIsHerettoStatusOpen,
     herettoCredentials,
     setHerettoCredentials,
     herettoStatusChecking,
@@ -830,7 +830,7 @@ export function useHerettoCms({
     herettoSearchAbortRef,
     importVerification,
     setImportVerification,
-    openHerettoStatus,
+    loadHerettoCredentials,
     testHerettoConnection,
     saveHerettoCredentials,
     herettoNavigate,

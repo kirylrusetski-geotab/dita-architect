@@ -40,29 +40,7 @@ const shortcutHint = (tag: WrapTag): string | null => {
 const XREF_FORMATS: Array<[string, string]> = [['', 'Auto (from the URL)'], ['dita', 'dita'], ['ditamap', 'ditamap'], ['html', 'html'], ['pdf', 'pdf']];
 const XREF_SCOPES: Array<[string, string]> = [['', 'Not set'], ['local', 'local'], ['peer', 'peer'], ['external', 'external']];
 
-export const THEME_OPTIONS = [
-  { value: 'dark', label: 'Dark' },
-  { value: 'light', label: 'Light' },
-  { value: 'claude', label: 'Claude' },
-  { value: 'nord', label: 'Nord' },
-  { value: 'solarized', label: 'Solarized' },
-  { value: 'navy', label: 'Navy' },
-] as const;
-
-export type ThemeName = typeof THEME_OPTIONS[number]['value'];
-
-export const THEME_DESCRIPTIONS: Record<ThemeName, string> = {
-  dark: 'High contrast for low-light work',
-  light: 'Comfortable for extended daytime use',
-  claude: 'Familiar Claude.ai colors',
-  nord: 'Muted arctic palette for focus',
-  solarized: 'Reduced eye strain color science',
-  navy: 'Deep blue-navy palette for low-light work',
-};
-
 interface ToolbarProps {
-  currentTheme: ThemeName;
-  onThemeChange: (theme: ThemeName) => void;
   documentMode?: DocumentMode;
   onModeChange?: (mode: DocumentMode) => void;
   trackedChangeCount?: number;
@@ -70,15 +48,13 @@ interface ToolbarProps {
   onRejectAll?: () => void;
 }
 
-export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing', onModeChange, trackedChangeCount = 0, onAcceptAll, onRejectAll }: ToolbarProps) => {
+export const Toolbar = ({ documentMode = 'editing', onModeChange, trackedChangeCount = 0, onAcceptAll, onRejectAll }: ToolbarProps) => {
   const [editor] = useLexicalComposerContext();
   // Content-mutating buttons are only live in editing mode: suggesting-mode
   // structural changes are untracked (FR-046 v1 blocks them), and viewing
   // mode is read-only.
   const editingDisabled = documentMode !== 'editing';
   const contentBtnClass = `p-1 rounded transition-colors hover-toolbar${editingDisabled ? ' opacity-40 pointer-events-none' : ''}`;
-  const [isThemeOpen, setIsThemeOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkError, setLinkError] = useState('');
@@ -99,9 +75,6 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsThemeOpen(false);
-      }
       if (inlineMenuRef.current && !inlineMenuRef.current.contains(e.target as Node)) {
         setIsInlineMenuOpen(false);
       }
@@ -179,8 +152,6 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
     });
   };
 
-  const currentLabel = THEME_OPTIONS.find(t => t.value === currentTheme)?.label ?? 'Visual';
-
   return (
     <div
       className="absolute top-0 left-0 right-0 h-10 flex items-center px-4 gap-2 z-20"
@@ -189,72 +160,14 @@ export const Toolbar = ({ currentTheme, onThemeChange, documentMode = 'editing',
         borderBottom: '1px solid var(--editor-toolbar-border)',
       }}
     >
-      <div className="relative" ref={dropdownRef}>
-        <button
-          aria-label={`Select theme: ${currentLabel}`}
-          onClick={() => setIsThemeOpen(prev => !prev)}
-          onKeyDown={e => {
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              if (!isThemeOpen) setIsThemeOpen(true);
-              setTimeout(() => {
-                const first = dropdownRef.current?.querySelector('[role="menuitem"]') as HTMLElement | null;
-                first?.focus();
-              }, 0);
-            }
-          }}
-          aria-haspopup="true"
-          aria-expanded={isThemeOpen}
-          className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest mr-2 rounded px-2 py-1 transition-colors hover-toolbar"
-          style={{
-            color: 'var(--editor-toolbar-text)',
-          }}
-        >
-          <FileText className="w-4 h-4" />
-          {currentLabel}
-          <ChevronDown className={`w-3 h-3 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {isThemeOpen && (
-          <div
-            className="absolute top-full left-0 mt-1 rounded-lg shadow-xl border py-1 min-w-[140px]"
-            role="menu"
-            onKeyDown={e => {
-              const items = Array.from(dropdownRef.current?.querySelectorAll('[role="menuitem"]') ?? []) as HTMLElement[];
-              const idx = items.indexOf(e.target as HTMLElement);
-              if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length]?.focus(); }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); items[(idx - 1 + items.length) % items.length]?.focus(); }
-              else if (e.key === 'Escape') { e.preventDefault(); setIsThemeOpen(false); }
-            }}
-            style={{
-              backgroundColor: 'var(--editor-toolbar-bg)',
-              borderColor: 'var(--editor-toolbar-border)',
-              zIndex: 9999,
-            }}
-          >
-            {THEME_OPTIONS.map(opt => (
-              <Tooltip key={opt.value} content={THEME_DESCRIPTIONS[opt.value]} placement="right">
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    onThemeChange(opt.value);
-                    setIsThemeOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-xs font-medium transition-colors flex items-center justify-between hover-toolbar"
-                  style={{
-                    color: opt.value === currentTheme
-                      ? 'var(--editor-accent, #0ea5e9)'
-                      : 'var(--editor-toolbar-text-strong)',
-                  }}
-                >
-                  {opt.label}
-                  {opt.value === currentTheme && <span>&#10003;</span>}
-                </button>
-              </Tooltip>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* ADR-018: the theme dropdown that lived here moved to Settings ▸ Appearance (one home). */}
+      <span
+        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest mr-2 px-2 py-1 select-none"
+        style={{ color: 'var(--editor-toolbar-text)' }}
+      >
+        <FileText className="w-4 h-4" />
+        Visual
+      </span>
 
       <div className="w-px h-4 mx-2" style={{ backgroundColor: 'var(--editor-toolbar-divider)' }} />
       <Tooltip content="Undo">

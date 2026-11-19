@@ -89,14 +89,16 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-070](#fr-070-workbench-layout--activity-bar-side-panel-right-trays-xml-tray-closed-by-default) | Workbench layout — activity bar, side panel, right trays, XML tray closed by default | 2026-11-16 | Shipped v1.1.0 (2026-11-17, ADR-017) |
 | 🟢  | [FR-071](#fr-071-map-view--browse-the-connected-maps-topicref-tree-in-the-sidebar) | Map view — browse the connected map's topicref tree in the sidebar | 2026-11-16 | Shipped v1.2.0 (2026-11-19, ADR-013 amendment) |
 | 🟢  | [FR-072](#fr-072-heretto-search-view-on-the-search-api) | Heretto search view on the search API | 2026-11-16 | Shipped v1.2.0 (2026-11-19, ADR-013 amendment) |
-| 🔴  | [FR-073](#fr-073-appearance-profiles--personalised-themes-as-data-built-ins-migrated) | Appearance profiles — personalised themes as data, built-ins migrated | 2026-11-16 | Open — Session 3, v1.3.0, ADR-018 |
-| 🔴  | [FR-074](#fr-074-settings-store-and-settings-modal) | Settings store and Settings modal | 2026-11-16 | Open — Session 3, v1.3.0, ADR-018 |
+| 🟢  | [FR-073](#fr-073-appearance-profiles--personalised-themes-as-data-built-ins-migrated) | Appearance profiles — personalised themes as data, built-ins migrated | 2026-11-16 | Shipped v1.3.0 (2026-11-19, ADR-018) |
+| 🟢  | [FR-074](#fr-074-settings-store-and-settings-modal) | Settings store and Settings modal | 2026-11-16 | Shipped v1.3.0 (2026-11-19, ADR-018) |
 | 🔴  | [FR-075](#fr-075-metadata-panels--topic-heretto-slice-1-prolog-slice-2-conditions-links-on-the-right-rail) | Metadata panels — Topic, Heretto (slice 1), Prolog (slice 2), Conditions, Links on the right rail | 2026-11-16 | Open — Session 4, v1.4.0, ADR-019 |
 | 🔴  | [FR-076](#fr-076-source-control--outgoing-incoming-and-proposed-change-sets-per-tab) | Source Control — outgoing, incoming, and proposed change sets per tab | 2026-11-16 | Open — Session 5, v1.5.0, ADR-020 |
 | 🟡  | [FR-077](#fr-077-block-level-three-way-merge-for-source-control-conflicts) | Block-level three-way merge for Source Control conflicts | 2026-11-16 | Parked behind FR-076 |
 | 🔴  | [FR-078](#fr-078-session-editors--a-terminal-as-an-attributed-member-suggestions-in-the-visual-editor) | Session editors — a terminal as an attributed member, suggestions in the visual editor | 2026-11-17 | Open — Session 6 of the UI Overhaul plan, v1.6.0, ADR-022 |
 | 🔴  | [FR-079](#fr-079-map-editing--open-a-ditamap-as-a-document-and-edit-its-topicref-tree) | Map editing — open a ditamap as a document and edit its topicref tree | 2026-11-17 | Open — candidate after the UI Overhaul arc (after v1.7.0); own ADR |
 | 🔴  | [FR-080](#fr-080-map-reading-view--the-maps-topics-in-sequence-on-one-page) | Map reading view — the map's topics in sequence on one page | 2026-11-19 | Open — parked next to FR-079 (after v1.7.0); own ADR |
+| 🔴  | [FR-081](#fr-081-custom-xml-syntax-colours-in-an-appearance-profile) | Custom XML syntax colours in an appearance profile | 2026-11-19 | Open — not sequenced (filed from Session 3) |
+| 🔴  | [FR-082](#fr-082-edit-a-built-in-appearance-profile-and-save-the-result-as-your-own) | Edit a built-in appearance profile and save the result as your own | 2026-11-19 | Open — candidate for a v1.3.x patch (roadmap); amends ADR-018 decision 1 |
 
 ---
 
@@ -1207,7 +1209,7 @@ Plan invariants S1–S2: one `POST` per search with only the filters set, `limit
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("Appearance profiles will be completely overhauled to a modal… create their own personalized appearances, or load from defaults"); decision 2026-11-16: migrate the existing themes
-**Status:** Open — Session 3 of the UI Overhaul plan, **v1.3.0**, **ADR-018** (with FR-074)
+**Status:** Shipped (v1.3.0, 2026-11-19) — Session 3 of the UI Overhaul plan, ADR-018 (with FR-074). Custom Monaco palettes stayed out of scope and are FR-081.
 **Priority:** P2
 **Impact:** Medium — every theme surface (CSS, Toolbar dropdown, Monaco, native View menu, `/api/status`, localStorage) changes shape
 **Model weight:** Opus
@@ -1228,7 +1230,7 @@ Plan invariants A1–A6: registry ↔ CSS drift test and no override leak; every
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("Settings will be moved to the bottom")
-**Status:** Open — Session 3 of the UI Overhaul plan, **v1.3.0** (ADR-018 covers the store); the gear menu itself ships in Session 1
+**Status:** Shipped (v1.3.0, 2026-11-19) — Session 3 of the UI Overhaul plan, ADR-018 (the store, decisions 7–8; the modal, decision 9). The credentials form's behaviour is tested in `tests/workbench/settings-modal.test.tsx`; `HerettoStatusModal` is retired.
 **Priority:** P2
 **Impact:** Medium — one persisted object replaces seven localStorage keys; the Heretto credentials form moves out of the status modal
 **Model weight:** Opus (same session as FR-073)
@@ -1366,3 +1368,44 @@ The map corpus round-trips byte-identically unedited; an edit changes only the b
 ### Acceptance criteria
 
 The reading tab shows the topics in exactly the Map view's navigation order (the same `MapNode` tree, ADR-013 amendment); a card is byte-for-byte the topic Heretto holds (no load path formats it, ADR-012); scrolling a large map (the Help Center) keeps a bounded number of topics fetched and rendered at once; Edit opens the same tab an Explorer open would; nothing in the reading tab can change any topic's bytes.
+
+---
+
+## FR-081: Custom XML syntax colours in an appearance profile
+
+**Requested:** 2026-11-19
+**Source:** Session 3 shaping (ADR-018): the plan asked Kiryl whether custom Monaco palettes were in scope for v1.3.0; he took the recommendation, "no — pick from the seven; file an FR".
+**Status:** Open — filed 2026-11-19, not sequenced
+**Priority:** P3
+**Impact:** Low — the seven syntax themes cover the common pairings; a writer who changes the page colours a lot may want the XML split to follow
+**Model weight:** Sonnet (one data extension and one editor section, over a model that already exists)
+
+**Problem:** An appearance profile (v1.3.0) can change any of the 63 app colours, but the XML split's colours come only from one of seven fixed syntax themes, and its background follows the profile's base theme, never its overrides. A writer who makes a warm, paper-coloured page still gets the base theme's XML background and the chosen palette's token colours.
+**Signal:** None yet from use; filed so the boundary ADR-018 drew is visible.
+**Smallest slice:** A profile gains an optional `syntaxOverrides` (the five token colours `tag`, `attribute.name`, `attribute.value`, `comment`, `delimiter`, plus `editor.background`, `editor.lineHighlightBackground`, `editorLineNumber.foreground`, `editor.foreground`) layered over its syntax theme in `lib/monaco-themes.ts`'s `monacoThemeData`; the Appearance drawer gains an "XML split" group; export/import carries the field (format version 2, version-1 files still import); the drift test extends to the Monaco tables.
+**Serves:** Personalisation, completing the "one profile = one look" decision.
+
+### Acceptance criteria
+
+A profile with one syntax override renders that colour in the XML split and every other from its syntax theme; switching profiles redefines the Monaco theme (A6 extended); a version-1 export imports unchanged; a version-2 export refuses an unknown token name by name, as A4 does for variables.
+
+---
+
+## FR-082: Edit a built-in appearance profile and save the result as your own
+
+**Requested:** 2026-11-19
+**Source:** Kiryl, reviewing the v1.3.0 Appearance drawer: "Users can make changes to the defaulted themes, which are then saved as custom themes. If they make a change and select Done, a modal loads with the option to save the edited theme as a custom one."
+**Status:** Open — filed 2026-11-19; on the roadmap as a candidate for a v1.3.x patch after v1.3.0 ships (Kiryl places it). Amends ADR-018 decision 1 ("the only way to make one is Duplicate or Import").
+**Priority:** P2
+**Impact:** Medium — removes the extra step (Duplicate, then edit) between seeing a built-in and adjusting it, which is the common case
+**Model weight:** Sonnet (one draft state and one modal over the existing model; the pure functions in `lib/appearance.ts` already do the work). Opus only if the draft must survive a relaunch.
+
+**Problem:** In v1.3.0 a built-in profile is read-only: its colour fields are locked, and the writer must select Duplicate before changing anything. A writer who wants "Light, but with a warmer page" has to know that, and ends up with a copy named "Light copy" before deciding whether the change is worth keeping.
+**Signal:** Kiryl, 2026-11-19, on first use of the drawer.
+**Smallest slice:** On a built-in, the fields are editable. The first edit starts an **unsaved draft**: a custom profile in memory, based on that built-in (its base, syntax theme and overrides), applied live as today, shown in the list as "Light (edited)" with an unsaved marker; the built-in itself never changes (decision 1's reason holds: an app update can still improve it). **Done**, closing the drawer, Escape, or clicking another profile while a draft has changes opens a modal: **Save as new profile** (a name field, default "<built-in> custom", unique-ified as today) · **Discard changes** (back to the built-in) · **Cancel** (stay in the drawer). Saving turns the draft into an ordinary custom profile and makes it active; nothing is written to the store until then. Editing a custom profile keeps saving in place, as today; Duplicate and Import stay.
+**Serves:** Personalisation with less ceremony; the drawer behaves the way a writer expects a theme editor to.
+
+### Acceptance criteria
+
+An edit on a built-in changes the app at once and stores nothing; Done with changes opens the modal, Done with none closes; Save as new adds exactly one custom profile with the draft's base, syntax theme and overrides and activates it; Discard restores the built-in exactly (no inline override left on `<html>`, A1's no-leak rule); Cancel keeps the draft and the drawer; switching profiles or closing with a draft asks the same question; a relaunch never shows a half-made draft; the built-in's own values are unchanged throughout (the registry and THEME_VALUES are untouched).
+

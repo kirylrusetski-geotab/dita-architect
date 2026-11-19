@@ -2,7 +2,7 @@
 
 A daily-driver DITA editor. Write in a visual editor, open the XML source beside it when you want it (⌘\\) — changes sync between both sides as you work. A VS Code-style activity bar holds an Explorer, Heretto search and the connected map's tree. Create a topic from a template, mark it up, connect a map for variables, and save to Heretto, without opening Heretto's own editor or hand-writing XML.
 
-Available in two forms: a **browser app** you run with Node.js, and a **native macOS app** built from the Swift shell in `macos/`, with a menu bar (New/Open/Save/Export shortcuts, themes) and native PDF export. Both use the same web frontend.
+Available in two forms: a **browser app** you run with Node.js, and a **native macOS app** built from the Swift shell in `macos/`, with a menu bar (New/Open/Save/Export shortcuts, Settings, Appearance) and native PDF export. Both use the same web frontend.
 
 ## What You Can Do
 
@@ -32,7 +32,7 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **Catch a structural mistake before it reaches Heretto.** Saving, replacing, or an AI-drafted document that puts an element somewhere the DITA 1.3 content model doesn't allow — a `<fig>` inside a `<cmd>`, say — is blocked with the exact element, its parent, and the line it's on, not a guess.
 
-**Choose your theme.** 6 app themes (Dark, Light, Claude, Nord, Solarized, Navy) and 7 syntax themes for the XML pane.
+**Make it your own.** Seven built-in appearance profiles (Dark, Light, Claude, Nord, Solarized, Navy and Warm paper). Duplicate one to change any of its 63 colours, with the app itself as the live preview, and pair it with any of 7 XML syntax themes. Export a profile as a JSON file to back it up or share it; import one to use it. Settings (the gear, or ⌘, in the native app) also holds your Heretto credentials and the editor options, such as opening the XML split whenever a topic opens.
 
 ## Setup — Browser App
 
@@ -66,7 +66,7 @@ DITA Architect works with any Heretto CMS instance. You'll need your instance ho
 
 Connect in two ways:
 
-1. **From the app:** Click the Heretto icon in the toolbar and enter your Heretto host, email, and API token.
+1. **From the app:** Open **Settings ▸ Heretto** (the gear at the bottom of the activity bar, or **Credentials…** in the Heretto icon's popover just above it) and enter your Heretto host, content root folder UUID, email, and API token.
 
 2. **From a file:** Create `~/heretto.json` with your credentials:
 
@@ -116,7 +116,7 @@ On macOS the modifier is ⌘; elsewhere it is Ctrl.
 | ⌥⌘\\ | Show/hide the right rail (hiding it closes every panel) |
 | ⌘1 / ⌘2 / ⌘3 / ⌘4 | Explorer / Search / Map / Source Control view (the active view again collapses the side panel) |
 
-File also has Replace in Heretto…, Export as PDF… (a real paginated PDF with page numbers, via a native save panel), Convert Topic Type…, Connect to Heretto…, Open from Heretto…, Connect a Map…, Reload Map and Disconnect Map; View has the four views, a Panels submenu (one toggle per right-rail panel), Toggle Right Rail, and the Theme and XML Syntax Theme submenus with a check on the active one. In a browser (no menu bar) the same commands are in the Explorer view's `…` menu. New Troubleshooting topics and Convert Topic Type are reached through the in-app `New`/`Convert` dialogs, which list all four topic types (Convert intentionally does not offer Troubleshooting as a target — see `TopicTypeModal`'s `types` prop).
+File also has Replace in Heretto…, Export as PDF… (a real paginated PDF with page numbers, via a native save panel), Convert Topic Type…, Connect to Heretto…, Open from Heretto…, Connect a Map…, Reload Map and Disconnect Map; View has the four views, a Panels submenu (one toggle per right-rail panel), Toggle Right Rail, and Appearance…; the app menu has Settings… (⌘,). In a browser (no menu bar) the same commands are in the Explorer view's `…` menu. New Troubleshooting topics and Convert Topic Type are reached through the in-app `New`/`Convert` dialogs, which list all four topic types (Convert intentionally does not offer Troubleshooting as a target — see `TopicTypeModal`'s `types` prop).
 
 ## Supported DITA Elements
 

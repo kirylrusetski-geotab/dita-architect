@@ -10,14 +10,15 @@ import { toast } from 'sonner';
 import { registerNativeMenuBridge, MENU_BRIDGE_METHODS, type NativeMenuBridgeHandlers } from '../lib/native-menu-bridge';
 import { registerNativeApiBridge } from '../lib/native-api-bridge';
 import { createTab } from '../types/tab';
-import { THEME_OPTIONS } from '../components/Toolbar';
-import { SYNTAX_THEME_OPTIONS } from '../components/MonacoDitaEditor';
+import { SETTINGS_PAGES } from '../lib/settings';
 import { DITA_TOPIC_TYPE } from '../constants/dita';
 import { PANEL_IDS, VIEW_IDS } from '../lib/workbench-layout';
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }));
+
+const PROFILES = [{ id: 'builtin:dark', name: 'Dark', builtIn: true }, { id: 'builtin:nord', name: 'Nord', builtIn: true }, { id: 'p-1', name: 'Nord, Dracula XML', builtIn: false }];
 
 function makeHandlers(): NativeMenuBridgeHandlers & { calls: Record<string, unknown[][]> } {
   const calls: Record<string, unknown[][]> = {};
@@ -41,10 +42,10 @@ function makeHandlers(): NativeMenuBridgeHandlers & { calls: Record<string, unkn
     openConnectMapModal: rec('openConnectMapModal'),
     reloadMap: rec('reloadMap'),
     disconnectMap: rec('disconnectMap'),
-    setTheme: rec('setTheme') as NativeMenuBridgeHandlers['setTheme'],
-    setXmlTheme: rec('setXmlTheme') as NativeMenuBridgeHandlers['setXmlTheme'],
-    getTheme: () => 'nord',
-    getXmlTheme: () => 'dracula',
+    openSettings: rec('openSettings') as NativeMenuBridgeHandlers['openSettings'],
+    openAppearance: rec('openAppearance'),
+    selectAppearanceProfile: ((id: string) => { (calls.selectAppearanceProfile ??= []).push([id]); return PROFILES.some(p => p.id === id); }) as NativeMenuBridgeHandlers['selectAppearanceProfile'],
+    getAppearance: () => ({ active: { id: 'p-1', name: 'Nord, Dracula XML', base: 'nord', syntaxTheme: 'dracula', builtIn: false }, profiles: PROFILES }),
   };
 }
 
@@ -83,7 +84,7 @@ describe('registration', () => {
       getTabs: () => [tab],
       getActiveTabId: () => tab.id,
       getHerettoConnected: () => false,
-      getTheme: () => 'dark',
+      getAppearance: () => ({ id: 'builtin:dark', name: 'Dark', base: 'dark' }),
       updateTab: vi.fn(),
       handleHerettoSave: vi.fn().mockResolvedValue(undefined),
       setTabs: vi.fn(),
@@ -209,42 +210,59 @@ describe('each method calls the in-app handler and answers {success, httpStatus}
     expect(h.calls.openHerettoBrowser).toEqual([['open']]);
   });
 
-  it.each(THEME_OPTIONS.map(o => o.value))('setTheme(%s) accepts every app theme', (name) => {
-    forceNative();
-    const h = makeHandlers();
-    registerNativeMenuBridge(h);
-    ok(getApi().setTheme(name));
-    expect(h.calls.setTheme).toEqual([[name]]);
-  });
-
-  it.each(SYNTAX_THEME_OPTIONS.map(o => o.value))('setXmlTheme(%s) accepts every syntax theme', (name) => {
-    forceNative();
-    const h = makeHandlers();
-    registerNativeMenuBridge(h);
-    ok(getApi().setXmlTheme(name));
-    expect(h.calls.setXmlTheme).toEqual([[name]]);
-  });
-
-  it('setTheme / setXmlTheme reject an unknown name with 400 and never call the handler', () => {
-    forceNative();
-    const h = makeHandlers();
-    registerNativeMenuBridge(h);
-    const a = JSON.parse(getApi().setTheme('geotab'));
-    const b = JSON.parse(getApi().setXmlTheme('material-dark'));
-    expect(a).toMatchObject({ success: false, httpStatus: 400 });
-    expect(b).toMatchObject({ success: false, httpStatus: 400 });
-    expect(a.error).toMatch(/geotab/);
-    expect(b.error).toMatch(/material-dark/);
-    expect(h.calls.setTheme).toBeUndefined();
-    expect(h.calls.setXmlTheme).toBeUndefined();
-  });
-
-  it('getActiveTheme returns both themes', () => {
+  // ADR-018 decision 11: the theme methods are replaced by the appearance profile's.
+  it('the retired theme methods are gone', () => {
     forceNative();
     registerNativeMenuBridge(makeHandlers());
-    const res = ok(getApi().getActiveTheme());
-    expect(res.theme).toBe('nord');
-    expect(res.syntaxTheme).toBe('dracula');
+    for (const m of ['setTheme', 'setXmlTheme', 'getActiveTheme']) expect(getApi()[m], m).toBeUndefined();
+  });
+
+  it('openSettings with no argument opens General; with a page id, that page', () => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    expect(ok(getApi().openSettings()).page).toBe('general');
+    for (const p of SETTINGS_PAGES) expect(ok(getApi().openSettings(p.id)).page).toBe(p.id);
+    expect(h.calls.openSettings).toEqual([['general'], ...SETTINGS_PAGES.map(p => [p.id])]);
+  });
+
+  it('openSettings rejects an unknown page with 400 naming the pages', () => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    const res = JSON.parse(getApi().openSettings('themes'));
+    expect(res).toMatchObject({ success: false, httpStatus: 400 });
+    expect(res.error).toMatch(/themes.*general, appearance, heretto, shortcuts, about/);
+    expect(h.calls.openSettings).toBeUndefined();
+  });
+
+  it('openAppearance opens the drawer', () => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    ok(getApi().openAppearance());
+    expect(h.calls.openAppearance).toEqual([[]]);
+  });
+
+  it('setAppearanceProfile switches to a known id; an unknown one is a 400 listing the known ids', () => {
+    forceNative();
+    const h = makeHandlers();
+    registerNativeMenuBridge(h);
+    expect(ok(getApi().setAppearanceProfile('builtin:nord')).profile).toBe('builtin:nord');
+    const bad = JSON.parse(getApi().setAppearanceProfile('geotab'));
+    expect(bad).toMatchObject({ success: false, httpStatus: 400 });
+    expect(bad.error).toMatch(/"geotab".*builtin:dark, builtin:nord, p-1/);
+    const notText = JSON.parse(getApi().setAppearanceProfile(7));
+    expect(notText).toMatchObject({ success: false, httpStatus: 400 });
+    expect(h.calls.selectAppearanceProfile).toEqual([['builtin:nord'], ['geotab']]);
+  });
+
+  it('getAppearance returns the active profile and the list', () => {
+    forceNative();
+    registerNativeMenuBridge(makeHandlers());
+    const res = ok(getApi().getAppearance());
+    expect(res.active).toEqual({ id: 'p-1', name: 'Nord, Dracula XML', base: 'nord', syntaxTheme: 'dracula', builtIn: false });
+    expect(res.profiles).toEqual(PROFILES);
   });
 });
 

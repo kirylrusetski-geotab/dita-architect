@@ -39,9 +39,9 @@ export interface WorkbenchLayout {
   railHidden: boolean;
 }
 
-export const LAYOUT_STORAGE_KEY = 'dita-architect-workbench';
-/** The v1.0 split key: the *left* (visual) pane's percentage. Migrated once, then removed. */
-export const LEGACY_SPLIT_KEY = 'ditaSplitWidth';
+// ADR-018: the layout is persisted as the settings store's `workbench` slice
+// (lib/settings.ts), which also owns the one-time migration of the v1.1
+// `dita-architect-workbench` key and the v1.0 `ditaSplitWidth` key.
 const LAYOUT_VERSION = 1;
 
 export const SIDE_PANEL = { min: 200, max: 480, default: 280 } as const;
@@ -98,8 +98,8 @@ export function parseStoredLayout(raw: string | null | undefined, legacySplit?: 
     return withLegacy();
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return withLegacy();
-  // Stored as `{v: 1, …}`. No other version exists yet; ADR-018's settings store
-  // is where a v2 shape and its migration would be decided.
+  // Stored as `{v: 1, …}`. No other version exists yet; a v2 shape and its
+  // migration belong to the settings store (ADR-018).
   const o = parsed as Record<string, unknown>;
 
   if (isViewId(o.activeView)) base.activeView = o.activeView;
@@ -223,4 +223,15 @@ export function movePanel(l: WorkbenchLayout, id: StackPanelId, index: number): 
 /** The stack's open panels, top to bottom. */
 export function openStackPanels(l: WorkbenchLayout): StackPanelId[] {
   return l.panelOrder.filter(id => l.panels[id].open);
+}
+
+/**
+ * ADR-018 decision 10: the ids in `next` that `prev` did not have, in order. The
+ * main component opens the XML split for them when Settings ▸ General ▸ "Open
+ * the XML split when a topic opens" is on; no loader learns about the layout.
+ */
+export function addedIds(prev: ReadonlySet<string>, next: Iterable<string>): string[] {
+  const out: string[] = [];
+  for (const id of next) if (!prev.has(id)) out.push(id);
+  return out;
 }

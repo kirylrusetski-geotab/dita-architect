@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { THEME_DESCRIPTIONS, THEME_OPTIONS } from '../components/Toolbar';
+import { THEME_DESCRIPTIONS, THEME_OPTIONS } from '../lib/appearance';
 
 describe('Theme descriptions user-focused update', () => {
   describe('new user-focused theme descriptions', () => {

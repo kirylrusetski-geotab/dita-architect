@@ -37,7 +37,7 @@ If you get a JSON response, the editor is up. If the connection is refused, it's
 
 ### GET /api/status
 
-**Native app only (port 3001).** Returns the editor's current state at a glance — what version it's running, whether Heretto CMS is connected, how many tabs are open, and which theme is active.
+**Native app only (port 3001).** Returns the editor's current state at a glance — what version it's running, whether Heretto CMS is connected, how many tabs are open, and which appearance profile is active.
 
 **Request:**
 ```bash
@@ -51,7 +51,8 @@ curl -s http://localhost:3001/api/status | jq
   "herettoConnected": true,
   "tabCount": 2,
   "activeTabId": "tab-1710612345678",
-  "theme": "dark"
+  "theme": "nord",
+  "appearanceProfile": { "id": "migrated-nord-dracula", "name": "Nord, Dracula XML" }
 }
 ```
 
@@ -61,7 +62,8 @@ curl -s http://localhost:3001/api/status | jq
 | `herettoConnected` | boolean | Whether the editor has valid Heretto CMS credentials configured |
 | `tabCount` | number | How many tabs are currently open |
 | `activeTabId` | string | The ID of the tab the author is currently looking at |
-| `theme` | string | The active app theme (`dark`, `light`, `claude`, `nord`, `solarized`, `navy`). `navy` was called `geotab` before v0.9.7. |
+| `theme` | string | The app theme the active appearance profile starts from (`dark`, `light`, `claude`, `nord`, `solarized`, `navy`). Since v1.3.0 the look is a profile (ADR-018); this field keeps its meaning as the profile's base. `navy` was called `geotab` before v0.9.7. |
+| `appearanceProfile` | object | *(v1.3.0)* The active appearance profile: `id` (`builtin:<theme>` for the six built-ins, an opaque id for your own) and `name`. |
 
 **When to use this:** Before doing anything else — confirm the editor is alive and check if Heretto is connected.
 
@@ -468,6 +470,6 @@ The native server also closes any connection that has not delivered a complete r
 - `PUT /api/tabs/:id/content` runs a structural XML validation before applying the update. It catches tag mismatches and unclosed tags but does not validate against the DITA DTD.
 - `POST /api/tabs/:id/save` requires the tab to have a `herettoFile` — tabs that were created locally or via `POST /api/load-content` without a `herettoTargetUuid` cannot be saved through this endpoint.
 - On port 3000 (dev server), the `POST /api/load-content` → `GET /api/pending-loads` queue is cleared atomically on each read to prevent duplicate opens. On port 3001 (native app) the queue is never used — `POST /api/load-content` opens tabs immediately.
-- `window.__ditaApi` also carries the **macOS menu bar's** methods (ADR-016, `lib/native-menu-bridge.ts`: `newTopic`, `closeActiveTab`, `saveActiveTab`, `openReplaceModal`, `openExportModal`, `openHerettoConnectModal`, `openHerettoBrowserModal`, `openReleaseNotes`, `openKeyboardShortcuts`, `toggleXmlPane`, `setTheme`, `setXmlTheme`, `getActiveTheme`, `exportFinished`). They are called by the Swift shell's menu items, not by any HTTP route, and are not part of this API's contract; the HTTP surface above is unchanged.
+- `window.__ditaApi` also carries the **macOS menu bar's** methods (ADR-016, `lib/native-menu-bridge.ts`: `newTopic`, `closeActiveTab`, `saveActiveTab`, `openReplaceModal`, `openExportModal`, `openHerettoConnectModal`, `openHerettoBrowserModal`, `openReleaseNotes`, `openKeyboardShortcuts`, `togglePanel`, `toggleRightRail`, `focusView`, `openConvertModal`, `openConnectMapModal`, `reloadMap`, `disconnectMap`, `openSettings`, `openAppearance`, `setAppearanceProfile`, `getAppearance`, `exportFinished`; v1.3.0 replaced `setTheme`, `setXmlTheme` and `getActiveTheme` with the two appearance methods, ADR-018). They are called by the Swift shell's menu items, not by any HTTP route, and are not part of this API's contract; the HTTP surface above is unchanged.
 - **Export as PDF** differs by run mode on purpose (ADR-016 decision 6 / FR-050 slice 1): in the native app, File → Export as PDF… opens a native save panel and writes a paginated PDF with page-number footers (rendered in a dedicated hidden web view, never the shell's); on port 3000 the same action opens the browser's print dialog, because a browser has no save panel. The print HTML (`lib/dita-print.ts`) is identical in both.
 - **Two calls in one tick now see each other's writes (BUG-51, fixed v1.0.0).** `PUT /api/tabs/:id/content` followed immediately by `POST /api/tabs/:id/save` — an AI caller chaining a proposal into a save with no pause — used to have the `save` occasionally read the pre-`PUT` tab state and send the unchanged document. The bridge now tracks its own writes synchronously, so the `save` always sees the `PUT`'s `pending-review` and refuses with 400, as the contract above already promised.

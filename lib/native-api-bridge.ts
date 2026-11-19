@@ -11,7 +11,8 @@ export interface NativeApiBridgeHandlers {
   getTabs: () => Tab[];
   getActiveTabId: () => string;
   getHerettoConnected: () => boolean;
-  getTheme: () => string;
+  /** ADR-018: the active appearance profile; `/api/status` reports its base as `theme` and the profile itself. */
+  getAppearance: () => { id: string; name: string; base: string };
   updateTab: (id: string, updates: Partial<Tab>) => void;
   handleHerettoSave: (tabId: string) => Promise<void>;
   setTabs: React.Dispatch<React.SetStateAction<Tab[]>>;
@@ -26,7 +27,7 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
     getTabs,
     getActiveTabId,
     getHerettoConnected,
-    getTheme,
+    getAppearance,
     handleHerettoSave,
     setTabs,
     setActiveTabId,
@@ -57,7 +58,9 @@ export function registerNativeApiBridge(handlers: NativeApiBridgeHandlers): void
         herettoConnected: getHerettoConnected(),
         tabCount: tabs.length,
         activeTabId: getActiveTabId(),
-        theme: getTheme(),
+        // ADR-018 decision 11: `theme` keeps its meaning (an app theme name) as the profile's base.
+        theme: getAppearance().base,
+        appearanceProfile: { id: getAppearance().id, name: getAppearance().name },
       });
     },
 

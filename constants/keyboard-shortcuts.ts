@@ -114,4 +114,10 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     keys: ['⌘4'],
     description: 'Source Control view',
   },
+  // ADR-018 — the app menu's Settings row.
+  {
+    category: MENU_SHORTCUT_CATEGORY,
+    keys: ['⌘,'],
+    description: 'Settings',
+  },
 ];

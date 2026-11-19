@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { THEME_OPTIONS, THEME_DESCRIPTIONS, ThemeName } from '../components/Toolbar';
+// ADR-018: the theme names moved from components/Toolbar.tsx to lib/appearance.ts (their one home).
+import { THEME_OPTIONS, THEME_DESCRIPTIONS, type ThemeName } from '../lib/appearance';
 
 describe('THEME_OPTIONS — available themes in dropdown selector', () => {
   it('includes all six expected theme options', () => {

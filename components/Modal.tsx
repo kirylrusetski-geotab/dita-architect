@@ -7,6 +7,13 @@ interface ModalProps {
   className?: string;
   /** Extra inline styles for the dialog surface (e.g. a fixed width). Merged over the theme surface colours. */
   style?: React.CSSProperties;
+  /**
+   * The overlay behind the dialog. Default: dimmed and blurred, centred. ADR-018's
+   * Appearance drawer passes a transparent full-window one so the app stays visible
+   * as the live preview; the overlay still takes every click (the title row
+   * included), so the dialog stays modal.
+   */
+  overlayClassName?: string;
 }
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -23,7 +30,7 @@ const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabi
  *   passes a fresh arrow function on every render does not re-run the effect and
  *   yank focus away from an input mid-keystroke.
  */
-export const Modal = ({ onClose, labelId, children, className, style }: ModalProps) => {
+export const Modal = ({ onClose, labelId, children, className, style, overlayClassName }: ModalProps) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -63,7 +70,7 @@ export const Modal = ({ onClose, labelId, children, className, style }: ModalPro
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className={overlayClassName ?? 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center'} data-testid="modal-overlay">
       <div
         ref={dialogRef}
         role="dialog"

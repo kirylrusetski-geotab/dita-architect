@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
-const STORAGE_KEY = 'dita-architect-coach-sync-hint';
+interface CoachMarkProps {
+  /** ADR-018: the settings store's `editor.showSyncHint` (Settings ▸ General can turn it back on). */
+  show: boolean;
+  /** Dismissing writes `showSyncHint: false`. */
+  onDismiss: () => void;
+}
 
-export const CoachMark = () => {
+export const CoachMark = ({ show, onDismiss }: CoachMarkProps) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) !== null) return;
+    if (!show) { setVisible(false); return; }
     const timer = setTimeout(() => setVisible(true), 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [show]);
 
   useEffect(() => {
     if (!visible) return;
@@ -23,7 +28,7 @@ export const CoachMark = () => {
 
   const dismiss = () => {
     setVisible(false);
-    localStorage.setItem(STORAGE_KEY, 'dismissed');
+    onDismiss();
   };
 
   if (!visible) return null;

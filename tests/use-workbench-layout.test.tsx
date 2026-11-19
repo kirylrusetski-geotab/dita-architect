@@ -8,7 +8,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useWorkbenchLayout } from '../hooks/useWorkbenchLayout';
-import { LAYOUT_STORAGE_KEY, LEGACY_SPLIT_KEY, defaultLayout, PANEL_IDS } from '../lib/workbench-layout';
+import { defaultLayout, PANEL_IDS } from '../lib/workbench-layout';
+import { SETTINGS_KEY, LEGACY_KEYS } from '../lib/settings';
 
 /** tests/setup.ts stubs localStorage with a no-op; these tests need a real store. */
 function memoryStorage(): Storage {
@@ -41,11 +42,11 @@ const press = (key: string, mods: Partial<Pick<KeyboardEvent, 'metaKey' | 'altKe
   return ev;
 };
 
-describe('W1 — persisted as one object and restored on launch', () => {
+describe('W1 — persisted as one object (since ADR-018, the settings store\'s workbench slice) and restored on launch', () => {
   it('starts from the defaults when nothing is stored and writes them once', () => {
     const { result } = renderHook(() => useWorkbenchLayout({ activeReviewKey: null }));
     expect(result.current.layout).toEqual(defaultLayout());
-    expect(JSON.parse(store.getItem(LAYOUT_STORAGE_KEY)!)).toMatchObject({ v: 1, activeView: 'explorer' });
+    expect(JSON.parse(store.getItem(SETTINGS_KEY)!).workbench).toMatchObject({ v: 1, activeView: 'explorer' });
   });
 
   it('every action persists, and a fresh hook restores the same layout', () => {
@@ -79,17 +80,24 @@ describe('W1 — persisted as one object and restored on launch', () => {
   });
 
   it('a corrupt stored value falls back to the defaults without throwing', () => {
-    store.setItem(LAYOUT_STORAGE_KEY, '{"v":1,"panels":');
+    store.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, workbench: { v: 1, panels: 'broken', sidePanelWidth: 'wide' } }));
     const { result } = renderHook(() => useWorkbenchLayout({ activeReviewKey: null }));
     expect(result.current.layout).toEqual(defaultLayout());
   });
 
+  it('a corrupt v1.1 workbench key falls back to the defaults and is retired (the store migrates it)', () => {
+    store.setItem(LEGACY_KEYS.workbench, '{"v":1,"panels":');
+    const { result } = renderHook(() => useWorkbenchLayout({ activeReviewKey: null }));
+    expect(result.current.layout).toEqual(defaultLayout());
+    expect(store.getItem(LEGACY_KEYS.workbench)).toBeNull();
+  });
+
   it('migrates the v1.0 ditaSplitWidth key once and removes it', () => {
-    store.setItem(LEGACY_SPLIT_KEY, '30');
+    store.setItem(LEGACY_KEYS.splitWidth, '30');
     const { result } = renderHook(() => useWorkbenchLayout({ activeReviewKey: null }));
     expect(result.current.layout.panels.xml.size).toBe(70);
     expect(result.current.layout.panels.xml.open).toBe(false);
-    expect(store.getItem(LEGACY_SPLIT_KEY)).toBeNull();
+    expect(store.getItem(LEGACY_KEYS.splitWidth)).toBeNull();
   });
 
   it('a localStorage that throws on access is survived (private window, blocked origin)', () => {
@@ -101,6 +109,14 @@ describe('W1 — persisted as one object and restored on launch', () => {
     expect(result.current.layout).toEqual(defaultLayout());
     act(() => result.current.togglePanel('xml'));
     expect(result.current.layout.panels.xml.open).toBe(true);
+  });
+
+  it('resetLayout (Settings ▸ Restore defaults) returns to the defaults and persists them', () => {
+    const { result } = renderHook(() => useWorkbenchLayout({ activeReviewKey: null }));
+    act(() => { result.current.focusView('map'); result.current.togglePanel('xml'); });
+    act(() => result.current.resetLayout());
+    expect(result.current.layout).toEqual(defaultLayout());
+    expect(JSON.parse(store.getItem(SETTINGS_KEY)!).workbench).toMatchObject({ activeView: 'explorer' });
   });
 });
 

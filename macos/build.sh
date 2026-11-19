@@ -20,6 +20,7 @@ swiftc \
   "$SOURCES/AppDelegate.swift" \
   "$SOURCES/WebViewController.swift" \
   "$SOURCES/PrintExporter.swift" \
+  "$SOURCES/FileBridge.swift" \
   "$SOURCES/DITASchemeHandler.swift" \
   "$SOURCES/JSBridge.swift" \
   "$SOURCES/HttpServer.swift" \

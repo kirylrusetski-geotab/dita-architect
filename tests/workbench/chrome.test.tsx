@@ -61,8 +61,8 @@ function heretto(over: Partial<HerettoRailProps> = {}): HerettoRailProps {
 }
 function settings(over: Partial<SettingsRailProps> = {}): SettingsRailProps {
   return {
-    version: '1.1.0', onOpenCredentials: vi.fn(), onKeyboardShortcuts: vi.fn(), onReleaseNotes: vi.fn(),
-    theme: 'dark', onThemeChange: vi.fn(), syntaxTheme: 'material', onSyntaxThemeChange: vi.fn(), ...over,
+    version: '1.3.0', onOpenSettings: vi.fn(), onOpenAppearance: vi.fn(), profileName: 'Nord, Dracula XML',
+    onKeyboardShortcuts: vi.fn(), onReleaseNotes: vi.fn(), ...over,
   };
 }
 
@@ -117,34 +117,27 @@ describe('the activity bar', () => {
     expect(within(pop).queryByRole('menuitem', { name: /^Disconnect/ })).toBeNull();
   });
 
-  it('the Settings menu: credentials, shortcuts, What\'s New, and the two theme pickers as sub-pages', async () => {
+  it('ADR-018: the Settings menu is Settings…, Appearance… (naming the profile in use), Keyboard Shortcuts, What\'s New, and no theme pickers', async () => {
     const s = settings();
     render(<ActivityBar activeView="explorer" sidePanelOpen onFocusView={vi.fn()} heretto={heretto()} settings={s} />);
     fireEvent.click(screen.getByTestId('activity-settings'));
     let menu = await screen.findByRole('menu', { name: 'Settings' });
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /Keyboard Shortcuts/ }));
-    expect(s.onKeyboardShortcuts).toHaveBeenCalled();
-    expect(screen.queryByRole('menu', { name: 'Settings' })).toBeNull();
-
-    fireEvent.click(screen.getByTestId('activity-settings'));
-    menu = await screen.findByRole('menu', { name: 'Settings' });
-    expect(within(menu).getByRole('menuitem', { name: /What's New in v1.1.0/ })).toBeInTheDocument();
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Theme/ }));
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Nord/ }));
-    expect(s.onThemeChange).toHaveBeenCalledWith('nord');
-
-    fireEvent.click(screen.getByTestId('activity-settings'));
-    menu = await screen.findByRole('menu', { name: 'Settings' });
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Syntax theme/ }));
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Daylight/ }));
-    expect(s.onSyntaxThemeChange).toHaveBeenCalledWith('daylight');
+    expect(within(menu).getAllByRole('menuitem').map(i => i.textContent)).toEqual([
+      'Settings…⌘,', 'Appearance…Nord, Dracula XML', 'Keyboard Shortcuts⌘/', "What's New in v1.3.0",
+    ]);
+    expect(within(menu).queryByRole('menuitem', { name: /^Theme|^Syntax theme/ })).toBeNull();
+    for (const [label, fn] of [[/^Settings…/, s.onOpenSettings], [/^Appearance…/, s.onOpenAppearance], [/Keyboard Shortcuts/, s.onKeyboardShortcuts], [/What's New/, s.onReleaseNotes]] as [RegExp, () => void][]) {
+      menu = screen.queryByRole('menu', { name: 'Settings' }) ?? (fireEvent.click(screen.getByTestId('activity-settings')), await screen.findByRole('menu', { name: 'Settings' }));
+      fireEvent.click(within(menu).getByRole('menuitem', { name: label }));
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('menu', { name: 'Settings' })).toBeNull();
+    }
   });
 
-  it('a Settings sub-page keeps keyboard focus inside the menu (review finding 4)', async () => {
+  it('the Settings menu takes keyboard focus and moves with the arrow keys (review finding 4, kept after the sub-pages went)', async () => {
     render(<ActivityBar activeView="explorer" sidePanelOpen onFocusView={vi.fn()} heretto={heretto()} settings={settings()} />);
     fireEvent.click(screen.getByTestId('activity-settings'));
     const menu = await screen.findByRole('menu', { name: 'Settings' });
-    fireEvent.click(within(menu).getByRole('menuitem', { name: /^Theme/ }));
     expect(menu.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(menu, { key: 'ArrowDown' });
     expect(menu.contains(document.activeElement)).toBe(true);

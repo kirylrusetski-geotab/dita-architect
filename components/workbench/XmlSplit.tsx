@@ -1,11 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Code, ChevronDown, CheckCircle, AlertTriangle, AlertCircle, Code2, WrapText, PanelRightClose } from 'lucide-react';
+import { Code, CheckCircle, AlertTriangle, AlertCircle, Code2, WrapText, PanelRightClose } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
-import { Popover, MenuItem } from './Popover';
+import { Popover } from './Popover';
 import { ReviewBar } from '../ReviewBar';
 import { DiffViewer } from '../DiffViewer';
-import { MonacoDitaEditor, SYNTAX_THEME_OPTIONS, type SyntaxThemeName, type XmlError } from '../MonacoDitaEditor';
-import type { ThemeName } from '../Toolbar';
+import { MonacoDitaEditor, type XmlError } from '../MonacoDitaEditor';
+import { syntaxModeMismatch, syntaxThemeLabel, type SyntaxThemeName, type ThemeName } from '../../lib/appearance';
 import type { Tab } from '../../types/tab';
 import { XML_SPLIT } from '../../lib/workbench-layout';
 
@@ -22,9 +22,9 @@ interface XmlSplitProps {
   activeTabId: string;
   activeTab: Tab;
   updateTab: (id: string, updates: Partial<Tab>) => void;
+  /** The active appearance profile's base and syntax theme (ADR-018); chosen in Settings ▸ Appearance. */
   appTheme: ThemeName;
   syntaxTheme: SyntaxThemeName;
-  onSyntaxThemeChange: (t: SyntaxThemeName) => void;
   wordWrapEnabled: boolean;
   onToggleWordWrap: () => void;
   currentTopicType: string;
@@ -43,13 +43,11 @@ interface XmlSplitProps {
  */
 export const XmlSplit = ({
   open, sizePct, containerRef, onResize, onClose,
-  tabs, activeTabId, activeTab, updateTab, appTheme, syntaxTheme, onSyntaxThemeChange,
+  tabs, activeTabId, activeTab, updateTab, appTheme, syntaxTheme,
   wordWrapEnabled, onToggleWordWrap, currentTopicType, onFormat, onReviewAccept, onReviewReject,
 }: XmlSplitProps) => {
   const [dragging, setDragging] = useState(false);
-  const [syntaxMenuOpen, setSyntaxMenuOpen] = useState(false);
   const [problemsOpen, setProblemsOpen] = useState(false);
-  const syntaxButtonRef = useRef<HTMLButtonElement>(null);
   const problemsButtonRef = useRef<HTMLButtonElement>(null);
 
   const onHandleDown = useCallback((e: React.MouseEvent) => {
@@ -108,38 +106,18 @@ export const XmlSplit = ({
           className="h-10 flex items-center px-4 justify-between shrink-0"
           style={{ backgroundColor: 'var(--app-surface-raised)', borderBottom: '1px solid var(--app-border-subtle)' }}
         >
-          <div className="relative">
-            <Tooltip content="Syntax theme">
-              <button
-                ref={syntaxButtonRef}
-                onClick={() => setSyntaxMenuOpen(o => !o)}
-                aria-haspopup="menu"
-                aria-expanded={syntaxMenuOpen}
-                aria-label={`Select syntax theme: ${SYNTAX_THEME_OPTIONS.find(t => t.value === syntaxTheme)?.label ?? 'XML Source'}`}
-                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest rounded px-2 py-1 transition-colors hover-app"
-                style={{ color: 'var(--app-text-muted)' }}
-              >
-                <Code className="w-4 h-4" />
-                {SYNTAX_THEME_OPTIONS.find(t => t.value === syntaxTheme)?.label ?? 'XML Source'}
-                <ChevronDown className={`w-3 h-3 transition-transform ${syntaxMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-            </Tooltip>
-            <Popover open={syntaxMenuOpen} onClose={() => setSyntaxMenuOpen(false)} anchorRef={syntaxButtonRef} placement="bottom-start" role="menu" ariaLabel="Syntax theme" width={150}>
-              {SYNTAX_THEME_OPTIONS.map(opt => (
-                <MenuItem
-                  key={opt.value}
-                  label={opt.label}
-                  active={opt.value === syntaxTheme}
-                  trailing={opt.value === syntaxTheme ? <span>&#10003;</span> : undefined}
-                  onSelect={() => { onSyntaxThemeChange(opt.value); setSyntaxMenuOpen(false); }}
-                />
-              ))}
-            </Popover>
-          </div>
+          {/* ADR-018: the syntax-theme menu that lived here is part of the appearance profile now. */}
+          <span
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-2 py-1 select-none"
+            style={{ color: 'var(--app-text-muted)' }}
+          >
+            <Code className="w-4 h-4" />
+            XML
+          </span>
 
           <div className="flex items-center gap-2">
-            {SYNTAX_THEME_OPTIONS.find(o => o.value === syntaxTheme)?.mode === 'light' && appTheme !== 'light' && (
-              <Tooltip content="Daylight is a light syntax theme, pairs best with the Light visual theme">
+            {syntaxModeMismatch(appTheme, syntaxTheme) && (
+              <Tooltip content={`${syntaxThemeLabel(syntaxTheme)} does not match this profile's ${appTheme === 'light' ? 'light' : 'dark'} page. Change it in Settings ▸ Appearance.`}>
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--editor-note-warning)' }} />
               </Tooltip>
             )}

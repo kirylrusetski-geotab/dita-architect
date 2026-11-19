@@ -65,7 +65,7 @@ describe('BUG-45 — a loaded topic keeps its source bytes', () => {
       getTabs: () => store.tabs(),
       getActiveTabId: () => '',
       getHerettoConnected: () => false,
-      getTheme: () => 'dark',
+      getAppearance: () => ({ id: 'builtin:dark', name: 'Dark', base: 'dark' }),
       updateTab: vi.fn(),
       handleHerettoSave: vi.fn().mockResolvedValue(undefined),
       setTabs: store.setTabs as unknown as React.Dispatch<React.SetStateAction<Tab[]>>,

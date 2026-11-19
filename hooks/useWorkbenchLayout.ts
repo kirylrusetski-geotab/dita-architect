@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  LAYOUT_STORAGE_KEY,
-  LEGACY_SPLIT_KEY,
-  parseStoredLayout,
-  serializeLayout,
+  defaultLayout,
   focusView as focusViewReducer,
   showView as showViewReducer,
   setSidePanelOpen as setSidePanelOpenReducer,
@@ -21,6 +18,7 @@ import {
   type WorkbenchLayout,
 } from '../lib/workbench-layout';
 import { isNativeApp } from '../lib/native-api-object';
+import { loadSettings, updateSettings } from '../lib/settings';
 
 export interface UseWorkbenchLayoutOptions {
   /**
@@ -39,32 +37,13 @@ export interface UseWorkbenchLayoutOptions {
   installKeyBindings?: boolean;
 }
 
-/** Reads `window.localStorage` defensively: a private window or a blocked origin throws on access. */
-function storage(): Storage | null {
-  try {
-    return typeof window !== 'undefined' ? window.localStorage : null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * ADR-018: the layout is the settings store's `workbench` slice. The store owns
+ * the one-time migration of the v1.1 `dita-architect-workbench` object and the
+ * v1.0 `ditaSplitWidth` key, and survives a storage that throws on access.
+ */
 function readStored(): WorkbenchLayout {
-  const s = storage();
-  if (!s) return parseStoredLayout(null);
-  let raw: string | null = null;
-  let legacy: string | null = null;
-  try {
-    raw = s.getItem(LAYOUT_STORAGE_KEY);
-    legacy = s.getItem(LEGACY_SPLIT_KEY);
-  } catch {
-    // fall through to the defaults
-  }
-  const layout = parseStoredLayout(raw, legacy);
-  // The legacy key is honoured once (when no workbench object exists) and then retired.
-  if (legacy !== null) {
-    try { s.removeItem(LEGACY_SPLIT_KEY); } catch { /* nothing to do */ }
-  }
-  return layout;
+  return loadSettings().workbench;
 }
 
 /**
@@ -77,9 +56,8 @@ export function useWorkbenchLayout({ activeReviewKey, installKeyBindings }: UseW
 
   // W1: persist every change as one object.
   useEffect(() => {
-    const s = storage();
-    if (!s) return;
-    try { s.setItem(LAYOUT_STORAGE_KEY, serializeLayout(layout)); } catch { /* quota or blocked: the session still works */ }
+    // A refused write is survived: the session keeps working on the in-memory layout.
+    updateSettings(st => ({ ...st, workbench: layout }));
   }, [layout]);
 
   const focusView = useCallback((view: ViewId) => setLayout(l => focusViewReducer(l, view)), []);
@@ -94,6 +72,8 @@ export function useWorkbenchLayout({ activeReviewKey, installKeyBindings }: UseW
   const setRailHidden = useCallback((hidden: boolean) => setLayout(l => setRailHiddenReducer(l, hidden)), []);
   const toggleRail = useCallback(() => setLayout(l => setRailHiddenReducer(l, !l.railHidden)), []);
   const movePanel = useCallback((id: StackPanelId, index: number) => setLayout(l => movePanelReducer(l, id, index)), []);
+  /** Settings ▸ General ▸ Restore defaults (ADR-018). */
+  const resetLayout = useCallback(() => setLayout(defaultLayout()), []);
 
   // W3: a staged proposal is never invisible. Fires when the reviewing tab
   // changes (null → a tab, or one reviewing tab → another), never when the
@@ -144,6 +124,7 @@ export function useWorkbenchLayout({ activeReviewKey, installKeyBindings }: UseW
     setRailHidden,
     toggleRail,
     movePanel,
+    resetLayout,
   };
 }
 

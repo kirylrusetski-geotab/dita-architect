@@ -1,167 +1,31 @@
-// @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+// The stored theme name → ThemeName rule. This suite used to test a copy of the
+// rule pasted into the test; since ADR-018 it tests the real one
+// (lib/appearance.ts resolveStoredTheme), which the settings store's one-time
+// migration applies to the v1.2.0 'dita-architect-theme' key.
+import { describe, it, expect } from 'vitest';
+import { resolveStoredTheme, THEME_OPTIONS, migrateThemePair } from '../lib/appearance';
 
-// ---------------------------------------------------------------------------
-// Extract and test the theme validation logic from useEditorUi.ts
-// This tests the localStorage theme persistence that Jamie fixed.
-// ---------------------------------------------------------------------------
-
-/** Mirror of the theme validation logic from useEditorUi.ts line 23 */
-function validateStoredTheme(stored: string | null): string {
-  if (stored === 'light' || stored === 'claude' || stored === 'nord' || stored === 'solarized' || stored === 'navy' || stored === 'dark') {
-    return stored;
-  }
-  return 'dark';
-}
-
-/** Mock localStorage for testing persistence behavior */
-class MockLocalStorage {
-  private store: Record<string, string> = {};
-
-  getItem(key: string): string | null {
-    return this.store[key] || null;
-  }
-
-  setItem(key: string, value: string): void {
-    this.store[key] = value;
-  }
-
-  clear(): void {
-    this.store = {};
-  }
-}
-
-describe('theme validation — localStorage persistence logic', () => {
-  let mockLocalStorage: MockLocalStorage;
-
-  beforeEach(() => {
-    mockLocalStorage = new MockLocalStorage();
-    // Replace global localStorage with our mock
-    Object.defineProperty(global, 'localStorage', {
-      value: mockLocalStorage,
-      writable: true
-    });
+describe('resolveStoredTheme — a stored theme name', () => {
+  it.each(['light', 'claude', 'nord', 'solarized', 'navy', 'dark'])('accepts %s', (t) => {
+    expect(resolveStoredTheme(t)).toBe(t);
   });
 
-  describe('validateStoredTheme — theme validation from localStorage', () => {
-    it('accepts light theme as valid', () => {
-      expect(validateStoredTheme('light')).toBe('light');
-    });
-
-    it('accepts claude theme as valid', () => {
-      expect(validateStoredTheme('claude')).toBe('claude');
-    });
-
-    it('accepts nord theme as valid', () => {
-      expect(validateStoredTheme('nord')).toBe('nord');
-    });
-
-    it('accepts solarized theme as valid', () => {
-      expect(validateStoredTheme('solarized')).toBe('solarized');
-    });
-
-    it('accepts navy theme as valid — new theme from Jamie\'s implementation', () => {
-      expect(validateStoredTheme('navy')).toBe('navy');
-    });
-
-    it('accepts dark theme as valid — Elena noted this was previously missing', () => {
-      expect(validateStoredTheme('dark')).toBe('dark');
-    });
-
-    it('rejects invalid theme names and falls back to dark', () => {
-      expect(validateStoredTheme('invalid')).toBe('dark');
-    });
-
-    it('rejects empty string and falls back to dark', () => {
-      expect(validateStoredTheme('')).toBe('dark');
-    });
-
-    it('rejects null value and falls back to dark', () => {
-      expect(validateStoredTheme(null)).toBe('dark');
-    });
-
-    it('rejects theme names with wrong casing', () => {
-      expect(validateStoredTheme('NAVY')).toBe('dark');
-      expect(validateStoredTheme('Light')).toBe('dark');
-      expect(validateStoredTheme('Dark')).toBe('dark');
-    });
-
-    it('rejects partial matches of valid theme names', () => {
-      expect(validateStoredTheme('geo')).toBe('dark');
-      expect(validateStoredTheme('tablet')).toBe('dark');
-      expect(validateStoredTheme('darkmode')).toBe('dark');
-    });
+  it.each([['invalid'], [''], ['NAVY'], ['Light'], ['Dark'], ['geo'], ['tablet'], ['darkmode'], ['corrupted-theme-name']])('rejects %j and falls back to dark', (t) => {
+    expect(resolveStoredTheme(t)).toBe('dark');
   });
 
-  describe('localStorage theme persistence — end-to-end behavior', () => {
-    it('persists navy theme selection across sessions', () => {
-      // User selects Navy theme
-      localStorage.setItem('dita-architect-theme', 'navy');
-
-      // App loads and validates stored theme
-      const stored = localStorage.getItem('dita-architect-theme');
-      const validatedTheme = validateStoredTheme(stored);
-
-      expect(validatedTheme).toBe('navy');
-    });
-
-    it('persists dark theme selection across sessions — regression test for Elena\'s bug report', () => {
-      // User selects dark theme
-      localStorage.setItem('dita-architect-theme', 'dark');
-
-      // App loads and validates stored theme
-      const stored = localStorage.getItem('dita-architect-theme');
-      const validatedTheme = validateStoredTheme(stored);
-
-      expect(validatedTheme).toBe('dark');
-    });
-
-    it('handles corrupted localStorage gracefully', () => {
-      // Someone manually edits localStorage with invalid data
-      localStorage.setItem('dita-architect-theme', 'corrupted-theme-name');
-
-      // App should fall back to dark theme
-      const stored = localStorage.getItem('dita-architect-theme');
-      const validatedTheme = validateStoredTheme(stored);
-
-      expect(validatedTheme).toBe('dark');
-    });
-
-    it('handles missing localStorage entry on first visit', () => {
-      // New user — no theme stored yet
-      const stored = localStorage.getItem('dita-architect-theme');
-      const validatedTheme = validateStoredTheme(stored);
-
-      expect(stored).toBeNull();
-      expect(validatedTheme).toBe('dark');
-    });
-
-    it('uses correct localStorage key for theme persistence', () => {
-      const themeKey = 'dita-architect-theme';
-
-      localStorage.setItem(themeKey, 'navy');
-      const retrieved = localStorage.getItem(themeKey);
-
-      expect(retrieved).toBe('navy');
-    });
+  it('a missing value (first visit) is dark', () => {
+    expect(resolveStoredTheme(null)).toBe('dark');
   });
 
-  describe('all valid themes — comprehensive validation', () => {
-    const validThemes = ['light', 'claude', 'nord', 'solarized', 'navy', 'dark'];
+  it('accepts exactly the themes in THEME_OPTIONS', () => {
+    for (const { value } of THEME_OPTIONS) expect(resolveStoredTheme(value)).toBe(value);
+  });
+});
 
-    it('accepts all six valid themes', () => {
-      validThemes.forEach(theme => {
-        expect(validateStoredTheme(theme)).toBe(theme);
-      });
-    });
-
-    it('matches exactly the themes available in THEME_OPTIONS', () => {
-      // This ensures theme validation stays in sync with available options
-      const expectedThemes = ['dark', 'light', 'claude', 'nord', 'solarized', 'navy'];
-
-      expectedThemes.forEach(theme => {
-        expect(validateStoredTheme(theme)).toBe(theme);
-      });
-    });
+describe('the stored theme reaches the active profile (the migration\'s use of the rule)', () => {
+  it('a stored navy lands on the Navy built-in; a corrupted name on Dark', () => {
+    expect(migrateThemePair('navy', null).activeProfileId).toBe('builtin:navy');
+    expect(migrateThemePair('corrupted-theme-name', null).activeProfileId).toBe('builtin:dark');
   });
 });

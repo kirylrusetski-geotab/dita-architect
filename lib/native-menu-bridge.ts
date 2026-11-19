@@ -1,7 +1,6 @@
 import { toast } from 'sonner';
 import { DITA_TOPIC_TYPE, type DitaTopicType } from '../constants/dita';
-import { THEME_OPTIONS, type ThemeName } from '../components/Toolbar';
-import { SYNTAX_THEME_OPTIONS, type SyntaxThemeName } from '../components/MonacoDitaEditor';
+import { isSettingsPage, SETTINGS_PAGES, type SettingsPage } from './settings';
 import { isNativeApp, nativeApiObject } from './native-api-object';
 import { PANEL_IDS, VIEW_IDS, type PanelId, type ViewId } from './workbench-layout';
 
@@ -33,9 +32,11 @@ export const MENU_BRIDGE_METHODS = [
   'openConnectMapModal',
   'reloadMap',
   'disconnectMap',
-  'setTheme',
-  'setXmlTheme',
-  'getActiveTheme',
+  // ADR-018 decision 11: the Theme / XML Syntax Theme submenus are gone; the look is a profile.
+  'openSettings',
+  'openAppearance',
+  'setAppearanceProfile',
+  'getAppearance',
   'exportFinished',
 ] as const;
 
@@ -67,10 +68,17 @@ export interface NativeMenuBridgeHandlers {
   openConnectMapModal: () => void;
   reloadMap: () => void;
   disconnectMap: () => void;
-  setTheme: (name: ThemeName) => void;
-  setXmlTheme: (name: SyntaxThemeName) => void;
-  getTheme: () => string;
-  getXmlTheme: () => string;
+  /** ADR-018: Settings (DITA Architect ▸ Settings… ⌘,) on a page, and the Appearance drawer (View ▸ Appearance…). */
+  openSettings: (page: SettingsPage) => void;
+  openAppearance: () => void;
+  /** Switch to a profile by id; false when no profile has that id. */
+  selectAppearanceProfile: (id: string) => boolean;
+  getAppearance: () => AppearanceSummary;
+}
+
+export interface AppearanceSummary {
+  active: { id: string; name: string; base: string; syntaxTheme: string; builtIn: boolean };
+  profiles: Array<{ id: string; name: string; builtIn: boolean }>;
 }
 
 const ok = (extra: Record<string, unknown> = {}): string =>
@@ -83,12 +91,6 @@ type ExportStatus = typeof EXPORT_STATUSES[number];
 
 function isTopicType(v: unknown): v is DitaTopicType {
   return typeof v === 'string' && (DITA_TOPIC_TYPE as readonly string[]).includes(v);
-}
-function isThemeName(v: unknown): v is ThemeName {
-  return typeof v === 'string' && THEME_OPTIONS.some(o => o.value === v);
-}
-function isSyntaxThemeName(v: unknown): v is SyntaxThemeName {
-  return typeof v === 'string' && SYNTAX_THEME_OPTIONS.some(o => o.value === v);
 }
 function isExportStatus(v: unknown): v is ExportStatus {
   return typeof v === 'string' && (EXPORT_STATUSES as readonly string[]).includes(v);
@@ -195,19 +197,28 @@ export function registerNativeMenuBridge(handlers: NativeMenuBridgeHandlers): vo
       return ok();
     },
 
-    setTheme: (name: unknown): string => {
-      if (!isThemeName(name)) return bad(`Unknown theme "${String(name)}": expected one of ${THEME_OPTIONS.map(o => o.value).join(', ')}`);
-      handlers.setTheme(name);
-      return ok({ theme: name });
+    // A row with no argument opens General; the smoke may name a page.
+    openSettings: (page: unknown): string => {
+      const p = page === undefined || page === null || page === '' ? 'general' : page;
+      if (!isSettingsPage(p)) return bad(`Unknown settings page "${String(page)}": expected one of ${SETTINGS_PAGES.map(x => x.id).join(', ')}`);
+      handlers.openSettings(p);
+      return ok({ page: p });
     },
 
-    setXmlTheme: (name: unknown): string => {
-      if (!isSyntaxThemeName(name)) return bad(`Unknown XML syntax theme "${String(name)}": expected one of ${SYNTAX_THEME_OPTIONS.map(o => o.value).join(', ')}`);
-      handlers.setXmlTheme(name);
-      return ok({ syntaxTheme: name });
+    openAppearance: (): string => {
+      handlers.openAppearance();
+      return ok();
     },
 
-    getActiveTheme: (): string => ok({ theme: handlers.getTheme(), syntaxTheme: handlers.getXmlTheme() }),
+    setAppearanceProfile: (id: unknown): string => {
+      const known = handlers.getAppearance().profiles;
+      if (typeof id !== 'string' || !handlers.selectAppearanceProfile(id)) {
+        return bad(`Unknown appearance profile "${String(id)}": expected one of ${known.map(p => p.id).join(', ')}`);
+      }
+      return ok({ profile: id });
+    },
+
+    getAppearance: (): string => ok({ ...handlers.getAppearance() }),
 
     // Swift → JS (ADR-016 decision 6): the shell reports the export's outcome once
     // the file exists (or doesn't), so a success toast is never shown early.
