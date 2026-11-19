@@ -5,6 +5,7 @@ import {
   parseStoredLayout,
   serializeLayout,
   focusView as focusViewReducer,
+  showView as showViewReducer,
   setSidePanelOpen as setSidePanelOpenReducer,
   setSidePanelWidth as setSidePanelWidthReducer,
   togglePanel as togglePanelReducer,
@@ -82,6 +83,7 @@ export function useWorkbenchLayout({ activeReviewKey, installKeyBindings }: UseW
   }, [layout]);
 
   const focusView = useCallback((view: ViewId) => setLayout(l => focusViewReducer(l, view)), []);
+  const showView = useCallback((view: ViewId) => setLayout(l => showViewReducer(l, view)), []);
   const setSidePanelOpen = useCallback((open: boolean) => setLayout(l => setSidePanelOpenReducer(l, open)), []);
   const setSidePanelWidth = useCallback((px: number) => setLayout(l => setSidePanelWidthReducer(l, px)), []);
   const togglePanel = useCallback((id: PanelId, force?: boolean) => setLayout(l => togglePanelReducer(l, id, force)), []);
@@ -131,6 +133,7 @@ export function useWorkbenchLayout({ activeReviewKey, installKeyBindings }: UseW
     /** The stack's open panels, top to bottom. */
     openStackPanels: stack,
     focusView,
+    showView,
     setSidePanelOpen,
     setSidePanelWidth,
     togglePanel,

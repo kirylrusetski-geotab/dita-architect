@@ -42,6 +42,13 @@ export const parseHerettoFolder = (xml: string): HerettoItem[] => {
   return items;
 };
 
+/**
+ * v1.2.0: a map is not a topic. The topic editor opens a ditamap as a blank page
+ * (maps are read-only, FR-079), so every way of opening a Heretto file sends a
+ * map to the Map view instead. Decided by name, as Heretto lists files.
+ */
+export const isDitamapName = (name: string): boolean => /\.(ditamap|bookmap)$/i.test(name.trim());
+
 export const getFolderName = (xml: string): string => {
   if (!xml || !xml.trim()) return '';
 

@@ -224,7 +224,7 @@ describe('the right rail and the panel column (W7 gestures)', () => {
 });
 
 describe('placeholder views', () => {
-  it.each(['search', 'map', 'scm'] as const)('%s names its release', (view) => {
+  it.each(['scm'] as const)('%s names its release (Search and Map shipped in v1.2.0)', (view) => {
     render(<PlaceholderView view={view} />);
     expect(screen.getByText(`Coming in ${VIEW_META[view].arrives}`)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: VIEW_META[view].title })).toBeInTheDocument();

@@ -57,14 +57,8 @@ export interface ViewMeta {
 
 export const VIEW_META: Record<ViewId, ViewMeta> = {
   explorer: { id: 'explorer', title: 'Explorer', icon: Files, shortcut: '⌘1' },
-  search: {
-    id: 'search', title: 'Search', icon: Search, shortcut: '⌘2', arrives: 'v1.2.0',
-    blurb: 'Heretto search moves here in Session 2. Until then, Open from Heretto in the Explorer\'s menu keeps the filename search in its dialog.',
-  },
-  map: {
-    id: 'map', title: 'Map', icon: Network, shortcut: '⌘3', arrives: 'v1.2.0',
-    blurb: 'The connected map\'s topicref tree and its keys arrive in Session 2. Connect a Map is in the File menu and the Explorer\'s menu.',
-  },
+  search: { id: 'search', title: 'Search', icon: Search, shortcut: '⌘2' },
+  map: { id: 'map', title: 'Map', icon: Network, shortcut: '⌘3' },
   scm: {
     id: 'scm', title: 'Source Control', icon: GitBranch, shortcut: '⌘4', arrives: 'v1.5.0',
     blurb: 'A local version history with Heretto as the remote arrives in Session 5: Changes, Outgoing, Incoming, Proposed, Commit, Push, Pull and Sync.',

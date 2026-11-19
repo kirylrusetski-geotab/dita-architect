@@ -21,6 +21,43 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.2.0',
+    date: '2026-11-19',
+    title: 'Search Heretto by what a topic says, not only by its file name, and browse the connected map\'s whole tree in the side panel.',
+    sections: [
+      {
+        heading: 'New',
+        items: [
+          '`Search` (⌘2) searches the text and titles of every topic in your content root, through Heretto\'s own search. Each word matches the start of a word, so `config` finds `configuration`. Filter by `Status`, `Type`, `Modified` and `Product`; each filter lists the values that occur for your query with how many topics have each. Results are grouped by folder and show the title, status, file name, type and date; click one to open it. `In Content root` can narrow the search to the folder of the topic you have open.',
+          '`Map` (⌘3) shows the connected map as a tree: its topics, the topics nested under them, and each submap, which you expand in place. A topic whose file Heretto cannot find is struck through and marked `missing`; if Heretto could not be reached to check, it says `could not check` instead and checks again when you click it. A topic you have open carries a dot. Below the tree, `Keys` lists every key the map defines, with a filter. `Reload`, `Change…` and `Disconnect` sit on the map\'s card.',
+          'In the Explorer, the search icon on the `Heretto` heading searches file names in the folder you last expanded, the way the Open from Heretto dialog used to.',
+          '`Connect a Map` now searches: type part of a map\'s name or title and pick it from the list. Only DITA maps are listed. Pasting a map\'s UUID or a Heretto link still connects it directly.',
+        ],
+      },
+      {
+        heading: 'Changed',
+        items: [
+          '`Open from Heretto…` used to open a dialog that searched file names folder by folder. It now opens the Search view with the cursor in the search box. The dialog that remains only picks a folder for `Save to Heretto` (a topic with no Heretto file yet) and a target for `Replace in Heretto`.',
+          'A topic opened from Search or from the Map gets the same full path in the Heretto bar as one opened from the Explorer, so its images and relative links resolve the same way.',
+          'Opening a map (a `.ditamap`) from the Explorer or Search used to load it into the topic editor as an empty page. It now connects that map and shows it in the Map view.',
+        ],
+      },
+      {
+        heading: 'Good to know',
+        items: [
+          'Topics in the Map tree are labelled with their `navtitle` when the map gives one, and otherwise with their file name, underscores read as spaces. Showing every real topic title would mean one Heretto request per topic (thousands for a large map); that may come later, loaded as you scroll.',
+          'Heretto\'s search filters by modified and created dates only, and its keyword matching has no operators (no quotes, OR or minus). Search pages 25 results at a time.',
+        ],
+      },
+      {
+        heading: 'Under the Hood',
+        items: [
+          'ADR-013 amendment. `lib/heretto-search.ts` builds requests for the search API documented in the CCMS API v1 guide (rev. I): one folder per request as a database URI whose organization segment is the host\'s subdomain (the guide\'s definition; the REST API never returns it), drilldowns OR-ed within a field and AND-ed across, a zero-row facet request for the filter values, one page size for every page so offsets past 1,000 stay valid. A new `/heretto-search` proxy prefix in both shells carries the same auth as `/heretto-api`, and a test keeps them equal. The map loader now records each map\'s navigation tree alongside its keys, from the walk it already did, so connecting costs no extra request; keys, precedence and the chip states are unchanged. Live: the Help Center map reads 84 maps and 284 keys, the same as the previous loader. A fresh-context adversarial review before release found four defects (a bad token on the first search showed a generic error; the Save dialog could cancel the Explorer\'s file-name search; a stale or failed count request could hide filter values or block results) and a set of weaknesses, all fixed and pinned. Suite: 106 files, 2,519 tests passing.',
+        ],
+      },
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-11-17',
     title: 'A workbench: an activity bar with an Explorer that browses Heretto, a right rail of panels, and the XML pane closed until you ask for it.',

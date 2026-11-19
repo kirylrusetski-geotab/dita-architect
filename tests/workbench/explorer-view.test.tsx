@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { serveHeretto, herettoRequests, type FakeTenant } from '../helpers/fakeHeretto';
 import { herettoFolderCache } from '../../constants/heretto';
-import { ExplorerView, type ExplorerCommands, type ExplorerTab } from '../../components/workbench/views/ExplorerView';
+import { ExplorerView, type ExplorerCommands, type ExplorerTab, type FilenameSearch } from '../../components/workbench/views/ExplorerView';
 
 /** root → d1 → d2 … → d10, each level also holding one topic. */
 function deepTenant(depth: number): FakeTenant {
@@ -52,7 +52,9 @@ function renderExplorer(over: Partial<React.ComponentProps<typeof ExplorerView>>
   const props: React.ComponentProps<typeof ExplorerView> = {
     tabs, activeTabId: 't1', onActivateTab: vi.fn(), onCloseTab: vi.fn(),
     herettoConnected: true, rootUuid: 'root', host: 'example.heretto.com',
-    onOpenTopic: vi.fn(), commands: cmds, ...over,
+    onOpenTopic: vi.fn(), commands: cmds,
+    filenameSearch: { run: vi.fn(), results: [], status: { phase: 'idle' }, abortRef: { current: null } } as FilenameSearch,
+    ...over,
   };
   const utils = render(<ExplorerView {...props} />);
   return { ...utils, props, cmds };
@@ -243,5 +245,43 @@ describe('W4 — the `…` menu reaches every retired-dropdown command', () => {
       expect(within(menu).getByRole('menuitem', { name: l })).toBeDisabled();
     }
     expect(within(menu).getByRole('menuitem', { name: /^New Topic/ })).toBeEnabled();
+  });
+});
+
+describe('ADR-013 amendment — "Search filenames in this folder" (the walk moved here from the dialog)', () => {
+  it('runs the walk from the last folder expanded, debounced, and opens a result with its path from the content root', async () => {
+    serveHeretto(deepTenant(3));
+    const run = vi.fn();
+    const result = { uuid: 'f3', name: 'topic-3.dita', type: 'file' as const, path: 'Level 3/topic-3.dita', ancestorUuids: ['d2', 'd3'] };
+    const { props, rerender } = renderExplorer({ filenameSearch: { run, results: [], status: { phase: 'idle' }, abortRef: { current: null } } });
+    const tree = within(screen.getByTestId('folder-tree'));
+    fireEvent.click(await tree.findByText('Level 1'));
+    fireEvent.click(await tree.findByText('Level 2'));
+    await tree.findByText('Level 3');
+    fireEvent.click(screen.getByTestId('explorer-filename-search'));
+    const box = screen.getByRole('textbox', { name: 'Search filenames in Level 2' });
+    fireEvent.change(box, { target: { value: 'topic' } });
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    expect(run.mock.calls[0].slice(0, 2)).toEqual(['topic', 'd2']);
+    rerender(<ExplorerView {...props} filenameSearch={{ run, results: [result], status: { phase: 'done', foldersVisited: 2, foldersFailed: 0 }, abortRef: { current: null } }} />);
+    fireEvent.click(screen.getByTestId('filename-result-f3'));
+    expect(props.onOpenTopic).toHaveBeenCalledWith({ ...result, path: 'Level 1/Level 2/Level 3/topic-3.dita', ancestorUuids: ['root', 'd1', 'd2', 'd3'] });
+  });
+
+  it('from the root the result opens as the walk reported it; Escape closes the box', async () => {
+    serveHeretto(deepTenant(1));
+    const run = vi.fn();
+    const result = { uuid: 'f0', name: 'root-topic.dita', type: 'file' as const, path: 'root-topic.dita', ancestorUuids: ['root'] };
+    const { props } = renderExplorer({ filenameSearch: { run, results: [result], status: { phase: 'done', foldersVisited: 1, foldersFailed: 0 }, abortRef: { current: null } } });
+    await screen.findByText('Level 1');
+    fireEvent.click(screen.getByTestId('explorer-filename-search'));
+    const box = screen.getByRole('textbox', { name: /Search filenames in/ });
+    fireEvent.change(box, { target: { value: 'root' } });
+    await waitFor(() => expect(run).toHaveBeenCalledWith('root', 'root', expect.any(AbortSignal)), { timeout: 2000 });
+    fireEvent.click(screen.getByTestId('filename-result-f0'));
+    expect(props.onOpenTopic).toHaveBeenCalledWith(result);
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: /Search filenames in/ })).toBeNull();
+    expect(screen.getByTestId('folder-tree')).toBeInTheDocument();
   });
 });

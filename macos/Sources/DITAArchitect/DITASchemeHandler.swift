@@ -18,7 +18,7 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        if path.hasPrefix("/heretto-api") {
+        if path.hasPrefix("/heretto-api") || path == Self.searchProxyPath {
             handleProxy(urlSchemeTask, id: id, originalURL: url, path: path)
         } else if path == "/heretto-credentials" {
             handleCredentials(urlSchemeTask, id: id, request: urlSchemeTask.request)
@@ -68,6 +68,17 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     // MARK: – Heretto proxy
+
+    /// ADR-013 amendment (2026-11-18): the search API lives outside `/rest`.
+    /// `/heretto-search` → `https://<host>/ezdnxtgen/api/search`, same auth as `/heretto-api`.
+    static let searchProxyPath = "/heretto-search"
+    static let searchUpstreamPath = "/ezdnxtgen/api/search"
+
+    /// The upstream path for a proxied request: the search API, or `/rest/…` for `/heretto-api/…`.
+    static func upstreamPath(for path: String) -> String {
+        if path == searchProxyPath { return searchUpstreamPath }
+        return "/rest" + String(path.dropFirst("/heretto-api".count))
+    }
 
     /// `host` is the Heretto instance hostname (e.g. "yourcompany.heretto.com");
     /// `rootUuid` is the UUID of the content folder the browser opens on and the
@@ -119,12 +130,11 @@ final class DITASchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        // /heretto-api/SOMETHING → https://<host>/rest/SOMETHING
-        let restPath = "/rest" + String(path.dropFirst("/heretto-api".count))
+        // /heretto-api/SOMETHING → https://<host>/rest/SOMETHING; /heretto-search → the search API
         var components = URLComponents()
         components.scheme = "https"
         components.host = host
-        components.path = restPath
+        components.path = Self.upstreamPath(for: path)
         if let orig = URLComponents(url: originalURL, resolvingAgainstBaseURL: false) {
             components.queryItems = orig.queryItems
         }

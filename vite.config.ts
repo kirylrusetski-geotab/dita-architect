@@ -69,6 +69,20 @@ export default defineConfig({
                 });
               },
             },
+            // ADR-013 amendment (2026-11-18): the search API lives outside /rest.
+            // Exact path only (a key starting with ^ is a regex in Vite's proxy).
+            '^/heretto-search$': {
+              target: `https://${herettoState.host}`,
+              changeOrigin: true,
+              rewrite: (p) => p.replace(/^\/heretto-search/, '/ezdnxtgen/api/search'),
+              configure: (proxy) => {
+                proxy.on('proxyReq', (proxyReq) => {
+                  if (herettoState.auth) {
+                    proxyReq.setHeader('Authorization', herettoState.auth);
+                  }
+                });
+              },
+            },
           }
         : undefined,
     },

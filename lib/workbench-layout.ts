@@ -146,6 +146,12 @@ export function focusView(l: WorkbenchLayout, view: ViewId): WorkbenchLayout {
   return { ...l, activeView: view, sidePanelOpen: true };
 }
 
+/** Open the side panel on `view` without ever collapsing it (a command, not the icon's toggle). */
+export function showView(l: WorkbenchLayout, view: ViewId): WorkbenchLayout {
+  if (l.activeView === view && l.sidePanelOpen) return l;
+  return { ...l, activeView: view, sidePanelOpen: true };
+}
+
 export function setSidePanelOpen(l: WorkbenchLayout, open: boolean): WorkbenchLayout {
   return l.sidePanelOpen === open ? l : { ...l, sidePanelOpen: open };
 }

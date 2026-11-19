@@ -41,6 +41,7 @@ const MAP_UUID = '0f0f0f0f-1111-2222-3333-444444444444';
 const def = (mapName: string): KeyDefinition => ({ href: 'w.dita', mapName, mapUuid: 'u', mapFolderUuid: 'f' });
 const registry = (keys: Record<string, string>, name = 'Root.ditamap'): KeyRegistry => ({
   map: { uuid: MAP_UUID, name },
+  maps: new Map(),
   keys: new Map(Object.entries(keys).map(([k, mapName]) => [k, def(mapName)])),
   mapsRead: 2, mapsSkipped: 0, capped: false, duplicates: 0,
 });

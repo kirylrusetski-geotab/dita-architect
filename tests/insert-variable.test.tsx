@@ -58,6 +58,7 @@ const tenant = (): FakeTenant => ({
 
 const registry = (): KeyRegistry => ({
   map: { uuid: 'm', name: 'variables.ditamap' },
+  maps: new Map(),
   keys: new Map([
     ['varsUI', { href: 'UI_Warehouse.dita', mapName: 'variables.ditamap', mapUuid: 'm', mapFolderUuid: 'wh' }],
     ['ghost', { href: 'Missing.dita', mapName: 'variables.ditamap', mapUuid: 'm', mapFolderUuid: 'wh' }],

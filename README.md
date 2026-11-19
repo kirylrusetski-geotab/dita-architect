@@ -1,6 +1,6 @@
 # DITA Architect
 
-A daily-driver DITA editor. Write in a visual editor on the left, see the XML source on the right — changes sync between both sides as you work. Create a topic from a template, mark it up, connect a map for variables, and save to Heretto, without opening Heretto's own editor or hand-writing XML.
+A daily-driver DITA editor. Write in a visual editor, open the XML source beside it when you want it (⌘\\) — changes sync between both sides as you work. A VS Code-style activity bar holds an Explorer, Heretto search and the connected map's tree. Create a topic from a template, mark it up, connect a map for variables, and save to Heretto, without opening Heretto's own editor or hand-writing XML.
 
 Available in two forms: a **browser app** you run with Node.js, and a **native macOS app** built from the Swift shell in `macos/`, with a menu bar (New/Open/Save/Export shortcuts, themes) and native PDF export. Both use the same web frontend.
 
@@ -12,13 +12,13 @@ Available in two forms: a **browser app** you run with Node.js, and a **native m
 
 **Work with tables without touching XML.** Right-click any table cell to insert or delete rows and columns. Works for both CALS tables and simpletables. Notes, definition lists, figures, lists, and code blocks inside a cell show and edit just as they do in the body.
 
-**Open topics from Heretto.** Browse your Heretto CMS folders, search for topics, open them in the editor, and save changes back. The editor detects when someone else edits the same topic while you're working.
+**Open topics from Heretto.** Browse your Heretto CMS folders in the Explorer, search topic text and titles in the Search view (filters for status, type, modified date and product), open a topic from either, and save changes back. The editor detects when someone else edits the same topic while you're working.
 
 **Replace topics in Heretto.** Draft a new version of a topic, preview a side-by-side diff against the live version, and replace it when you're ready.
 
 **Mark up inline elements.** Select text and wrap it in a UI control, code phrase, phrase, term, file path, window title, or cross-reference from the tag-icon menu in the toolbar, or press Ctrl/⌘+Shift+U (`<uicontrol>`) or Ctrl/⌘+Shift+C (`<codeph>`). `Remove inline element` takes one off again. Only the element you add changes in the XML; everything else in the paragraph is written back byte-for-byte.
 
-**Connect a map and insert variables.** Connect a Heretto map from the Heretto menu to load its key registry — chips for existing `conkeyref`/`keyref` references turn solid when they resolve, and the `{}` toolbar button inserts a new variable reference by picking a topic and one of its elements from the connected map.
+**Connect a map and insert variables.** Connect a Heretto map from the Map view or the File menu to load its key registry and see its topic tree, submaps and keys — chips for existing `conkeyref`/`keyref` references turn solid when they resolve, and the `{}` toolbar button inserts a new variable reference by picking a topic and one of its elements from the connected map.
 
 **Track your changes.** Switch the document mode control between Viewing (read-only), Suggesting (your edits become tracked insertions and deletions you can accept or reject one by one, or all at once), and Editing (direct edits).
 

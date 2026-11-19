@@ -1057,6 +1057,56 @@ loader, run against the live tenant: User Guide root 18 keys, warehouse map 15, 
 166 maps in 4.4 s. Limits as stated in Consequences; an Insert Variable search covers the selected key's
 variables, not every key's at once.
 
+**Amendment (2026-11-18, v1.2.0 — UI Overhaul Session 2: FR-071 Map view, FR-072 Heretto search view).**
+Status of the amendment: Accepted (shipped in v1.2.0, 2026-11-19; see the review note below). Two additions, neither a new pattern, so no new ADR:
+
+1. **The registry records the map tree it already walks.** `extractMapEntries` also returns `nodes`: every
+   `<topicref>`-class element with an href or children, in document order, as `{kind: 'topic' | 'map' |
+   'group', href, label, keys, children}` — a submap (`<mapref>` or `format="ditamap"`) is a `map` node, an
+   href-less topichead or topicgroup a `group`. The label is `@navtitle`, else `<navtitle>` (direct or in
+   `<topicmeta>`), else the href's file name without its extension and with underscores read as spaces
+   (Kiryl, 2026-11-18: real topic titles would cost one request per topic; a later release may fetch them
+   lazily). `KeyRegistry` gains `maps: Map<uuid, {name, folderUuid, nodes}>` for every map read and, on
+   every `map` node, the resolved `mapUuid` (null when it was skipped), so the Map view renders the tree
+   lazily, submap by submap, with no second walk and no cycle (a submap already read elsewhere points at the
+   same entry; the view expands on demand, never recursively). `keys`, precedence and the chip states are
+   unchanged, so I1 and I2 hold by construction; the Map view re-asserts I2 (M2).
+2. **A second proxied path: `/heretto-search` → `https://<host>/ezdnxtgen/api/search`**, in
+   `DITASchemeHandler.swift` and `vite.config.ts`, with the same Basic auth injection as `/heretto-api`. The
+   API is documented in the CCMS API v1 guide rev. I (pp. 45–51): one folder URI per request, keywords
+   prefix-matched, drilldowns OR-ed within a field and AND-ed across, date filters on `last_modified` and
+   `created` only, thirteen sorts. The folder URI is `/db/organizations/{org}/repositories/` + the folder's
+   `xmldb-uri`; `/rest` never returns the organization, and the guide defines the organization id as the
+   subdomain used to reach Heretto, which `lib/heretto-search.ts` derives from the configured host (probed
+   2026-11-18: a relative URI is 404, an org-less one 400). A 401/403 is reported in the connection
+   popover's words. A results request is one POST with the user's filters and nothing else (S1); the
+   filter popovers' values and counts come from a separate request with `endOffset: 0` and
+   `facetRequests` for `status`, `content-type` and `Product`, sent only when the query or scope changes.
+   Paging keeps one page size (25) for every page, so offsets past 1,000 stay multiples of it.
+
+The `HerettoBrowserModal` loses its search and becomes a folder picker for Save As and Replace; Open from
+Heretto focuses the Search view; the filename walk (`herettoSearch`) moves to the Explorer as "Search
+filenames in this folder". A tab opened from a search hit or a map topicref gets its `ancestorUuids` by
+walking `parent-folder-id` up to the content root through the shared listing cache.
+
+*Review note (2026-11-19, before release).* A fresh-context reviewer could not falsify S2, M1 (the loader
+matched HEAD's `keys`, `mapsRead`, `mapsSkipped`, `capped`, `duplicates` on every fixture and on synthetic
+cycles, repeats and caps) or M2, and found four defects, all fixed and pinned: the scope folder's lookup
+turned a 401 into "scope could not be read" (it now throws the credentials error); the picker reset and
+aborted the Explorer's filename walk (it no longer touches that state); the facet and results requests
+shared one abort controller, so a sort change cancelled the facets for good and a facet failure blocked
+the results (separate controllers, facets best-effort). Weaknesses fixed: the tree now leaves out
+resource-only non-submap entries and `<ditavalref>` (so the User Guide root shows 32 top-level rows, not
+33), shows `external` links without resolving them (M3 had called them missing), and resolves a
+keyref-only topicref through its key ("key not defined" when absent); the side panel and its views stay
+mounted so Search keeps its state; Enter cancels the pending debounced run; a new query clears the old
+results at once; Reload clears the listing cache and a generation counter drops resolutions from an older
+registry; the tree is one tab stop with arrow / Home / End movement; date filters use the local day; the
+folder-URI cache is keyed by host and shared while in flight; a filename result opens with the scope that
+produced it; a search hit's scope-relative path is used as a fallback only from the root; Vite matches
+`/heretto-search` exactly. Recorded, not changed: Replace has no filename search now (folder browsing
+only), and a folder outside the content root opens with a one-folder ancestry.
+
 ---
 
 ## ADR-014 — Pre-save content-model validation: woven into the live panel, re-checked synchronously at write time

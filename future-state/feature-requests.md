@@ -70,7 +70,7 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟡  | [FR-051](#fr-051-tracked-changes-v2--format-marks-block-merge-tracking-dita-round-trip-carrier) | Tracked changes v2 — format marks, block-merge tracking, DITA round-trip carrier  | 2026-07-17 | Carrier slice shipped v0.13.0 (2026-11-02, ADR-015); format marks, block merges, residuals open |
 | 🟢  | FR-052                                                                                          | Markdown rendering in release notes                                               | 2026-07-20 | Shipped v0.9.1            |
 | 🟢  | FR-053                                                                                          | Release notes modal — X button replaces Close button                              | 2026-07-20 | Shipped v0.9.1            |
-| 🟢  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Open                      |
+| 🟢  | [FR-054](#fr-054-heretto-folder-tree-view-in-browser-modal)                                   | Heretto folder tree view in browser modal                                         | 2026-07-20 | Shipped v1.1.0 (2026-11-17, via FR-070, in the sidebar) |
 | 🟢  | [FR-055](#fr-055-read-active-tab-content-api-endpoint)                                        | Read active tab content API endpoint                                              | 2026-07-30 | Closed 2026-10-20 — already shipped (`GET /api/tabs/:id/content`, v0.3.3) |
 | 🟢  | FR-056                                                                                          | API content loads flush into suggesting mode                                      | 2026-08-04 | Shipped v0.9.2            |
 | 🟢  | FR-057                                                                                          | API whole-document replace rendered as a reviewable diff                          | 2026-08-04 | Shipped v0.9.3            |
@@ -85,9 +85,18 @@ Detailed sections below exist only for open items. Shipped items are fully recor
 | 🟢  | [FR-066](#fr-066-insert-variable-from-the-connected-maps-key-registry)                         | Insert Variable from the connected map's key registry                            | 2026-10-27 | Shipped v0.11.0 (2026-10-28) |
 | 🟢  | [FR-067](#fr-067-pre-save-content-model-validation)                                            | Pre-save content-model validation                                                | 2026-10-28 | Shipped v0.12.0 (2026-10-28, ADR-014) |
 | 🔴  | [FR-068](#fr-068-visual-indicator-for-inline-elements-that-have-no-style)                      | Visual indicator for inline elements that have no style                          | 2026-10-21 | Open |
-| 🟢  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Open (after v0.14.0) |
+| 🟢  | [FR-069](#fr-069-retire-the-in-app-file-options-dropdown-in-the-native-app-once-the-menu-bar-carries-its-commands) | Retire the in-app File Options dropdown in the native app once the menu bar carries its commands | 2026-11-02 | Shipped v1.1.0 (2026-11-17, via FR-070) |
+| 🟢  | [FR-070](#fr-070-workbench-layout--activity-bar-side-panel-right-trays-xml-tray-closed-by-default) | Workbench layout — activity bar, side panel, right trays, XML tray closed by default | 2026-11-16 | Shipped v1.1.0 (2026-11-17, ADR-017) |
+| 🟢  | [FR-071](#fr-071-map-view--browse-the-connected-maps-topicref-tree-in-the-sidebar) | Map view — browse the connected map's topicref tree in the sidebar | 2026-11-16 | Shipped v1.2.0 (2026-11-19, ADR-013 amendment) |
+| 🟢  | [FR-072](#fr-072-heretto-search-view-on-the-search-api) | Heretto search view on the search API | 2026-11-16 | Shipped v1.2.0 (2026-11-19, ADR-013 amendment) |
+| 🔴  | [FR-073](#fr-073-appearance-profiles--personalised-themes-as-data-built-ins-migrated) | Appearance profiles — personalised themes as data, built-ins migrated | 2026-11-16 | Open — Session 3, v1.3.0, ADR-018 |
+| 🔴  | [FR-074](#fr-074-settings-store-and-settings-modal) | Settings store and Settings modal | 2026-11-16 | Open — Session 3, v1.3.0, ADR-018 |
+| 🔴  | [FR-075](#fr-075-metadata-panels--topic-heretto-slice-1-prolog-slice-2-conditions-links-on-the-right-rail) | Metadata panels — Topic, Heretto (slice 1), Prolog (slice 2), Conditions, Links on the right rail | 2026-11-16 | Open — Session 4, v1.4.0, ADR-019 |
+| 🔴  | [FR-076](#fr-076-source-control--outgoing-incoming-and-proposed-change-sets-per-tab) | Source Control — outgoing, incoming, and proposed change sets per tab | 2026-11-16 | Open — Session 5, v1.5.0, ADR-020 |
+| 🟡  | [FR-077](#fr-077-block-level-three-way-merge-for-source-control-conflicts) | Block-level three-way merge for Source Control conflicts | 2026-11-16 | Parked behind FR-076 |
 | 🔴  | [FR-078](#fr-078-session-editors--a-terminal-as-an-attributed-member-suggestions-in-the-visual-editor) | Session editors — a terminal as an attributed member, suggestions in the visual editor | 2026-11-17 | Open — Session 6 of the UI Overhaul plan, v1.6.0, ADR-022 |
 | 🔴  | [FR-079](#fr-079-map-editing--open-a-ditamap-as-a-document-and-edit-its-topicref-tree) | Map editing — open a ditamap as a document and edit its topicref tree | 2026-11-17 | Open — candidate after the UI Overhaul arc (after v1.7.0); own ADR |
+| 🔴  | [FR-080](#fr-080-map-reading-view--the-maps-topics-in-sequence-on-one-page) | Map reading view — the map's topics in sequence on one page | 2026-11-19 | Open — parked next to FR-079 (after v1.7.0); own ADR |
 
 ---
 
@@ -1158,7 +1167,7 @@ The plan's invariants W1–W6: layout state persists and restores with safe defa
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("a user can load up a map and look at all of the options"); supersedes the "ditamap integration" FR-054 pointed to FR-035 for
-**Status:** Open — Session 2 of the UI Overhaul plan, **v1.2.0**, amendment to ADR-013
+**Status:** Shipped in v1.2.0 (2026-11-19) — Session 2 of the UI Overhaul plan, ADR-013 amendment. The loader records each map's navigation tree (`KeyRegistry.maps`, submap nodes linked by UUID); the Map view shows it with submaps expanded in place, labels from `navtitle` or the file name (Kiryl, 2026-11-18: real titles would cost one request per topic), each href resolved when its row becomes visible (missing / could not check), a filterable Keys list, and Connect / Reload / Change / Disconnect. A topicref opens through the import flow with real folder ancestry. Resource-only keydefs and `<ditavalref>` are left out of the tree (their keys are in Keys); external links are shown, never resolved; a keyref-only topicref resolves through its key. Live: the User Guide root 32 navigation topicrefs at the top and 18 keys; the Help Center 84 maps, 284 keys.
 **Priority:** P2
 **Impact:** Medium — makes the connected map (ADR-013) visible as a structure, not only as chip states
 **Model weight:** Opus (with FR-072 in the same session)
@@ -1178,7 +1187,7 @@ Plan invariants M1–M3: the real scrubbed maps in `tests/fixtures/maps/` produc
 
 **Requested:** 2026-11-16
 **Source:** Kiryl — UI overhaul brief ("Heretto search will be moved to the side as well")
-**Status:** Open — Session 2 of the UI Overhaul plan, **v1.2.0**
+**Status:** Shipped in v1.2.0 (2026-11-19) — Session 2 of the UI Overhaul plan, ADR-013 amendment. `lib/heretto-search.ts` over the documented search API (CCMS API v1 guide rev. I, pp. 45–51) through the new `/heretto-search` proxy in both shells; the organization segment of the folder URI is the host's subdomain, as the guide defines it. Status, Type, Modified and Product filters with values and counts from a zero-row facet request; results grouped by folder; one page size (25) for every page; a 401/403 in the credentials' words. The browser dialog is now a picker for Save As and Replace; Open from Heretto shows the Search view; the filename walk lives in the Explorer as "Search filenames in this folder".
 **Priority:** P2
 **Impact:** Medium — replaces a filename-only folder walk with text search over the tenant
 **Model weight:** Opus (with FR-071)
@@ -1336,3 +1345,24 @@ Plan invariants SE1–SE8: sessions register, list, and disconnect with the stat
 ### Acceptance criteria
 
 The map corpus round-trips byte-identically unedited; an edit changes only the bytes of the nodes it names (asserted over the Altitude Help Center and User Guide maps, scrubbed); a saved map is fetched back byte-identical except Heretto's own `class` additions; the key registry of a connected map reflects a saved key change without reconnecting; a terminal `POST /api/load-content` with a map opens a Map tab instead of 400. Decision for Kiryl at shaping time: whether a map edit goes through a review surface (Proposed change set) before save, as topic proposals do.
+
+---
+
+## FR-080: Map reading view — the map's topics in sequence on one page
+
+**Requested:** 2026-11-19
+**Source:** Kiryl, with Heretto's map editor beside the v1.2.0 Map view: in Heretto, opening the Altitude Help Center map stacks its topics in map order on one scrolling page ("Introduction to Altitude", then "Altitude data" directly below it, each its own card with its own status); he asked for "the sequenced topics to appear" the same way when a map loads.
+**Status:** Open — filed 2026-11-19; **parked next to FR-079** (Kiryl, 2026-11-19): a candidate for after the UI overhaul arc (after v1.7.0), not sequenced. Needs its own ADR (a second editor surface: several topics on one canvas).
+**Priority:** P2
+**Impact:** High for reviewing a publication as a reader meets it: today the writer opens topics one tab at a time and loses the sequence
+**Model weight:** Opus for the read-only slice; Fable for in-place editing (several Lexical editors sharing one canvas, each with its own sync, dirty state, suggestions and save)
+
+**Problem:** The Map view (FR-071, v1.2.0) shows a map's structure, but reading the topics in order means opening each one in its own tab. Heretto's map editor shows the whole sequence on one page; DITA Architect cannot.
+**Signal:** Kiryl, 2026-11-19, comparing the two apps on the same map.
+**Smallest slice:** **Read-only.** From the Map view, "Read in sequence" (on the map card, and on any map or topic row for its subtree) opens a **Map reading tab**: every topicref in navigation order rendered by the existing parser as a read-only card (title bar with the file name, Heretto status, and an **Edit** button that opens the topic in its own tab, as today), loaded lazily as the page scrolls (a large map holds thousands of topics), headings indented by map depth, submaps inline. No serializer change, no writes: the cards are views, so the round-trip contract is untouched.
+**Serves:** Reviewing and proofreading a publication in order; the reading half of map-aware authoring, ahead of FR-079's structural editing.
+**Not in scope (first slice):** editing inside a card (slice 2, Fable: one editor per card, each with the existing per-tab state; a cross-card search and replace is out until then), suggestions on cards, reltables, conref resolution beyond what a single tab already does.
+
+### Acceptance criteria
+
+The reading tab shows the topics in exactly the Map view's navigation order (the same `MapNode` tree, ADR-013 amendment); a card is byte-for-byte the topic Heretto holds (no load path formats it, ADR-012); scrolling a large map (the Help Center) keeps a bounded number of topics fetched and rendered at once; Edit opens the same tab an Explorer open would; nothing in the reading tab can change any topic's bytes.

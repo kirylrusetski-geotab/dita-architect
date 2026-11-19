@@ -68,6 +68,13 @@ import { ActivityBar } from './components/workbench/ActivityBar';
 import { SidePanel } from './components/workbench/SidePanel';
 import { ExplorerView } from './components/workbench/views/ExplorerView';
 import { PlaceholderView } from './components/workbench/views/PlaceholderView';
+import { SearchView } from './components/workbench/views/SearchView';
+import { MapView } from './components/workbench/views/MapView';
+import { openableItem } from './lib/heretto-ancestry';
+import { clearHerettoPathCache } from './lib/heretto-path';
+import { isDitamapName } from './lib/heretto-utils';
+import type { HerettoSearchResult } from './types/heretto';
+import type { SearchHit } from './lib/heretto-search';
 import { RightRail } from './components/workbench/RightRail';
 import { PanelColumn } from './components/workbench/PanelColumn';
 import { XmlSplit } from './components/workbench/XmlSplit';
@@ -247,11 +254,8 @@ export default function ProfessionalDitaEditor() {
     herettoSaveFileName,
     setHerettoSaveFileName,
     herettoRefreshing,
-    herettoSearchQuery,
-    setHerettoSearchQuery,
     herettoSearchResults,
     herettoSearchStatus,
-    setHerettoSearchStatus,
     herettoSearchAbortRef,
     importVerification,
     setImportVerification,
@@ -446,6 +450,38 @@ export default function ProfessionalDitaEditor() {
   // ADR-016 decision 3: the macOS menu bar's bridge. Each method calls the same
   // handler the in-app control calls. Re-registers (merging into the shared
   // __ditaApi object) whenever a handler changes — not on every keystroke.
+  // ADR-013 amendment (v1.2.0): Open from Heretto shows the Search view and focuses its box.
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0);
+  const { showView } = workbench;
+  const openFromHeretto = useCallback(() => {
+    showView('search');
+    setSearchFocusRequest(n => n + 1);
+  }, [showView]);
+  // Every non-Explorer way of finding a file opens it through the same import flow, with real ancestry.
+  // The one door every Heretto open goes through: a map connects and shows the Map view (it would open
+  // as a blank topic, FR-079); anything else opens as a topic through the import flow.
+  const { connect: connectMap, connectedMap } = keyRegistry;
+  const openHerettoItem = useCallback((item: HerettoSearchResult) => {
+    if (isDitamapName(item.name)) {
+      showView('map');
+      if (connectedMap?.uuid !== item.uuid) void connectMap(item.uuid);
+      return;
+    }
+    void handleHerettoOpen(item);
+  }, [showView, connectedMap?.uuid, connectMap, handleHerettoOpen]);
+  const openHerettoFile = useCallback((file: { uuid: string; name: string; folderUuid: string }, fallbackPath?: string) => {
+    if (isDitamapName(file.name)) { openHerettoItem({ ...file, type: 'file', path: file.name, ancestorUuids: [] }); return; }
+    void openableItem(file, herettoRootUuid, fallbackPath).then(openHerettoItem);
+  }, [herettoRootUuid, openHerettoItem]);
+  const openSearchHit = useCallback((hit: SearchHit, scopeIsRoot: boolean) => {
+    // The hit's path is relative to the search scope; it is the right fallback only when that is the root (review finding 16).
+    openHerettoFile({ uuid: hit.uuid, name: hit.name, folderUuid: hit.folderUuid }, scopeIsRoot ? hit.path : undefined);
+  }, [openHerettoFile]);
+  const openFileUuids = new Set(tabs.map(t => t.herettoFile?.uuid).filter((u): u is string => !!u));
+  const activeFolder = activeTab.herettoFile?.parentFolderUuid
+    ? { uuid: activeTab.herettoFile.parentFolderUuid, name: activeTab.herettoFile.path.split('/').slice(-2, -1)[0] || 'this folder' }
+    : null;
+
   const activeHasReplaceTarget = !!activeTab?.herettoReplaceTarget;
   // The diff modal needs a target; without one, pick it in the browser first.
   // One handler for the File menu, the Explorer menu and the rail popover (Gate 7).
@@ -463,7 +499,8 @@ export default function ProfessionalDitaEditor() {
       openReplace,
       exportPdf: handlePrint,
       openHerettoStatus,
-      openHerettoBrowser,
+      // The bridge's Open from Heretto row shows the Search view; Save/Replace still pick in the dialog.
+      openHerettoBrowser: async (mode) => { if (mode === 'open') openFromHeretto(); else await openHerettoBrowser(mode); },
       openReleaseNotes: () => setIsReleaseNotesOpen(true),
       openKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
       togglePanel: workbench.togglePanel,
@@ -482,7 +519,7 @@ export default function ProfessionalDitaEditor() {
     activeTabId, handleNewTopic, handleCloseTab, handleHerettoSave, openHerettoBrowser, openReplace,
     openHerettoStatus, handlePrint, handleThemeChange, handleSyntaxThemeChange, appTheme, syntaxTheme,
     setIsKeyboardShortcutsOpen, workbench.togglePanel, workbench.toggleRail, workbench.focusView,
-    reloadMap, disconnectMap,
+    reloadMap, disconnectMap, openFromHeretto,
   ]);
 
   // ADR-016 decision 5: the View menu's check marks come from this push.
@@ -549,6 +586,9 @@ export default function ProfessionalDitaEditor() {
       {(isConnectMapOpen || keyRegistry.error) && (
         <ConnectMapModal
           connectedMapName={keyRegistry.connectedMap?.name ?? null}
+          host={herettoCredentials.host}
+          rootUuid={herettoRootUuid}
+          herettoConnected={herettoConnected}
           loading={keyRegistry.loading}
           error={keyRegistry.error}
           onConnect={keyRegistry.connect}
@@ -638,43 +678,27 @@ export default function ProfessionalDitaEditor() {
         <HerettoBrowserModal
           mode={herettoBrowserMode}
           rootUuid={herettoRootUuid}
-          searchQuery={herettoSearchQuery}
-          setSearchQuery={setHerettoSearchQuery}
           breadcrumbs={herettoBreadcrumbs}
           setBreadcrumbs={setHerettoBreadcrumbs}
-          searchAbortRef={herettoSearchAbortRef}
-          search={herettoSearch}
-          searchStatus={herettoSearchStatus}
-          setSearchStatus={setHerettoSearchStatus}
-          searchResults={herettoSearchResults}
           selected={herettoSelected}
           setSelected={setHerettoSelected}
           browsing={herettoBrowsing}
           items={herettoItems}
           navigate={herettoNavigate}
-          onOpen={(item) => {
-            if (herettoBrowserMode === 'replace') {
-              // Set replace target for current tab
-              const pathStr = 'path' in item && item.path
-                ? item.path
-                : herettoBreadcrumbs.slice(1).map(b => b.name).join('/') + '/' + item.name;
-
-              setTabs(prev => prev.map(t =>
-                t.id === activeTab?.id
-                  ? { ...t, herettoReplaceTarget: { uuid: item.uuid, name: item.name, path: pathStr } }
-                  : t
-              ));
-              setIsHerettoBrowserOpen(false);
-            } else {
-              // Normal open behavior
-              handleHerettoOpen(item);
-            }
+          onPick={(item) => {
+            // Replace: the picked file becomes this tab's replace target.
+            const pathStr = herettoBreadcrumbs.slice(1).map(b => b.name).concat(item.name).join('/');
+            setTabs(prev => prev.map(t =>
+              t.id === activeTab?.id
+                ? { ...t, herettoReplaceTarget: { uuid: item.uuid, name: item.name, path: pathStr } }
+                : t
+            ));
+            setIsHerettoBrowserOpen(false);
           }}
           saveFileName={herettoSaveFileName}
           setSaveFileName={setHerettoSaveFileName}
           saving={herettoSaving}
           onSaveNew={handleHerettoSaveNew}
-          onCreateNew={() => { setIsHerettoBrowserOpen(false); setIsNewTopicModalOpen(true); }}
           onClose={() => setIsHerettoBrowserOpen(false)}
           isLastSavedLocation={herettoAtLastSavedLocation}
           onBrowseFromRoot={onBrowseFromRoot}
@@ -738,7 +762,7 @@ export default function ProfessionalDitaEditor() {
             rootUuid: herettoRootUuid,
             onTest: () => { void testHerettoConnection(); },
             onOpenCredentials: () => { void openHerettoStatus(); },
-            onOpenFromHeretto: () => { void openHerettoBrowser('open'); },
+            onOpenFromHeretto: openFromHeretto,
             onSave: () => { void handleHerettoSave(); },
             onReplace: openReplace,
             onDisconnect: activeTab.herettoFile ? handleHerettoDisconnect : null,
@@ -755,9 +779,11 @@ export default function ProfessionalDitaEditor() {
           }}
         />
 
-        {layout.sidePanelOpen && (
+        {/* Hidden, not unmounted, when collapsed: the views keep their state (review finding 7). */}
+        <div style={{ display: layout.sidePanelOpen ? 'contents' : 'none' }} data-testid="side-panel-host">
           <SidePanel width={layout.sidePanelWidth} onResize={workbench.setSidePanelWidth}>
-            {layout.activeView === 'explorer' ? (
+            {/* Every view stays mounted so a switch keeps its state (Search's query and results, review finding 7). */}
+            <div className="flex-1 flex flex-col min-h-0" style={{ display: layout.activeView === 'explorer' ? 'flex' : 'none' }}>
               <ExplorerView
                 tabs={tabs.map(t => ({
                   id: t.id,
@@ -772,11 +798,12 @@ export default function ProfessionalDitaEditor() {
                 herettoConnected={herettoConnected}
                 rootUuid={herettoRootUuid}
                 host={herettoCredentials.host}
-                onOpenTopic={item => { void handleHerettoOpen(item); }}
+                onOpenTopic={openHerettoItem}
+                filenameSearch={{ run: herettoSearch, results: herettoSearchResults, status: herettoSearchStatus, abortRef: herettoSearchAbortRef }}
                 commands={{
                   onNewTopic: () => setIsNewTopicModalOpen(true),
                   onOpenLocalFile: handleUploadClick,
-                  onOpenFromHeretto: () => { void openHerettoBrowser('open'); },
+                  onOpenFromHeretto: openFromHeretto,
                   onSaveToHeretto: () => { void handleHerettoSave(); },
                   onSaveLocalCopy: openSaveModal,
                   onReplace: openReplace,
@@ -789,11 +816,35 @@ export default function ProfessionalDitaEditor() {
                   onKeyboardShortcuts: () => setIsKeyboardShortcutsOpen(true),
                 }}
               />
-            ) : (
-              <PlaceholderView view={layout.activeView} />
-            )}
+            </div>
+            <div className="flex-1 flex flex-col min-h-0" style={{ display: layout.activeView === 'search' ? 'flex' : 'none' }}>
+              <SearchView
+                herettoConnected={herettoConnected}
+                host={herettoCredentials.host}
+                rootUuid={herettoRootUuid}
+                currentFolder={activeFolder}
+                focusRequest={searchFocusRequest}
+                onOpenHit={openSearchHit}
+                onOpenCredentials={() => { void openHerettoStatus(); }}
+                onTestConnection={() => { void testHerettoConnection(); }}
+              />
+            </div>
+            <div className="flex-1 flex flex-col min-h-0" style={{ display: layout.activeView === 'map' ? 'flex' : 'none' }}>
+              <MapView
+                registry={keyRegistry.registry}
+                connectedMap={keyRegistry.connectedMap}
+                loading={keyRegistry.loading}
+                herettoConnected={herettoConnected}
+                openFileUuids={openFileUuids}
+                onConnect={() => setIsConnectMapOpen(true)}
+                onReload={() => { clearHerettoPathCache(); void reloadMap(); }}
+                onDisconnect={disconnectMap}
+                onOpenTopic={file => openHerettoFile(file)}
+              />
+            </div>
+            {layout.activeView === 'scm' && <PlaceholderView view="scm" />}
           </SidePanel>
-        )}
+        </div>
 
         {/* The editor column and the XML split share this container (the split's percentage is of its width). */}
         <div className="flex-1 flex min-w-0 min-h-0" ref={splitContainerRef} data-testid="editor-split">

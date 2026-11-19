@@ -39,9 +39,40 @@ export interface KeyDefinition {
   scope?: string;
 }
 
+/**
+ * ADR-013 amendment (2026-11-18): one navigation node of a map, as the Map view
+ * shows it. `map` is a submap (`<mapref>` or `format="ditamap"`); `group` an
+ * href-less topichead/topicgroup that only holds children; `external` a link out
+ * of the repository (`scope="external"` or a URL), never resolved in Heretto.
+ * Resource-only entries that are not submaps (keydefs) and `<ditavalref>` are not
+ * navigation and are left out; their keys are in the registry's Keys list.
+ */
+export interface MapNode {
+  kind: 'topic' | 'map' | 'group' | 'external';
+  /** As the map writes it (fragment included); relative to the map's folder. */
+  href: string | null;
+  /** A topicref that points by key instead of href: resolved through the registry. */
+  keyref?: string;
+  label: string;
+  /** Keys defined on this element (its @keys, split). */
+  keys: string[];
+  children: MapNode[];
+  /** `map` nodes only: the submap's UUID when it was read (an entry in `KeyRegistry.maps`), else null. */
+  mapUuid?: string | null;
+}
+
+/** A map the walk read: where it lives and its navigation tree. */
+export interface MapRecord {
+  name: string;
+  folderUuid: string;
+  nodes: MapNode[];
+}
+
 export interface KeyRegistry {
   map: { uuid: string; name: string };
   keys: Map<string, KeyDefinition>;
+  /** Every map read, the connected one included, by UUID (ADR-013 amendment). */
+  maps: Map<string, MapRecord>;
   /** Maps read, the connected one included. */
   mapsRead: number;
   /** Submaps that were referenced but could not be resolved, fetched, or parsed. */
@@ -58,7 +89,64 @@ interface MapEntries {
   /** In document order. `scope` is the dotted keyscope chain, if any. */
   keys: { name: string; href: string | null; scope?: string }[];
   submaps: string[];
+  /** The navigation tree (ADR-013 amendment). */
+  nodes: MapNode[];
 }
+
+const isTopicrefClass = (el: Element): boolean =>
+  ` ${el.getAttribute('class') ?? ''} `.includes(' map/topicref ') ||
+  ['topicref', 'mapref', 'keydef', 'topichead', 'topicgroup', 'glossref', 'chapter', 'appendix', 'part', 'frontmatter', 'backmatter'].includes(el.tagName);
+
+const isSubmapRef = (el: Element): boolean => el.tagName === 'mapref' || el.getAttribute('format') === 'ditamap';
+
+/** The label a topicref shows when it has no navtitle: its file name, read as words. */
+export const labelForHref = (href: string | null): string => {
+  if (!href) return '(untitled)';
+  const file = href.split('#')[0].split('/').pop() ?? '';
+  let stem = file.replace(/\.[^.]+$/, '');
+  try { stem = decodeURIComponent(stem); } catch { /* keep the raw spelling */ }
+  const words = stem.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  return words || '(untitled)';
+};
+
+const navtitleOf = (el: Element): string | null => {
+  const attr = el.getAttribute('navtitle')?.trim();
+  if (attr) return attr;
+  for (const child of Array.from(el.children)) {
+    if (child.tagName === 'navtitle') return child.textContent?.replace(/\s+/g, ' ').trim() || null;
+    if (child.tagName === 'topicmeta') {
+      const nav = Array.from(child.children).find(c => c.tagName === 'navtitle');
+      if (nav) return nav.textContent?.replace(/\s+/g, ' ').trim() || null;
+    }
+  }
+  return null;
+};
+
+/** The navigation nodes under `el`, skipping relationship tables and non-topicref wrappers. */
+const collectNodes = (el: Element): MapNode[] => {
+  const out: MapNode[] = [];
+  for (const child of Array.from(el.children)) {
+    if (child.tagName === 'reltable' || ` ${child.getAttribute('class') ?? ''} `.includes(' map/reltable ')) continue;
+    if (!isTopicrefClass(child)) { out.push(...collectNodes(child)); continue; }
+    if (child.tagName === 'ditavalref' || ` ${child.getAttribute('class') ?? ''} `.includes(' ditavalref-d/ditavalref ')) continue;
+    const href = child.getAttribute('href') || null;
+    const submap = !!href && isSubmapRef(child);
+    if (child.getAttribute('processing-role') === 'resource-only' && !submap) continue;
+    const children = collectNodes(child);
+    const nav = navtitleOf(child);
+    const keyref = child.getAttribute('keyref')?.trim() || undefined;
+    if (!href && !keyref && children.length === 0 && !nav) continue;
+    const keys = child.getAttribute('keys')?.trim().split(/\s+/).filter(Boolean) ?? [];
+    const external = !!href && (child.getAttribute('scope') === 'external' || /^[a-z][a-z0-9+.-]*:/i.test(href));
+    const kind: MapNode['kind'] = submap ? 'map' : external ? 'external' : href || keyref ? 'topic' : 'group';
+    const label = nav ?? (href ? labelForHref(href) : keyref ?? '(untitled)');
+    out.push({ kind, href, label, keys, children, ...(keyref && !href ? { keyref } : null), ...(kind === 'map' ? { mapUuid: null } : null) });
+  }
+  return out;
+};
+
+/** How many nodes a tree holds, nested ones included. */
+export const countNodes = (nodes: MapNode[]): number => nodes.reduce((n, node) => n + 1 + countNodes(node.children), 0);
 
 const isMapRoot = (el: Element): boolean =>
   el.tagName === 'map' || ` ${el.getAttribute('class') ?? ''} `.includes(' map/map ');
@@ -70,7 +158,7 @@ export const extractMapEntries = (xml: string): MapEntries => {
   const root = doc.documentElement;
   if (!isMapRoot(root)) throw new MapLoadError('not-a-map', `This file is a <${root.tagName}>, not a map.`);
 
-  const entries: MapEntries = { keys: [], submaps: [] };
+  const entries: MapEntries = { keys: [], submaps: [], nodes: collectNodes(root) };
   const walk = (el: Element, scope: string | undefined) => {
     // A @keyscope element's own keys and everything inside it are in its scope.
     const scopeName = el.getAttribute('keyscope')?.trim().split(/\s+/)[0];
@@ -80,7 +168,7 @@ export const extractMapEntries = (xml: string): MapEntries => {
     if (keys) {
       for (const name of keys.trim().split(/\s+/)) entries.keys.push({ name, href: href || null, ...(here ? { scope: here } : null) });
     }
-    if (href && (el.tagName === 'mapref' || el.getAttribute('format') === 'ditamap')) entries.submaps.push(href);
+    if (href && isSubmapRef(el)) entries.submaps.push(href);
     for (const child of Array.from(el.children)) walk(child, here);
   };
   walk(root, undefined);
@@ -130,6 +218,7 @@ export const loadKeyRegistry = async (mapUuid: string): Promise<KeyRegistry> => 
   const registry: KeyRegistry = {
     map: { uuid: root.file.uuid, name: root.file.name },
     keys: new Map(),
+    maps: new Map([[root.file.uuid, { name: root.file.name, folderUuid: root.file.folderUuid, nodes: rootEntries.nodes }]]),
     mapsRead: 1,
     mapsSkipped: 0,
     capped: false,
@@ -149,6 +238,9 @@ export const loadKeyRegistry = async (mapUuid: string): Promise<KeyRegistry> => 
     }
   };
 
+  // Where each (map, submap href) pair led: the submap's UUID, or null (ADR-013 amendment).
+  const resolved = new Map<string, string | null>();
+  const refKey = (fromUuid: string, href: string) => `${fromUuid}\u0000${href}`;
   const visited = new Set<string>([root.file.uuid]);
   record(root.file, rootEntries);
   let level: { file: MapFile; entries: MapEntries }[] = [{ file: root.file, entries: rootEntries }];
@@ -161,7 +253,9 @@ export const loadKeyRegistry = async (mapUuid: string): Promise<KeyRegistry> => 
     // Resolve this level's references in parallel; keep document order for precedence.
     const targets = await Promise.all(refs.map(r => resolveHerettoPath(r.href, r.from.folderUuid)));
     const next: MapFile[] = [];
-    for (const target of targets) {
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
+      resolved.set(refKey(refs[i].from.uuid, refs[i].href), target ? target.uuid : null);
       if (!target) { registry.mapsSkipped++; continue; }
       if (visited.has(target.uuid)) continue;
       if (registry.mapsRead + next.length >= MAX_MAPS) { registry.capped = true; break; }
@@ -182,6 +276,7 @@ export const loadKeyRegistry = async (mapUuid: string): Promise<KeyRegistry> => 
     for (const m of loaded) {
       if (!m) { registry.mapsSkipped++; continue; }
       registry.mapsRead++;
+      registry.maps.set(m.file.uuid, { name: m.file.name, folderUuid: m.file.folderUuid, nodes: m.entries.nodes });
       record(m.file, m.entries);
       level.push(m);
     }
@@ -191,5 +286,17 @@ export const loadKeyRegistry = async (mapUuid: string): Promise<KeyRegistry> => 
   for (const [name, def] of scopedBare) {
     if (!registry.keys.has(name)) registry.keys.set(name, def);
   }
+
+  // Point every submap node at the map it led to, when that map was read.
+  const link = (fromUuid: string, nodes: MapNode[]) => {
+    for (const node of nodes) {
+      if (node.kind === 'map' && node.href) {
+        const uuid = resolved.get(refKey(fromUuid, node.href)) ?? null;
+        node.mapUuid = uuid && registry.maps.has(uuid) ? uuid : null;
+      }
+      link(fromUuid, node.children);
+    }
+  };
+  for (const [uuid, rec] of registry.maps) link(uuid, rec.nodes);
   return registry;
 };

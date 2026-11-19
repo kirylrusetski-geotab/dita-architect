@@ -11,6 +11,7 @@ import {
   parseStoredLayout,
   serializeLayout,
   focusView,
+  showView,
   setSidePanelWidth,
   togglePanel,
   setPanelSize,
@@ -158,6 +159,16 @@ describe('views', () => {
     expect(l.activeView).toBe('search');
     l = focusView(l, 'search');
     expect(l.sidePanelOpen).toBe(true);
+  });
+
+  it('showView opens the panel on a view and never collapses it (Open from Heretto)', () => {
+    let l = focusView(defaultLayout(), 'search');
+    expect(showView(l, 'search')).toBe(l);                     // already showing: unchanged
+    l = focusView(l, 'search');                                // the icon collapses it
+    expect(l.sidePanelOpen).toBe(false);
+    l = showView(l, 'search');
+    expect(l).toMatchObject({ activeView: 'search', sidePanelOpen: true });
+    expect(showView(defaultLayout(), 'map')).toMatchObject({ activeView: 'map', sidePanelOpen: true });
   });
 
   it('the side panel width is clamped to 200–480', () => {

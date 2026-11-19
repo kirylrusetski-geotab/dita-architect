@@ -42,12 +42,13 @@ export function useHerettoCms({
 
   // --- Heretto CMS state (shared across tabs) ---
   const [isHerettoBrowserOpen, setIsHerettoBrowserOpen] = useState(false);
-  const [herettoBrowserMode, setHerettoBrowserMode] = useState<'open' | 'save' | 'replace'>('open');
+  // ADR-013 amendment (v1.2.0): the browser is a picker; finding a topic is the Explorer's and Search's job.
+  const [herettoBrowserMode, setHerettoBrowserMode] = useState<'save' | 'replace'>('save');
   const [herettoConnected, setHerettoConnected] = useState(false);
   const [herettoBrowsing, setHerettoBrowsing] = useState(false);
   const [herettoBreadcrumbs, setHerettoBreadcrumbs] = useState<{ uuid: string; name: string }[]>([]);
   const [herettoItems, setHerettoItems] = useState<HerettoItem[]>([]);
-  const [herettoSelected, setHerettoSelected] = useState<HerettoItem | HerettoSearchResult | null>(null);
+  const [herettoSelected, setHerettoSelected] = useState<HerettoItem | null>(null);
   const [herettoSaving, setHerettoSaving] = useState(false);
   const [herettoSaveProgress, setHerettoSaveProgress] = useState<'idle' | 'saving' | 'verifying' | 'complete'>('idle');
   // FR-067 / ADR-014: a blocked Save to Heretto has no existing feedback
@@ -64,11 +65,9 @@ export function useHerettoCms({
   const herettoRefreshAbortRef = useRef<AbortController | null>(null);
 
   // --- Heretto search state ---
-  const [herettoSearchQuery, setHerettoSearchQuery] = useState('');
   const [herettoSearchResults, setHerettoSearchResults] = useState<HerettoSearchResult[]>([]);
   const [herettoSearchStatus, setHerettoSearchStatus] = useState<HerettoSearchStatus>({ phase: 'idle' });
   const herettoSearchAbortRef = useRef<AbortController | null>(null);
-  const herettoSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Import verification modal state ---
   const [importVerification, setImportVerification] =
@@ -350,57 +349,14 @@ export function useHerettoCms({
     }
   }, []);
 
-  // Debounced search trigger
-  useEffect(() => {
-    if (!isHerettoBrowserOpen) return;
 
-    if (herettoSearchDebounceRef.current) {
-      clearTimeout(herettoSearchDebounceRef.current);
-    }
-
-    if (!herettoSearchQuery.trim()) {
-      herettoSearchAbortRef.current?.abort();
-      setHerettoSearchResults([]);
-      setHerettoSearchStatus({ phase: 'idle' });
-      return;
-    }
-
-    herettoSearchDebounceRef.current = setTimeout(() => {
-      herettoSearchAbortRef.current?.abort();
-      const abort = new AbortController();
-      herettoSearchAbortRef.current = abort;
-
-      const searchRoot = herettoBreadcrumbs.length > 0
-        ? herettoBreadcrumbs[herettoBreadcrumbs.length - 1].uuid
-        : herettoRootUuid;
-      if (!searchRoot) return;
-
-      herettoSearch(herettoSearchQuery.trim(), searchRoot, abort.signal);
-    }, 350);
-
-    return () => {
-      if (herettoSearchDebounceRef.current) {
-        clearTimeout(herettoSearchDebounceRef.current);
-      }
-    };
-  }, [herettoSearchQuery, isHerettoBrowserOpen, herettoBreadcrumbs, herettoSearch, herettoRootUuid]);
-
-  // Cleanup: abort search when modal closes
-  useEffect(() => {
-    if (!isHerettoBrowserOpen) {
-      herettoSearchAbortRef.current?.abort();
-    }
-  }, [isHerettoBrowserOpen]);
-
-  const openHerettoBrowser = useCallback(async (mode: 'open' | 'save' | 'replace') => {
+  const openHerettoBrowser = useCallback(async (mode: 'save' | 'replace') => {
     setHerettoBrowserMode(mode);
     setIsHerettoBrowserOpen(true);
     setHerettoSelected(null);
     setHerettoItems([]);
     setHerettoBreadcrumbs([]);
-    setHerettoSearchQuery('');
-    setHerettoSearchResults([]);
-    setHerettoSearchStatus({ phase: 'idle' });
+    // The filename walk's results and status belong to the Explorer now (v1.2.0); the picker leaves them alone.
     if (mode === 'save') {
       // P2-23: pre-populate filename from topic title, falling back to "topic"
       const title = getTitleFromXml(activeTab.xmlContent);
@@ -868,8 +824,6 @@ export function useHerettoCms({
     herettoSaveFileName,
     setHerettoSaveFileName,
     herettoRefreshing,
-    herettoSearchQuery,
-    setHerettoSearchQuery,
     herettoSearchResults,
     herettoSearchStatus,
     setHerettoSearchStatus,
